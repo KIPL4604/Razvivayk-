@@ -1,0 +1,4 @@
+# Preserve published bytes and recognize upstream CRLF line endings.
+* -text whitespace=trailing-space,space-before-tab,cr-at-eol
+# Generated upstream parser has mixed space/tab indentation; do not reformat it.
+chess/chess.mjs whitespace=trailing-space,cr-at-eol,-space-before-tab

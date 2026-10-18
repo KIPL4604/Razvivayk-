@@ -1,0 +1,11 @@
+.env
+deploy/.env
+runtime/
+__pycache__/
+*.pyc
+.git/
+node_modules/
+tests/
+output/
+.playwright-cli/
+design/

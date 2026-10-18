@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#F5F7FB">
+  <title>Развивайка · Teramont</title>
+  <link rel="icon" href="/static/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/static/css/app.css?v=4">
+  <link rel="stylesheet" href="/static/css/chess.css?v=1">
+  <link rel="stylesheet" href="/static/css/poker-cards.css?v=1">
+  <link rel="stylesheet" href="/static/css/poker.css?v=1">
+  <script src="https://telegram.org/js/telegram-web-app.js" defer></script>
+  <script src="/static/js/puzzles.js?v=4" defer></script>
+  <script src="/static/js/visuals.js?v=4" defer></script>
+  <script src="/static/js/chess-pieces.js?v=1" defer></script>
+  <script src="/static/js/chess-mode.js?v=1" defer></script>
+  <script src="/static/js/poker-cards.js?v=1" defer></script>
+  <script src="/static/js/poker-mode.js?v=1" defer></script>
+  <script src="/static/js/games.js?v=6" defer></script>
+</head>
+<body>
+<div id="app">
+  <a class="skip-main-content-link" href="#main">Перейти к игре</a>
+  <header class="app-header">
+    <div class="brand-lockup"><div class="brand-mark" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none"><path d="M6 7h20v6h-7v14h-6V13H6Z" fill="currentColor"/><path d="M23 20h4v7h-4z" fill="currentColor" opacity=".45"/></svg></div><div><div class="brand">Развивайка</div><div class="brand-caption">TERAMONT</div></div></div>
+    <div class="header-actions"><button class="profile-shortcut" data-screen-link="profile" type="button" aria-label="Открыть профиль"><span class="avatar avatar-small" id="headerAvatar">И</span><span class="header-rank" id="headerRank">Новичок</span></button><button class="icon-button" data-screen-link="help" type="button" aria-label="Как играть"><span data-ui-icon="help"></span></button></div>
+    <div class="sidebar-note"><span class="eyebrow">В своём темпе</span><p>Маленькая партия.<br>Новый сильный ход.</p><span>Логика · память · внимание</span></div>
+  </header>
+  <main id="main" tabindex="-1">
+    <div class="connection-banner"><span class="status-dot" aria-hidden="true"></span><span id="connectionStatus" role="status">Загружаем игры…</span><button class="text-button hidden" id="retryConnection" type="button">Повторить подключение</button></div>
+    <div id="launchStatus" class="launch-status" role="status"></div>
+    <section class="screen active" data-screen="home" aria-labelledby="homeTitle">
+      <div class="welcome-block"><div><p class="eyebrow">Время для себя</p><h1 id="homeTitle">Во что сыграем?</h1><p class="lead">Выбери игру. Найди свой ритм.</p></div><span class="library-count"><strong>12</strong> игр<br><span>1000 уровней</span></span></div>
+      <div id="resumeList"></div>
+      <div class="pending-notice hidden" id="pendingNotice"><span>Результат сохранён на устройстве и ждёт отправки.</span><button class="text-button" id="retryPending" type="button">Повторить сохранение</button></div>
+      <div class="category-filters" role="group" aria-label="Фильтр игр"><button class="active" data-filter="Все" aria-pressed="true" type="button">Все игры</button><button data-filter="Логика" aria-pressed="false" type="button">Логика</button><button data-filter="Память" aria-pressed="false" type="button">Память</button><button data-filter="Мышление" aria-pressed="false" type="button">Мышление</button><button data-filter="Внимание" aria-pressed="false" type="button">Внимание</button></div>
+      <h2 class="sr-only">Игры</h2><div class="campaign-grid" id="campaignCards"></div>
+      <div class="home-bottom"><span class="small-brand">Твой ход — твой прогресс.</span><button class="text-button" data-screen-link="help" type="button">Как всё устроено <span data-ui-icon="arrow"></span></button></div>
+      <button class="player-overview" type="button" data-screen-link="profile"><span class="avatar" id="homeAvatar">И</span><span class="player-copy"><strong id="homePlayerName">Игрок</strong><span class="rank-line"><span id="homeRank">Новичок</span> · уровень <span id="homeLevel">1</span></span><span class="xp-track"><span id="homeXpBar"></span></span><span class="xp-caption"><span id="homeXpText">0 / 100 XP</span><span id="homeNextRank">до звания Практик</span></span></span><span data-ui-icon="arrow"></span></button>
+      <div class="home-footer"><span><strong id="homeGamesCount">0</strong> партий</span><span><strong id="homeAchievementCount">0</strong> достижений</span><span><strong id="homeStreak">0</strong> дней подряд</span></div>
+    </section>
+    <section class="screen" data-screen="levels" aria-labelledby="campaignTitle">
+      <div class="page-toolbar"><button class="back-button" data-screen-link="home" type="button"><span data-ui-icon="back"></span>Игры</button><span class="page-kicker">Твой маршрут</span></div>
+      <div class="campaign-heading"><span id="campaignArt"></span><div><p class="eyebrow" id="campaignCategory">Логика</p><h1 class="page-title" id="campaignTitle">Судоку</h1><p class="page-intro" id="campaignProgressText">0 из 100 уровней пройдено</p></div></div>
+      <div class="xp-track campaign-progress" role="progressbar" aria-label="Прогресс кампании" aria-valuemin="0" aria-valuemax="100" id="campaignProgress"><span id="campaignProgressBar"></span></div>
+      <div class="campaign-launch"><div><p class="eyebrow" id="nextLevelLabel">Первый шаг</p><h2>Уровень <span id="nextLevelNumber">1</span> <span class="muted">из 100</span></h2><p id="nextLevelDescription">Глава 1 · легко</p></div><button class="primary-button" id="playCurrentLevel" data-play-current-level="true" type="button"><span id="campaignPlayLabel">Играть</span><span data-ui-icon="arrow"></span></button></div>
+      <div class="section-heading"><h2>Карта уровней</h2><span class="section-count">10 глав</span></div><div id="levelMap"></div>
+      <button class="secondary-button free-play-button" id="freePlay" type="button">Свободная игра <span>выбрать сложность →</span></button>
+      <div class="campaign-switch"><label class="answer-label" for="campaignSelect">Другая кампания</label><select id="campaignSelect" class="campaign-select"><option value="sudoku">Судоку</option><option value="memory">Найди пары</option><option value="riddles">Логические задачи</option><option value="sequences">Числовые ряды</option><option value="tiles">Пятнашки</option><option value="pattern">Матрица памяти</option><option value="nonogram">Японский кроссворд</option><option value="arithmetic">Устный счёт</option><option value="rebuses">Шифры и ребусы</option><option value="stroop">Цвет и внимание</option></select></div>
+    </section>
+    <section class="screen" data-screen="profile" aria-labelledby="profileName">
+      <div class="page-toolbar"><button class="back-button" data-screen-link="home" type="button"><span data-ui-icon="back"></span>Игры</button><span class="page-kicker">Твой прогресс</span></div>
+      <div class="profile-hero"><span class="avatar avatar-large" id="profileAvatar">И</span><div class="profile-identity"><p class="eyebrow">Игровой профиль</p><h1 id="profileName">Игрок</h1><p class="profile-username" id="profileUsername">Профиль игрока</p></div></div>
+      <div class="profile-grid"><div class="rank-panel"><div class="rank-panel-top"><span class="eyebrow">Текущее звание</span><span class="rank-emblem" id="rankEmblem" aria-hidden="true"></span></div><strong id="profileRank">Новичок</strong><div class="rank-progress-copy"><span>Уровень <b id="profileLevel">1</b></span><span id="profileXpText">0 / 100 XP</span></div><div class="xp-track" role="progressbar" aria-label="Опыт до следующего уровня" aria-valuemin="0" aria-valuemax="100" id="profileXpProgress"><span id="profileXpBar"></span></div><p id="rankNextText">До следующего звания — 2 уровня</p></div><div class="next-achievement" id="nextAchievement"></div></div>
+      <div class="stat-grid"><div class="stat-item"><strong id="statGames">0</strong><span>партий</span></div><div class="stat-item"><strong id="statStreak">0</strong><span>дней подряд</span></div><div class="stat-item"><strong id="statSudoku">0</strong><span>этапов</span></div><div class="stat-item"><strong id="statMemory">0</strong><span>опыта XP</span></div></div>
+      <p class="game-note" id="streakNote">Серия начинается с первой завершённой партии.</p>
+      <div class="section-heading profile-section-heading"><h2>Твоя коллекция</h2><span class="section-count" id="achievementCount">0 / 30</span></div><div class="achievement-list" id="achievementList"></div>
+      <details class="profile-campaign-details"><summary>Прогресс всех кампаний <span>10 игр</span></summary><div id="profileCampaigns" class="profile-campaigns"></div></details>
+    </section>
+    <section class="screen" data-screen="game" aria-label="Игровая партия">
+      <div class="game-toolbar"><button class="icon-button" data-screen-link="levels" type="button" aria-label="Вернуться в кампанию"><span data-ui-icon="back"></span></button><h1 id="gameTitle">Судоку</h1><button class="icon-button" id="gameHelp" type="button" aria-label="Правила игры" aria-expanded="false" aria-controls="gameRules"><span data-ui-icon="help"></span></button></div>
+      <div class="game-status"><span id="gameLevelStatus">Уровень 1 · Легко</span><div class="game-clock"><span data-ui-icon="clock"></span><span id="gameTimer">00:00</span></div></div>
+      <div id="gameRules" class="game-rules hidden" role="region" aria-label="Правила игры"></div><div id="gameMount"></div>
+    </section>
+    <section class="screen" data-screen="chess" aria-labelledby="chessSetupTitle">
+      <div class="page-toolbar"><button class="back-button" data-screen-link="home" type="button"><span data-ui-icon="back"></span>Игры</button><span class="page-kicker">Против компьютера</span></div>
+      <div id="chessSetupMount"></div>
+    </section>
+    <section class="screen" data-screen="chess-game" aria-label="Шахматная партия">
+      <div class="game-toolbar"><button class="icon-button" data-chess-action="setup" type="button" aria-label="Вернуться к шахматам"><span data-ui-icon="back"></span></button><h1>Шахматы</h1><button class="icon-button" data-chess-action="rules" type="button" aria-label="Правила шахмат" aria-expanded="false" aria-controls="chessRules"><span data-ui-icon="help"></span></button></div>
+      <div class="game-status"><span id="chessLevelLabel">Легко · ты белыми</span><span>Без часов</span></div>
+      <div id="chessRules" class="game-rules hidden" role="region" aria-label="Правила шахмат">Нажми на свою фигуру, затем на одну из подсвеченных клеток. Цель — поставить мат: атаковать короля так, чтобы он не мог защититься. Рокировка и взятие на проходе выполняются ходом короля или пешки. Для пешки на последней горизонтали появится выбор новой фигуры. Шах нужно устранить. Отмена возвращает твой ход и ответ компьютера; завершённую партию отменить нельзя. На доске работают стрелки, Enter и пробел.</div>
+      <div class="chess-opponent"><span class="chess-opponent-avatar" aria-hidden="true">Т</span><div><strong id="chessOpponentName">Любитель</strong><span>Компьютер</span></div><span id="chessTurnStatus" role="status" aria-live="polite">Подготовка партии…</span></div>
+      <div id="chessBoardMount"></div>
+    </section>
+    <section class="screen" data-screen="poker" aria-labelledby="pokerSetupTitle">
+      <div class="page-toolbar"><button class="back-button" data-screen-link="home" type="button"><span data-ui-icon="back"></span>Игры</button><span class="page-kicker">Математика за столом</span></div>
+      <div id="pokerSetupMount"></div>
+    </section>
+    <section class="screen" data-screen="poker-game" aria-label="Покерная партия">
+      <div class="game-toolbar"><button class="icon-button" data-poker-action="setup" type="button" aria-label="Вернуться к выбору режима покера"><span data-ui-icon="back"></span></button><h1>Математический покер</h1><button class="icon-button" data-poker-action="rules" type="button" aria-label="Правила покера"><span data-ui-icon="help"></span></button></div>
+      <div id="pokerMount"></div>
+    </section>
+    <section class="screen" data-screen="help" aria-labelledby="helpTitle">
+      <button class="back-button" data-screen-link="home" type="button"><span data-ui-icon="back"></span>Игры</button><p class="eyebrow">Без установки</p><h1 class="page-title" id="helpTitle">Играй в своём темпе</h1>
+      <div class="help-card"><h2>Десять отдельных кампаний</h2><p>В каждой — 100 уровней и 10 глав. Следующий этап открывается после победы. В судоку постепенно становится меньше исходных цифр, в памяти — больше элементов и раундов, а задачи на числа усложняются.</p></div>
+      <div class="help-card"><h2>Математический покер</h2><p>Настоящий техасский холдем один на один с компьютером или другом Telegram. Виртуальные фишки, закрытые карты и серверные правила. Подсказки объясняют equity, шансы банка и EV колла. В каталоге выбери покер, затем режим.</p></div>
+      <div class="help-card"><h2>Шахматы с компьютером</h2><p>Отдельная свободная игра с шестью уровнями соперника: от новичка до гроссмейстера. Выбери сложность и цвет, затем начни партию без часов. Позиция и шахматная статистика сохраняются на устройстве. XP и достижения кампаний начисляются в головоломках.</p></div>
+      <div class="help-card"><h2>Опыт, звания и награды</h2><p>За игру начисляется XP, каждые 100 XP повышают уровень профиля. Игра без подсказок даёт бонус. Повторное прохождение уровня приносит меньше опыта. Достижения открываются за практику, кампании и серию дней.</p></div>
+      <div class="help-card"><h2>Сохранение</h2><p>В Telegram прогресс привязан к твоему аккаунту. По одной незавершённой партии каждого типа сохраняется на устройстве. Если сеть пропадёт после победы, можно повторить запись результата.</p></div>
+      <div class="help-card"><h2>Управление</h2><p>В судоку выбери клетку и цифру. В парах открывай по две карточки. В матрице запомни узор и повтори его. В пятнашках сдвигай соседние плитки. В японском кроссворде числа обозначают группы закрашенных клеток. В цветовой игре выбирай цвет букв.</p></div>
+      <div class="help-card"><h2>Экран Telegram</h2><p>Игра запрашивает полный экран и отключение вертикальных свайпов на поддерживаемых клиентах. Закрытие по верхней панели контролирует сам Telegram.</p></div>
+    </section>
+  </main>
+  <nav class="bottom-nav" aria-label="Разделы"><button class="active" data-screen-link="home" aria-current="page" type="button"><span data-ui-icon="games"></span>Игры</button><button data-screen-link="levels" type="button"><span data-ui-icon="route"></span>Кампании</button><button data-screen-link="profile" type="button"><span data-ui-icon="user"></span>Профиль</button></nav>
+  <div class="toast hidden" id="toast" role="status" aria-live="polite"></div>
+  <dialog id="chessPromotion" class="chess-promotion" aria-labelledby="chessPromotionTitle"><h2 id="chessPromotionTitle">Превращение пешки</h2><p>Выбери новую фигуру</p><div id="chessPromotionChoices"></div><form method="dialog"><button class="text-button" type="submit">Отмена</button></form></dialog>
+</div>
+<noscript>Для запуска игры включи JavaScript в браузере.</noscript>
+</body>
+</html>

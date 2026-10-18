@@ -1,0 +1,55 @@
+/* Original vector deck. The table may override --poker-card-width per hand. */
+.poker-card {
+  display:inline-block;
+  position:relative;
+  flex:0 0 auto;
+  width:var(--poker-card-width,var(--poker-card-default-width,72px));
+  aspect-ratio:5 / 7;
+  vertical-align:middle;
+  border-radius:calc(var(--poker-card-width,var(--poker-card-default-width,72px)) * .06);
+  perspective:700px;
+  isolation:isolate;
+  filter:drop-shadow(0 2px 1px #0D28291C) drop-shadow(0 6px 7px #0D28291A);
+}
+.poker-card-inner {
+  display:block;
+  width:100%;
+  height:100%;
+  transform-style:preserve-3d;
+}
+.poker-card-front,.poker-card-back {
+  display:block;
+  width:100%;
+  height:100%;
+  border-radius:inherit;
+  -webkit-backface-visibility:hidden;
+  backface-visibility:hidden;
+}
+.poker-card-front>svg,.poker-card-back>svg { width:100%;height:100%;overflow:visible; }
+.poker-card.is-dealt { animation:poker-card-deal .42s cubic-bezier(.2,.75,.25,1) backwards;animation-delay:calc(var(--deal-index,0) * 65ms); }
+.poker-card.is-revealing .poker-card-inner { animation:poker-card-reveal .48s cubic-bezier(.25,.6,.25,1) both; }
+.poker-card.is-revealing .poker-card-front,.poker-card.is-revealing .poker-card-back { position:absolute;inset:0; }
+.poker-card.is-revealing .poker-card-back { transform:rotateY(180deg); }
+.poker-card.is-winner { filter:drop-shadow(0 0 2px #E0BC69) drop-shadow(0 0 6px #E0BC6970) drop-shadow(0 5px 5px #0D28291C); }
+.poker-card.is-winner::after { content:"";position:absolute;inset:-3px;border:1.5px solid #D7B466;border-radius:calc(var(--poker-card-width,var(--poker-card-default-width,72px)) * .08);pointer-events:none;animation:poker-card-win .6s ease-out both; }
+.poker-icon { display:inline-block;flex-shrink:0;width:22px;height:22px;vertical-align:middle;overflow:visible; }
+.poker-icon [class^="poker-icon-"] { transform-box:fill-box;transform-origin:center; }
+button:hover .poker-icon-card-a,button:focus-visible .poker-icon-card-a { animation:poker-icon-fan-a .42s ease-out both; }
+button:hover .poker-icon-card-b,button:focus-visible .poker-icon-card-b { animation:poker-icon-fan-b .42s ease-out both; }
+button:hover .poker-icon-equation,button:focus-visible .poker-icon-equation { animation:poker-icon-math .46s ease-out both; }
+button:hover .poker-icon-chip-top,button:focus-visible .poker-icon-chip-top { animation:poker-icon-chip .4s ease-out both; }
+button:hover .poker-icon-shuffle-a,button:focus-visible .poker-icon-shuffle-a { animation:poker-icon-shuffle .4s ease-out both; }
+button:hover .poker-icon-shuffle-b,button:focus-visible .poker-icon-shuffle-b { animation:poker-icon-shuffle .4s ease-out .07s both; }
+.poker-art { pointer-events:none; }
+@keyframes poker-card-deal { from { opacity:0;transform:translate3d(0,-18px,0) rotate(-5deg) scale(.95); } to { opacity:1;transform:translate3d(0,0,0) rotate(0) scale(1); } }
+@keyframes poker-card-reveal { 0% { transform:rotateY(180deg); } 80% { transform:rotateY(-5deg); } 100% { transform:rotateY(0); } }
+@keyframes poker-card-win { from { opacity:0;transform:scale(.97); } to { opacity:1;transform:scale(1); } }
+@keyframes poker-icon-fan-a { 45% { transform:translate(-1px,1px) rotate(-12deg); } 100% { transform:translate(-.5px,0) rotate(-5deg); } }
+@keyframes poker-icon-fan-b { 45% { transform:translate(1px,-1px) rotate(7deg); } 100% { transform:translate(.5px,0) rotate(3deg); } }
+@keyframes poker-icon-math { 40% { transform:scale(.9); } 72% { transform:scale(1.07); } 100% { transform:scale(1); } }
+@keyframes poker-icon-chip { 40% { transform:translateY(-2px) rotate(-4deg); } 100% { transform:translateY(0) rotate(0); } }
+@keyframes poker-icon-shuffle { 40% { transform:translateX(1.5px); } 100% { transform:translateX(0); } }
+@media (max-width:480px) { .poker-card { --poker-card-default-width:54px; } }
+@media (prefers-reduced-motion:reduce) {
+  .poker-card,.poker-card-inner,.poker-card::after,.poker-icon * { animation:none!important;transition:none!important; }
+}

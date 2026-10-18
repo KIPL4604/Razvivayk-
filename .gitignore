@@ -1,0 +1,34 @@
+# Private configuration and local state
+.env
+.env.*
+!.env.example
+*.pyc
+__pycache__/
+.venv/
+venv/
+.idea/
+.vscode/
+*.log
+logs/
+backups/
+*.db
+*.db-*
+*.sqlite
+*.sqlite-*
+*.sqlite3
+*.sqlite3-*
+*.pem
+*.key
+*.p12
+*.pfx
+runtime/
+output/
+.playwright-cli/
+.playwright-mcp/
+node_modules/
+.pytest_cache/
+# Local visual research; these materials are not runtime assets.
+design/brain-games-reference-board.html
+design/reference-overview.jpg
+design/design-direction.png
+design/tooling-status.json
