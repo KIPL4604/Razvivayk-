@@ -110,7 +110,10 @@ class PlatformTests(unittest.TestCase):
 
     def test_catalog_capabilities_only_advertise_real_multiplayer(self):
         games = self.client.get("/api/platform/catalog").json()["games"]
-        self.assertEqual(len(games), 12)
+        self.assertEqual(len(games), 13)
+        lumen = next(g for g in games if g["id"] == "lumen")
+        self.assertFalse(lumen["cloudSave"])
+        self.assertEqual(lumen["resultAuthority"], "local")
         self.assertEqual([g["id"] for g in games if "multiplayer" in g["modes"]], ["poker"])
         self.assertEqual(sum(g["campaignLevels"] for g in games), 1000)
         self.assertEqual(self.client.get("/api/platform/saves").status_code, 401)

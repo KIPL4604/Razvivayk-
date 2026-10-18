@@ -76,7 +76,7 @@ class CompleteGameRequest(BaseModel):
 
 @app.get("/healthz")
 def health() -> dict:
-    return {"ok": True, "service": "teramont", "version": "4.0.0", "games": 10, "freePlayGames": ["chess", "poker"], "campaignLevels": 1000, "telegramAuthConfigured": bool(os.getenv("TG_BOT_TOKEN"))}
+    return {"ok": True, "service": "teramont", "version": "4.0.0", "games": 10, "freePlayGames": ["chess", "poker", "lumen"], "campaignLevels": 1000, "telegramAuthConfigured": bool(os.getenv("TG_BOT_TOKEN"))}
 
 
 @app.get("/readyz")

@@ -11,6 +11,7 @@
   <link rel="stylesheet" href="/static/css/poker-cards.css?v=1">
   <link rel="stylesheet" href="/static/css/poker.css?v=1">
   <link rel="stylesheet" href="/static/css/platform.css?v=1">
+  <link rel="stylesheet" href="/static/css/lumen.css?v=1">
   <script src="https://telegram.org/js/telegram-web-app.js" defer></script>
   <script src="/static/js/puzzles.js?v=4" defer></script>
   <script src="/static/js/visuals.js?v=4" defer></script>
@@ -19,7 +20,8 @@
   <script src="/static/js/poker-cards.js?v=1" defer></script>
   <script src="/static/js/poker-mode.js?v=1" defer></script>
   <script src="/static/js/platform.js?v=1" defer></script>
-  <script src="/static/js/games.js?v=6" defer></script>
+  <script src="/static/js/lumen-mode.js?v=1" defer></script>
+  <script src="/static/js/games.js?v=7" defer></script>
 </head>
 <body>
 <div id="app">
@@ -34,7 +36,7 @@
     <div id="launchStatus" class="launch-status" role="status"></div>
     <div id="cloudStatus" class="cloud-status hidden" role="status"></div>
     <section class="screen active" data-screen="home" aria-labelledby="homeTitle">
-      <div class="welcome-block"><div><p class="eyebrow">Время для себя</p><h1 id="homeTitle">Во что сыграем?</h1><p class="lead">Выбери игру. Найди свой ритм.</p></div><span class="library-count"><strong>12</strong> игр<br><span>1000 уровней</span></span></div>
+      <div class="welcome-block"><div><p class="eyebrow">Время для себя</p><h1 id="homeTitle">Во что сыграем?</h1><p class="lead">Выбери игру. Найди свой ритм.</p></div><span class="library-count"><strong>13</strong> игр<br><span>1000 уровней</span></span></div>
       <div id="resumeList"></div>
       <button class="together-link" type="button" data-screen-link="lobby"><span><strong>Играть вместе</strong><span>Пригласи друга или найди соперника в покере</span></span><span data-ui-icon="arrow"></span></button>
       <div class="pending-notice hidden" id="pendingNotice"><span>Результат сохранён на устройстве и ждёт отправки.</span><button class="text-button" id="retryPending" type="button">Повторить сохранение</button></div>
@@ -91,9 +93,17 @@
       <div class="game-toolbar"><button class="icon-button" data-poker-action="setup" type="button" aria-label="Вернуться к выбору режима покера"><span data-ui-icon="back"></span></button><h1>Математический покер</h1><button class="icon-button" data-poker-action="rules" type="button" aria-label="Правила покера"><span data-ui-icon="help"></span></button></div>
       <div id="pokerMount"></div>
     </section>
+    <section class="screen" data-screen="lumen" aria-labelledby="lumenTitle">
+      <div class="page-toolbar"><button class="back-button" data-screen-link="home" type="button"><span data-ui-icon="back"></span>Игры</button><span class="page-kicker">Survival · одиночная игра</span></div>
+      <div id="lumenSetupMount"></div>
+    </section>
+    <section class="screen lumen-game" data-screen="lumen-game" aria-label="Люмен: последний маяк">
+      <div id="lumenGameMount"></div>
+    </section>
     <section class="screen" data-screen="help" aria-labelledby="helpTitle">
       <button class="back-button" data-screen-link="home" type="button"><span data-ui-icon="back"></span>Игры</button><p class="eyebrow">Без установки</p><h1 class="page-title" id="helpTitle">Играй в своём темпе</h1>
       <div class="help-card"><h2>Десять отдельных кампаний</h2><p>В каждой — 100 уровней и 10 глав. Следующий этап открывается после победы. В судоку постепенно становится меньше исходных цифр, в памяти — больше элементов и раундов, а задачи на числа усложняются.</p></div>
+      <div class="help-card"><h2>Люмен: последний маяк</h2><p>Одиночный survival-экшен. Двигайся джойстиком или WASD/стрелками, собирай световые осколки и выбирай улучшения. Оружие стреляет само. Продержись восемь минут и победи последнего стража. Пауза — Escape или P. Забег сохраняется на устройстве; XP кампаний не начисляется.</p></div>
       <div class="help-card"><h2>Математический покер</h2><p>Настоящий техасский холдем один на один с компьютером или другом Telegram. Виртуальные фишки, закрытые карты и серверные правила. Подсказки объясняют equity, шансы банка и EV колла. В каталоге выбери покер, затем режим.</p></div>
       <div class="help-card"><h2>Шахматы с компьютером</h2><p>Отдельная свободная игра с шестью уровнями соперника: от новичка до гроссмейстера. Выбери сложность и цвет, затем начни партию без часов. В Telegram позиция и шахматная статистика сохраняются в облаке; без сети — на устройстве. XP и достижения кампаний начисляются в головоломках.</p></div>
       <div class="help-card"><h2>Опыт, звания и награды</h2><p>За игру начисляется XP, каждые 100 XP повышают уровень профиля. Игра без подсказок даёт бонус. Повторное прохождение уровня приносит меньше опыта. Достижения открываются за практику, кампании и серию дней.</p></div>

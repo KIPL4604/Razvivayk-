@@ -49,3 +49,12 @@ motion in `js/poker-cards.js`, `css/poker-cards.css` and `css/poker.css` are ori
 Teramont artwork. ArloUI Motion, 21st.dev card-flip metadata and Iconimate were
 consulted as design references; their component source is not copied or shipped.
 No new runtime dependency is required by poker.
+
+## Lumen: The Last Beacon
+
+The survival simulation, Canvas artwork (scout, keeper, creatures, guardians,
+garden, beacon), SVG library thumbnail, interface and Web Audio synthesized
+tones are original implementation for Teramont. No external sprite, music,
+texture, game code or font files are distributed by this module. It uses only
+browser APIs and the platform's existing Telegram integration. No new runtime
+dependency. Provenance and scope: `design/lumen-provenance.md` in the repository.
