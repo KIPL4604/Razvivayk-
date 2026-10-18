@@ -74,7 +74,7 @@ def health(url: str) -> bool:
     try:
         with urllib.request.urlopen(url.rstrip('/') + '/healthz', timeout=6) as response:
             data = json.load(response)
-            return data.get('version') == '3.0.0' and data.get('telegramAuthConfigured') is True
+            return data.get('service') == 'teramont' and data.get('ok') is True and data.get('telegramAuthConfigured') is True
     except Exception:
         return False
 

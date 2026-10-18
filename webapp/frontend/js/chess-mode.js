@@ -90,7 +90,7 @@ const ChessMode = (() => {
     return true;
   }
   function summary(){
-    const stats=saved.chessStats||{wins:0,losses:0,draws:0};
+    const stats={wins:0,losses:0,draws:0,...saved.chessStats};
     return '<div class="chess-stats"><span><b>'+stats.wins+'</b> побед</span><span><b>'+stats.draws+'</b> ничьих</span><span><b>'+stats.losses+'</b> поражений</span><small>На этом устройстве</small></div>';
   }
   function renderSetup(){
@@ -269,5 +269,5 @@ const ChessMode = (() => {
   });
   document.addEventListener("visibilitychange",()=>{if(document.hidden)stop();else if(isActive()&&!saved.chess?.ended)activate();});
   window.addEventListener("pagehide",stop);
-  return {enter:()=>showScreen("chess"),onScreen,click,resume,getResume};
+  return {enter:()=>showScreen("chess"),onScreen,click,resume,getResume,invalidateCloud(){stop();restoredId=null;game=null;}};
 })();

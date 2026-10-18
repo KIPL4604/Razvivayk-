@@ -1,0 +1,36 @@
+name: Deploy configured server
+on:
+  workflow_dispatch:
+permissions: {contents: read}
+concurrency: {group: teramont-production, cancel-in-progress: false}
+jobs:
+  checks:
+    uses: ./.github/workflows/checks.yml
+  deploy:
+    needs: checks
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Validate deployment settings
+        env:
+          HOST: ${{ secrets.DEPLOY_HOST }}
+          USER: ${{ secrets.DEPLOY_USER }}
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+          PROJECT_DIR: ${{ vars.DEPLOY_DIRECTORY }}
+        run: |
+          test -n "$HOST" && test -n "$USER" && test -n "$SSH_KEY" && test -n "$KNOWN_HOSTS" && test -n "$PROJECT_DIR"
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+      - name: Deploy the exact checked out revision
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          PROJECT_DIR: ${{ vars.DEPLOY_DIRECTORY }}
+          REVISION: ${{ github.sha }}
+        run: |
+          [[ "$PROJECT_DIR" =~ ^/[a-zA-Z0-9_./-]+$ ]]
+          [[ "$REVISION" =~ ^[0-9a-f]{40}$ ]]
+          ssh -i ~/.ssh/deploy_key -o BatchMode=yes -o StrictHostKeyChecking=yes "$DEPLOY_USER@$DEPLOY_HOST" "cd '$PROJECT_DIR' && bash deploy/release.sh '$REVISION'"

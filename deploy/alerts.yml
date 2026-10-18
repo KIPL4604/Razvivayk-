@@ -1,0 +1,13 @@
+groups:
+  - name: teramont
+    rules:
+      - alert: TeramontUnavailable
+        expr: up{job="teramont"} == 0
+        for: 2m
+        labels: {severity: critical}
+        annotations: {summary: "Teramont API unavailable for two minutes"}
+      - alert: TeramontErrors
+        expr: sum(rate(teramont_http_requests_total{status=~"5.."}[5m])) / clamp_min(sum(rate(teramont_http_requests_total[5m])), 0.01) > 0.05
+        for: 5m
+        labels: {severity: warning}
+        annotations: {summary: "Teramont HTTP error ratio exceeds 5 percent"}

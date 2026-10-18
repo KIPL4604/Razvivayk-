@@ -10,6 +10,7 @@
   <link rel="stylesheet" href="/static/css/chess.css?v=1">
   <link rel="stylesheet" href="/static/css/poker-cards.css?v=1">
   <link rel="stylesheet" href="/static/css/poker.css?v=1">
+  <link rel="stylesheet" href="/static/css/platform.css?v=1">
   <script src="https://telegram.org/js/telegram-web-app.js" defer></script>
   <script src="/static/js/puzzles.js?v=4" defer></script>
   <script src="/static/js/visuals.js?v=4" defer></script>
@@ -17,6 +18,7 @@
   <script src="/static/js/chess-mode.js?v=1" defer></script>
   <script src="/static/js/poker-cards.js?v=1" defer></script>
   <script src="/static/js/poker-mode.js?v=1" defer></script>
+  <script src="/static/js/platform.js?v=1" defer></script>
   <script src="/static/js/games.js?v=6" defer></script>
 </head>
 <body>
@@ -30,15 +32,22 @@
   <main id="main" tabindex="-1">
     <div class="connection-banner"><span class="status-dot" aria-hidden="true"></span><span id="connectionStatus" role="status">Загружаем игры…</span><button class="text-button hidden" id="retryConnection" type="button">Повторить подключение</button></div>
     <div id="launchStatus" class="launch-status" role="status"></div>
+    <div id="cloudStatus" class="cloud-status hidden" role="status"></div>
     <section class="screen active" data-screen="home" aria-labelledby="homeTitle">
       <div class="welcome-block"><div><p class="eyebrow">Время для себя</p><h1 id="homeTitle">Во что сыграем?</h1><p class="lead">Выбери игру. Найди свой ритм.</p></div><span class="library-count"><strong>12</strong> игр<br><span>1000 уровней</span></span></div>
       <div id="resumeList"></div>
+      <button class="together-link" type="button" data-screen-link="lobby"><span><strong>Играть вместе</strong><span>Пригласи друга или найди соперника в покере</span></span><span data-ui-icon="arrow"></span></button>
       <div class="pending-notice hidden" id="pendingNotice"><span>Результат сохранён на устройстве и ждёт отправки.</span><button class="text-button" id="retryPending" type="button">Повторить сохранение</button></div>
       <div class="category-filters" role="group" aria-label="Фильтр игр"><button class="active" data-filter="Все" aria-pressed="true" type="button">Все игры</button><button data-filter="Логика" aria-pressed="false" type="button">Логика</button><button data-filter="Память" aria-pressed="false" type="button">Память</button><button data-filter="Мышление" aria-pressed="false" type="button">Мышление</button><button data-filter="Внимание" aria-pressed="false" type="button">Внимание</button></div>
       <h2 class="sr-only">Игры</h2><div class="campaign-grid" id="campaignCards"></div>
       <div class="home-bottom"><span class="small-brand">Твой ход — твой прогресс.</span><button class="text-button" data-screen-link="help" type="button">Как всё устроено <span data-ui-icon="arrow"></span></button></div>
       <button class="player-overview" type="button" data-screen-link="profile"><span class="avatar" id="homeAvatar">И</span><span class="player-copy"><strong id="homePlayerName">Игрок</strong><span class="rank-line"><span id="homeRank">Новичок</span> · уровень <span id="homeLevel">1</span></span><span class="xp-track"><span id="homeXpBar"></span></span><span class="xp-caption"><span id="homeXpText">0 / 100 XP</span><span id="homeNextRank">до звания Практик</span></span></span><span data-ui-icon="arrow"></span></button>
       <div class="home-footer"><span><strong id="homeGamesCount">0</strong> партий</span><span><strong id="homeAchievementCount">0</strong> достижений</span><span><strong id="homeStreak">0</strong> дней подряд</span></div>
+    </section>
+    <section class="screen" data-screen="lobby" aria-labelledby="lobbyTitle">
+      <div class="page-toolbar"><button class="back-button" data-screen-link="home" type="button"><span data-ui-icon="back"></span>Игры</button><span class="page-kicker">Один на один</span></div>
+      <p class="eyebrow">Встречаемся за столом</p><h1 class="page-title" id="lobbyTitle">Играть вместе</h1><p class="page-intro">Покер с другом или новым соперником. Карты каждого видит только он.</p>
+      <div id="lobbyMount" aria-live="polite"></div>
     </section>
     <section class="screen" data-screen="levels" aria-labelledby="campaignTitle">
       <div class="page-toolbar"><button class="back-button" data-screen-link="home" type="button"><span data-ui-icon="back"></span>Игры</button><span class="page-kicker">Твой маршрут</span></div>
@@ -86,9 +95,9 @@
       <button class="back-button" data-screen-link="home" type="button"><span data-ui-icon="back"></span>Игры</button><p class="eyebrow">Без установки</p><h1 class="page-title" id="helpTitle">Играй в своём темпе</h1>
       <div class="help-card"><h2>Десять отдельных кампаний</h2><p>В каждой — 100 уровней и 10 глав. Следующий этап открывается после победы. В судоку постепенно становится меньше исходных цифр, в памяти — больше элементов и раундов, а задачи на числа усложняются.</p></div>
       <div class="help-card"><h2>Математический покер</h2><p>Настоящий техасский холдем один на один с компьютером или другом Telegram. Виртуальные фишки, закрытые карты и серверные правила. Подсказки объясняют equity, шансы банка и EV колла. В каталоге выбери покер, затем режим.</p></div>
-      <div class="help-card"><h2>Шахматы с компьютером</h2><p>Отдельная свободная игра с шестью уровнями соперника: от новичка до гроссмейстера. Выбери сложность и цвет, затем начни партию без часов. Позиция и шахматная статистика сохраняются на устройстве. XP и достижения кампаний начисляются в головоломках.</p></div>
+      <div class="help-card"><h2>Шахматы с компьютером</h2><p>Отдельная свободная игра с шестью уровнями соперника: от новичка до гроссмейстера. Выбери сложность и цвет, затем начни партию без часов. В Telegram позиция и шахматная статистика сохраняются в облаке; без сети — на устройстве. XP и достижения кампаний начисляются в головоломках.</p></div>
       <div class="help-card"><h2>Опыт, звания и награды</h2><p>За игру начисляется XP, каждые 100 XP повышают уровень профиля. Игра без подсказок даёт бонус. Повторное прохождение уровня приносит меньше опыта. Достижения открываются за практику, кампании и серию дней.</p></div>
-      <div class="help-card"><h2>Сохранение</h2><p>В Telegram прогресс привязан к твоему аккаунту. По одной незавершённой партии каждого типа сохраняется на устройстве. Если сеть пропадёт после победы, можно повторить запись результата.</p></div>
+      <div class="help-card"><h2>Сохранение</h2><p>В Telegram прогресс привязан к твоему аккаунту. Партии головоломок и шахмат синхронизируются с сервером. При конфликте двух устройств можно выбрать сохранение. Без связи изменения остаются на устройстве; отправку можно повторить. В обычном браузере доступно локальное сохранение.</p></div>
       <div class="help-card"><h2>Управление</h2><p>В судоку выбери клетку и цифру. В парах открывай по две карточки. В матрице запомни узор и повтори его. В пятнашках сдвигай соседние плитки. В японском кроссворде числа обозначают группы закрашенных клеток. В цветовой игре выбирай цвет букв.</p></div>
       <div class="help-card"><h2>Экран Telegram</h2><p>Игра запрашивает полный экран и отключение вертикальных свайпов на поддерживаемых клиентах. Закрытие по верхней панели контролирует сам Telegram.</p></div>
     </section>

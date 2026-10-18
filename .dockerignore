@@ -1,5 +1,13 @@
 .env
+.env.*
+!.env.example
 deploy/.env
+*.key
+*.pem
+*.sqlite3
+*.sqlite3-*
+*.db
+*.db-*
 runtime/
 __pycache__/
 *.pyc

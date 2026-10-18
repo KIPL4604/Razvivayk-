@@ -1,14 +1,12 @@
 """Persistent profiles and ten independent 100-level campaigns."""
 from __future__ import annotations
-from contextlib import contextmanager
 from datetime import date, datetime, timedelta, timezone
-import os
-from pathlib import Path
-import sqlite3
+import json
 import time
 import uuid
-from typing import Iterator
 from config_env import load_env
+from .database import connection as database_connection
+from .puzzles_server import InvalidProof, create_challenge, validate_proof
 load_env()
 GAME_NAMES = {"sudoku":"Судоку","memory":"Найди пары","riddles":"Логические задачи","sequences":"Числовые ряды","tiles":"Пятнашки","pattern":"Матрица памяти","nonogram":"Японский кроссворд","arithmetic":"Устный счёт","rebuses":"Шифры и ребусы","stroop":"Цвет и внимание"}
 BASE_XP = dict(zip(GAME_NAMES,(30,26,24,24,30,26,30,24,24,26)))
@@ -39,35 +37,19 @@ def level_config(level_number: int, game_type: str = "sudoku") -> dict:
     difficulty = "easy" if level_number <= 20 else "medium" if level_number <= 60 else "hard"
     return {"number":level_number,"game":game_type,"gameName":GAME_NAMES[game_type],"difficulty":difficulty,"difficultyName":DIFFICULTY_LABELS[difficulty],"chapter":(level_number-1)//10+1}
 
-def _db_path() -> Path:
-    return Path(os.getenv("GAME_DB_PATH", "runtime/teramont.sqlite3")).resolve()
-
-
-@contextmanager
-def _connection() -> Iterator[sqlite3.Connection]:
-    path = _db_path()
-    path.parent.mkdir(parents=True, exist_ok=True)
-    connection = sqlite3.connect(path, timeout=15)
-    connection.row_factory = sqlite3.Row
-    connection.execute("PRAGMA foreign_keys = ON")
-    connection.execute("PRAGMA busy_timeout = 15000")
-    try:
-        yield connection
-        connection.commit()
-    except Exception:
-        connection.rollback()
-        raise
-    finally:
-        connection.close()
+def _connection():
+    # Kept as a stable seam for migrations/tests. SQLite reserves the writer at
+    # transaction start; PostgreSQL uses the per-profile advisory lock below.
+    return database_connection(write=True)
 
 
 def init_database() -> None:
     with _connection() as connection:
-        connection.execute("PRAGMA journal_mode = WAL")
+        connection.lock("schema:campaigns")
         connection.executescript(
             """
             CREATE TABLE IF NOT EXISTS game_profiles (
-                user_id INTEGER PRIMARY KEY,
+                user_id BIGINT PRIMARY KEY,
                 first_name TEXT NOT NULL DEFAULT 'Игрок',
                 username TEXT,
                 xp INTEGER NOT NULL DEFAULT 0,
@@ -80,39 +62,43 @@ def init_database() -> None:
             );
             CREATE TABLE IF NOT EXISTS game_sessions (
                 session_id TEXT PRIMARY KEY,
-                user_id INTEGER NOT NULL REFERENCES game_profiles(user_id),
+                user_id BIGINT NOT NULL REFERENCES game_profiles(user_id),
                 game_type TEXT NOT NULL,
                 difficulty TEXT NOT NULL,
                 level_number INTEGER,
-                started_at INTEGER NOT NULL,
-                completed_at INTEGER,
+                started_at BIGINT NOT NULL,
+                completed_at BIGINT,
                 elapsed_seconds INTEGER,
                 hints INTEGER,
                 moves INTEGER,
-                xp_awarded INTEGER
+                xp_awarded INTEGER,
+                challenge TEXT
             );
             CREATE INDEX IF NOT EXISTS ix_game_sessions_user_done
                 ON game_sessions(user_id, completed_at);
             CREATE INDEX IF NOT EXISTS ix_game_sessions_user_level
                 ON game_sessions(user_id, level_number);
             CREATE TABLE IF NOT EXISTS game_achievements (
-                user_id INTEGER NOT NULL REFERENCES game_profiles(user_id),
+                user_id BIGINT NOT NULL REFERENCES game_profiles(user_id),
                 achievement_id TEXT NOT NULL,
                 unlocked_at TEXT NOT NULL,
                 PRIMARY KEY(user_id, achievement_id)
             );
             """
         )
-        columns = {row[1] for row in connection.execute("PRAGMA table_info(game_sessions)")}
+        columns = connection.columns("game_sessions")
         if "campaign_id" not in columns:
             connection.execute("ALTER TABLE game_sessions ADD COLUMN campaign_id TEXT")
             connection.execute("UPDATE game_sessions SET campaign_id=game_type,level_number=CAST((level_number-1)/4 AS INTEGER)+1 WHERE level_number IS NOT NULL")
+        if "challenge" not in columns:
+            connection.execute("ALTER TABLE game_sessions ADD COLUMN challenge TEXT")
         connection.execute("CREATE INDEX IF NOT EXISTS ix_campaign_progress ON game_sessions(user_id,campaign_id,level_number,completed_at)")
 
 
 
-def _ensure_profile(connection: sqlite3.Connection, user: dict) -> sqlite3.Row:
+def _ensure_profile(connection, user: dict):
     user_id = int(user["id"])
+    connection.lock("profile:"+str(user_id))
     first_name = str(user.get("first_name") or "Игрок")[:128]
     username = str(user.get("username") or "")[:64] or None
     now = datetime.now(timezone.utc).isoformat()
@@ -126,7 +112,7 @@ def _ensure_profile(connection: sqlite3.Connection, user: dict) -> sqlite3.Row:
     return connection.execute("SELECT * FROM game_profiles WHERE user_id=?", (user_id,)).fetchone()
 
 
-def _stats(connection: sqlite3.Connection, user_id: int) -> dict:
+def _stats(connection, user_id: int) -> dict:
     rows = connection.execute(
         """SELECT game_type, COUNT(*) AS amount,
                   SUM(CASE WHEN hints=0 THEN 1 ELSE 0 END) AS no_hints
@@ -174,7 +160,7 @@ def _unlock_eligible_achievements(db,player,stats):
     unlocked = {r[0] for r in db.execute("SELECT achievement_id FROM game_achievements WHERE user_id=?",(player["user_id"],))}
     newly = sorted(eligible-unlocked)
     now = datetime.now(timezone.utc).isoformat()
-    db.executemany("INSERT OR IGNORE INTO game_achievements VALUES (?,?,?)",[(player["user_id"],a,now) for a in newly])
+    db.executemany("INSERT INTO game_achievements VALUES (?,?,?) ON CONFLICT(user_id,achievement_id) DO NOTHING",[(player["user_id"],a,now) for a in newly])
     return newly
 
 
@@ -198,25 +184,28 @@ def get_profile(user):
 
 
 def start_session(user,level_number,game_type,difficulty):
+    if game_type not in GAME_NAMES:
+        raise GameRuleError("Выбери игровую кампанию")
+    if level_number is not None:
+        config = level_config(level_number,game_type)
+        difficulty = config["difficulty"]
+    else:
+        if difficulty not in DIFFICULTY_LABELS:
+            raise GameRuleError("Неизвестная сложность")
+        config = {"number":None,"game":game_type,"difficulty":difficulty}
+    session_id = str(uuid.uuid4())
+    # Generation can search for unique puzzles; do it outside the DB write lock.
+    challenge = create_challenge(game_type,difficulty,level_number,session_id)
     with _connection() as db:
         _ensure_profile(db,user)
-        if game_type not in GAME_NAMES:
-            raise GameRuleError("Выбери игровую кампанию")
         if level_number is not None:
-            config = level_config(level_number,game_type)
             if level_number>_campaigns(db,int(user["id"]))[game_type]["unlockedLevel"]:
                 raise GameRuleError("Сначала пройди предыдущий уровень этой кампании")
-            difficulty = config["difficulty"]
-        else:
-            if difficulty not in DIFFICULTY_LABELS:
-                raise GameRuleError("Неизвестная сложность")
-            config = {"number":None,"game":game_type,"difficulty":difficulty}
-        session_id = str(uuid.uuid4())
-        db.execute("INSERT INTO game_sessions(session_id,user_id,game_type,difficulty,level_number,started_at,campaign_id) VALUES (?,?,?,?,?,?,?)",(session_id,int(user["id"]),game_type,difficulty,level_number,int(time.time()),game_type if level_number else None))
-        return {"sessionId":session_id,**config}
+        db.execute("INSERT INTO game_sessions(session_id,user_id,game_type,difficulty,level_number,started_at,campaign_id,challenge) VALUES (?,?,?,?,?,?,?,?)",(session_id,int(user["id"]),game_type,difficulty,level_number,int(time.time()),game_type if level_number else None,json.dumps(challenge,ensure_ascii=False,separators=(",",":"))))
+        return {"sessionId":session_id,**config,"puzzle":challenge}
 
 
-def complete_session(user,session_id,elapsed_seconds,hints,moves):
+def complete_session(user,session_id,elapsed_seconds,hints,moves,proof=None):
     user_id = int(user["id"])
     with _connection() as db:
         p = _ensure_profile(db,user)
@@ -228,6 +217,11 @@ def complete_session(user,session_id,elapsed_seconds,hints,moves):
         elapsed = max(0,int(time.time())-s["started_at"])
         if elapsed<2:
             raise GameRuleError("Партия ещё не завершена")
+        try:
+            challenge = json.loads(s["challenge"]) if s["challenge"] else None
+            validate_proof(challenge,proof)
+        except InvalidProof as error:
+            raise GameRuleError(str(error)) from error
         game,number = s["game_type"],s["level_number"]
         replay = bool(number and number in _campaigns(db,user_id)[game]["completedLevels"])
         xp = (10 if replay else BASE_XP[game]+{"easy":0,"medium":10,"hard":20}[s["difficulty"]]+(10 if number else 0))+(5 if hints==0 else 0)

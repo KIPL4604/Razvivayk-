@@ -1,6 +1,7 @@
 async (page) => {
   if(await page.evaluate(()=>hasTelegramIdentity))throw Error("Use an isolated browser preview session");
   const passed=[];
+  await page.reload();await page.waitForSelector('#campaignCards button');
   await page.locator('.bottom-nav [data-screen-link="home"]').click();
   await page.locator('#campaignCards [data-campaign="sudoku"]').click();
   await page.locator('#levelMap [data-start-level="2"]').click();
@@ -8,13 +9,14 @@ async (page) => {
   const blank=before.board.indexOf(0);
   await page.locator(`[data-sudoku-cell="${blank}"]`).click();
   await page.locator(`[data-sudoku-number="${before.solution[blank]}"]`).click();
+  await page.locator('[data-screen="game"] .game-toolbar [data-screen-link="levels"]').click();
   await page.locator('.bottom-nav [data-screen-link="home"]').click();
   await page.locator('#campaignCards [data-campaign="memory"]').click();
   await page.locator('#levelMap [data-start-level="2"]').click();
   await page.locator('[data-memory-card]').first().click();
   await page.reload();await page.waitForSelector('#campaignCards button');
-  if(await page.locator('#resumeList button').count()!==2)throw Error('Two unfinished runs not restored');
-  await page.locator('[data-resume="sudoku"]').click();
+  if(await page.evaluate(()=>Object.values(saved.runs).filter(run=>!run.completed).length)!==2)throw Error('Two unfinished runs not restored');
+  await page.locator('#campaignCards [data-campaign="sudoku"]').click();await page.locator('[data-play-current-level]').click();
   const after=await page.evaluate(()=>JSON.parse(JSON.stringify(saved.current)));
   if(after.board[blank]!==before.solution[blank]||after.levelNumber!==2)throw Error('Sudoku move lost');
   passed.push('Two independent unfinished runs survive reload, Sudoku move restored');

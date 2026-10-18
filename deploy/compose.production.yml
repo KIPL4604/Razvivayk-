@@ -1,0 +1,97 @@
+name: teramont
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: teramont
+      POSTGRES_USER: teramont
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    volumes: ["postgres_data:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U teramont -d teramont"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+  redis:
+    image: redis:7.4-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--save", "", "--appendonly", "no", "--maxmemory", "128mb", "--maxmemory-policy", "noeviction"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+  api:
+    build: ..
+    restart: unless-stopped
+    env_file: ../.env
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?Set the PostgreSQL URL in .env}
+      REDIS_URL: redis://redis:6379/0
+      DATABASE_POOL_SIZE: "12"
+      APP_URL: https://${DOMAIN:?Set DOMAIN in .env}
+      PROMETHEUS_MULTIPROC_DIR: /tmp/metrics
+    command: ["sh", "-c", "mkdir -p /tmp/metrics && rm -f /tmp/metrics/*.db && exec uvicorn webapp.backend.main:app --host 0.0.0.0 --port 8001 --workers 2 --ws-max-size 16384 --proxy-headers --forwarded-allow-ips='*'"]
+    depends_on:
+      db: {condition: service_healthy}
+      redis: {condition: service_healthy}
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://127.0.0.1:8001/readyz"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    expose: ["8001"]
+  bot:
+    build: ..
+    restart: unless-stopped
+    env_file: ../.env
+    environment:
+      APP_URL: https://${DOMAIN}
+      BOT_UI_DB_PATH: /data/bot-ui.sqlite3
+    command: ["python", "-m", "bots.razvivayka.main"]
+    volumes: ["bot_data:/data"]
+    depends_on:
+      api: {condition: service_healthy}
+  web:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports: ["80:80", "443:443", "443:443/udp"]
+    environment: {DOMAIN: "${DOMAIN}"}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      api: {condition: service_healthy}
+  backup:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      PGHOST: db
+      PGUSER: teramont
+      PGDATABASE: teramont
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+    entrypoint: ["/bin/sh", "/backup/run.sh"]
+    volumes:
+      - ./backup.sh:/backup/run.sh:ro
+      - ../runtime/backups:/backups
+    depends_on:
+      db: {condition: service_healthy}
+  prometheus:
+    image: prom/prometheus:v3.2.1
+    restart: unless-stopped
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./alerts.yml:/etc/prometheus/alerts.yml:ro
+      - prometheus_data:/prometheus
+    ports: ["127.0.0.1:9090:9090"]
+    depends_on:
+      api: {condition: service_healthy}
+volumes:
+  postgres_data:
+  bot_data:
+  caddy_data:
+  caddy_config:
+  prometheus_data:

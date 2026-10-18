@@ -1,0 +1,19 @@
+name: teramont-platform-test
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: teramont_test
+      POSTGRES_PASSWORD: local-test-only
+      POSTGRES_DB: teramont_test
+    ports: ["127.0.0.1:25432:5432"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U teramont_test -d teramont_test"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+    tmpfs: [/var/lib/postgresql/data]
+  redis:
+    image: redis:7.4-alpine
+    ports: ["127.0.0.1:26379:6379"]
+    command: ["redis-server", "--save", "", "--appendonly", "no"]

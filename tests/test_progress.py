@@ -12,12 +12,13 @@ from urllib.parse import urlencode
 
 from webapp.backend import game_store as store
 from webapp.backend.auth import verify_init_data
+from test_validation import solution_proof
 
 
 class ProgressTests(unittest.TestCase):
     def setUp(self):
         self.folder = tempfile.TemporaryDirectory()
-        self.env = patch.dict(os.environ, {'GAME_DB_PATH': str(Path(self.folder.name)/'profile.sqlite3')})
+        self.env = patch.dict(os.environ, {'GAME_DB_PATH': str(Path(self.folder.name)/'profile.sqlite3'),'DATABASE_URL':''})
         self.env.start()
         store.init_database()
         self.user = {'id': 101, 'first_name': 'Player'}
@@ -29,7 +30,7 @@ class ProgressTests(unittest.TestCase):
     def finish(self, session, user=None):
         with store._connection() as db:
             db.execute('UPDATE game_sessions SET started_at=started_at-10 WHERE session_id=?', (session['sessionId'],))
-        return store.complete_session(user or self.user, session['sessionId'], 10, 0, 6)
+        return store.complete_session(user or self.user, session['sessionId'], 10, 0, 6, solution_proof(session['puzzle']))
 
     def test_independent_campaigns_and_retries(self):
         first = store.start_session(self.user, 1, 'sudoku', 'easy')

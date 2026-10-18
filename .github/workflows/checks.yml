@@ -1,0 +1,37 @@
+name: Platform checks
+on: [push, pull_request, workflow_dispatch, workflow_call]
+permissions: {contents: read}
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: teramont_test
+          POSTGRES_PASSWORD: local-test-only
+          POSTGRES_DB: teramont_test
+        ports: ["25432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U teramont_test -d teramont_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+      redis:
+        image: redis:7.4-alpine
+        ports: ["26379:6379"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12", cache: pip}
+      - uses: actions/setup-node@v4
+        with: {node-version: "22"}
+      - run: pip install -r requirements.txt httpx==0.28.1
+      - run: python -m unittest discover -s tests -p 'test_*.py' -v
+        env:
+          TG_BOT_TOKEN: teramont-poker-local-test
+          PLATFORM_TEST_DATABASE_URL: postgresql://teramont_test:local-test-only@127.0.0.1:25432/teramont_test
+          TERAMONT_TEST_POSTGRES_URL: postgresql://teramont_test:local-test-only@127.0.0.1:25432/teramont_test
+          PLATFORM_TEST_REDIS_URL: redis://127.0.0.1:26379/0
+      - run: node tests/puzzles.cjs
+      - run: for script in webapp/frontend/js/*.js; do node --check "$script"; done
+      - run: docker build -t teramont-check .
+      - run: git diff --check

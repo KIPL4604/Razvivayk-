@@ -7,7 +7,6 @@ view, and the bot and equity estimator receive only their own and public cards.
 from __future__ import annotations
 
 from collections import Counter
-from contextlib import contextmanager
 import hashlib
 from itertools import combinations
 import json
@@ -15,7 +14,6 @@ import os
 from pathlib import Path
 import random
 import secrets
-import sqlite3
 import time
 from typing import Literal
 import uuid
@@ -24,6 +22,7 @@ from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel, Field
 
 from .auth import get_current_user, verify_init_data
+from .database import connection
 
 router = APIRouter(prefix="/api/poker", tags=["poker"])
 RANKS = "23456789TJQKA"
@@ -32,6 +31,8 @@ HAND_NAMES = ("Старшая карта", "Пара", "Две пары", "Тр�
 SMALL_BLIND, BIG_BLIND, START_STACK = 10, 20, 1000
 ROOM_TTL = 72 * 3600
 MAX_ROOMS = 2000
+TURN_SECONDS = 120
+WAITING_SECONDS = 600
 
 
 class PokerRuleError(ValueError):
@@ -122,7 +123,15 @@ def _new_room(mode: str, owner: dict) -> dict:
             "mode": mode, "version": 1, "phase": "waiting", "street": "preflop", "handNumber": 0,
             "dealerIndex": 0, "turnIndex": None, "players": [owner], "board": [], "deck": [],
             "burned": [], "currentBet": 0, "lastRaise": BIG_BLIND, "acted": [], "ready": [],
-            "result": None, "log": [], "tokenHash": None}
+            "result": None, "log": [], "tokenHash": None,
+            "turnDeadline": None, "waitingExpiresAt": int(time.time()) + WAITING_SECONDS if mode == "online" else None}
+
+
+def _refresh_deadlines(room: dict) -> None:
+    """An online player's existing turn is the reconnect grace period."""
+    room["turnDeadline"] = int(time.time()) + TURN_SECONDS if room["mode"] == "online" and room["phase"] == "playing" else None
+    if room["phase"] != "waiting":
+        room["waitingExpiresAt"] = None
 
 
 def _pay(room: dict, seat: int, amount: int) -> None:
@@ -235,6 +244,7 @@ def _start_hand(room: dict) -> None:
     room["turnIndex"] = room["dealerIndex"]
     _log(room, f"Раздача {room['handNumber']} · блайнды {SMALL_BLIND}/{BIG_BLIND}")
     _advance(room)
+    _refresh_deadlines(room)
 
 
 def legal_actions(room: dict, seat: int) -> list[str]:
@@ -345,6 +355,7 @@ def player_view(room: dict, seat: int) -> dict:
                 "players": players, "youIndex": seat, "pot": sum(p["committed"] for p in room["players"]),
                 "toCall": call, "minRaiseTo": min(room["currentBet"] + room["lastRaise"], player["bet"] + player["stack"]) if "raise" in actions else None,
                 "maxRaiseTo": player["bet"] + player["stack"], "legalActions": actions,
+                "turnDeadline": room.get("turnDeadline"), "waitingExpiresAt": room.get("waitingExpiresAt"),
                 "smallBlind": SMALL_BLIND, "bigBlind": BIG_BLIND, "trainingChips": True}
 
 
@@ -352,41 +363,147 @@ def _db_path() -> Path:
     return Path(os.getenv("POKER_DB_PATH") or os.getenv("GAME_DB_PATH", "runtime/teramont.sqlite3")).resolve()
 
 
-@contextmanager
 def _connection(write: bool = False):
-    path = _db_path()
-    path.parent.mkdir(parents=True, exist_ok=True)
-    db = sqlite3.connect(path, timeout=15, isolation_level=None)
-    db.row_factory = sqlite3.Row
-    db.execute("PRAGMA busy_timeout = 15000")
-    try:
-        if write:
-            db.execute("BEGIN IMMEDIATE")
-        yield db
-        if write:
-            db.commit()
-    except Exception:
-        if write:
-            db.rollback()
-        raise
-    finally:
-        db.close()
+    # The legacy separate poker file is kept for SQLite installations. A
+    # configured PostgreSQL deployment stores all game modules together.
+    path = _db_path() if os.getenv("POKER_DB_PATH") and not os.getenv("DATABASE_URL") else None
+    return connection(write=write, path=path)
 
 
 def init_poker_db() -> None:
-    with _connection() as db:
-        db.execute("PRAGMA journal_mode = WAL")
+    with _connection(True) as db:
         db.execute("""CREATE TABLE IF NOT EXISTS poker_rooms (
             room_id TEXT PRIMARY KEY, code TEXT NOT NULL UNIQUE,
-            payload TEXT NOT NULL, expires_at INTEGER NOT NULL)""")
+            payload TEXT NOT NULL, expires_at INTEGER NOT NULL,
+            version INTEGER NOT NULL DEFAULT 1, phase TEXT NOT NULL DEFAULT 'waiting',
+            turn_deadline INTEGER, waiting_expires_at INTEGER)""")
+        columns = db.columns("poker_rooms")
+        needs_backfill = not {"version", "phase", "turn_deadline", "waiting_expires_at"}.issubset(columns) or not db.columns("poker_room_members")
+        for name, declaration in (("version", "INTEGER NOT NULL DEFAULT 1"),
+                                  ("phase", "TEXT NOT NULL DEFAULT 'waiting'"),
+                                  ("turn_deadline", "INTEGER"), ("waiting_expires_at", "INTEGER")):
+            if name not in columns:
+                db.execute(f"ALTER TABLE poker_rooms ADD COLUMN {name} {declaration}")
+        db.execute("""CREATE TABLE IF NOT EXISTS poker_room_members (
+            room_id TEXT NOT NULL REFERENCES poker_rooms(room_id) ON DELETE CASCADE,
+            user_id INTEGER NOT NULL, PRIMARY KEY(room_id,user_id))""")
         db.execute("CREATE INDEX IF NOT EXISTS ix_poker_expiry ON poker_rooms(expires_at)")
+        db.execute("CREATE INDEX IF NOT EXISTS ix_poker_deadlines ON poker_rooms(phase,turn_deadline,waiting_expires_at)")
+        db.execute("CREATE INDEX IF NOT EXISTS ix_poker_members_user ON poker_room_members(user_id)")
         db.execute("DELETE FROM poker_rooms WHERE expires_at < ?", (int(time.time()),))
+        # Only the one-time schema migration scans legacy rooms. Startup must
+        # neither rewrite unchanged payloads nor extend their storage lifetime.
+        if needs_backfill:
+            for row in db.execute("SELECT room_id,payload FROM poker_rooms").fetchall():
+                room = json.loads(row["payload"])
+                if "turnDeadline" not in room:
+                    _refresh_deadlines(room)
+                if "waitingExpiresAt" not in room:
+                    room["waitingExpiresAt"] = int(time.time()) + WAITING_SECONDS if room["mode"] == "online" and room["phase"] == "waiting" else None
+                db.execute("""UPDATE poker_rooms SET payload=?,version=?,phase=?,turn_deadline=?,waiting_expires_at=? WHERE room_id=?""",
+                           (json.dumps(room, ensure_ascii=False), room["version"], room["phase"],
+                            room.get("turnDeadline"), room.get("waitingExpiresAt"), row["room_id"]))
+                _save_members(db, room)
 
 
-def _save(db, room: dict) -> None:
-    db.execute("""INSERT INTO poker_rooms(room_id,code,payload,expires_at) VALUES (?,?,?,?)
-        ON CONFLICT(room_id) DO UPDATE SET payload=excluded.payload,expires_at=excluded.expires_at""",
-               (room["roomId"], room["code"], json.dumps(room, ensure_ascii=False), int(time.time()) + ROOM_TTL))
+def _save(db, room: dict, expected_version: int | None = None) -> None:
+    """Persist with compare-and-swap when a caller computed outside the lock."""
+    values = (json.dumps(room, ensure_ascii=False), int(time.time()) + ROOM_TTL,
+              room["version"], room["phase"], room.get("turnDeadline"), room.get("waitingExpiresAt"))
+    if expected_version is None:
+        db.execute("""INSERT INTO poker_rooms(room_id,code,payload,expires_at,version,phase,turn_deadline,waiting_expires_at)
+            VALUES (?,?,?,?,?,?,?,?) ON CONFLICT(room_id) DO UPDATE SET
+            payload=excluded.payload,expires_at=excluded.expires_at,version=excluded.version,phase=excluded.phase,
+            turn_deadline=excluded.turn_deadline,waiting_expires_at=excluded.waiting_expires_at""",
+                   (room["roomId"], room["code"], *values))
+    else:
+        db.lock("poker:" + room["roomId"])
+        changed = db.execute("""UPDATE poker_rooms SET payload=?,expires_at=?,version=?,phase=?,turn_deadline=?,waiting_expires_at=?
+            WHERE room_id=? AND version=? AND expires_at>=?""",
+                             (*values, room["roomId"], expected_version, int(time.time()))).rowcount
+        if changed != 1:
+            raise HTTPException(409, "Состояние стола изменилось. Обнови стол и повтори ход")
+    _save_members(db, room)
+
+
+def _save_members(db, room: dict) -> None:
+    for player in room["players"]:
+        if player["identity"].startswith("tg:"):
+            db.execute("INSERT OR IGNORE INTO poker_room_members(room_id,user_id) VALUES (?,?)",
+                       (room["roomId"], int(player["identity"][3:])))
+
+
+def _notify(room: dict) -> None:
+    from .realtime import publish
+    publish("poker:" + room["roomId"], {"version": room["version"]})
+    for player in room["players"]:
+        if player["identity"].startswith("tg:"):
+            publish("user:" + player["identity"][3:], {"type": "lobby.changed"})
+
+
+def create_match_room(first_user: dict, second_user: dict, db) -> dict:
+    """Allocate a matched table inside the lobby's existing transaction.
+
+    The caller owns commit and notification, so queue rows and room allocation
+    either all persist or all roll back together.
+    """
+    if not db.in_write or int(first_user["id"]) == int(second_user["id"]):
+        raise ValueError("A match needs a write transaction and two distinct users")
+    _capacity(db)
+    room = _new_room("online", _player(f"tg:{first_user['id']}", first_user.get("first_name")))
+    room["players"].append(_player(f"tg:{second_user['id']}", second_user.get("first_name")))
+    _start_hand(room)
+    _save(db, room)
+    return room
+
+
+def list_user_rooms(user_id: int) -> list[dict]:
+    with _connection() as db:
+        rows = db.execute("""SELECT r.payload FROM poker_rooms r JOIN poker_room_members m ON m.room_id=r.room_id
+            WHERE m.user_id=? AND r.expires_at>=? AND r.phase<>'closed' ORDER BY r.expires_at DESC LIMIT 30""",
+                          (user_id, int(time.time()))).fetchall()
+    return [player_view(room, _seat(room, {"userId": user_id})) for row in rows for room in [json.loads(row["payload"])]]
+
+
+def _expire(room_id: str, now: float) -> bool:
+    with _connection() as db:
+        try:
+            room = _load(db, room_id)
+        except HTTPException:
+            return False
+    deadline = room.get("waitingExpiresAt") if room["phase"] == "waiting" else room.get("turnDeadline")
+    if room["mode"] != "online" or deadline is None or deadline > now:
+        return False
+    previous = room["version"]
+    if room["phase"] == "waiting":
+        room.update(phase="closed", turnIndex=None)
+        _log(room, "Время ожидания соперника истекло")
+    elif room["phase"] == "playing":
+        apply_action(room, room["turnIndex"], "fold")
+        _log(room, "Время хода истекло · автоматический пас")
+    else:
+        return False
+    _refresh_deadlines(room)
+    room["version"] += 1
+    try:
+        with _connection(True) as db:
+            _save(db, room, previous)
+    except HTTPException as error:
+        if error.status_code == 409:
+            return False
+        raise
+    _notify(room)
+    return True
+
+
+def tick_timeouts(now: float | None = None) -> int:
+    """Idempotent across workers: only a successful CAS emits an event."""
+    now = time.time() if now is None else now
+    with _connection() as db:
+        rows = db.execute("""SELECT room_id FROM poker_rooms WHERE expires_at>=? AND
+            ((phase='playing' AND turn_deadline<=?) OR (phase='waiting' AND waiting_expires_at<=?))""",
+                          (int(time.time()), int(now), int(now))).fetchall()
+    return sum(_expire(row["room_id"], now) for row in rows)
 
 
 def _load(db, room_id: str) -> dict:
@@ -432,8 +549,9 @@ class ActionRequest(BaseModel):
 
 
 def _capacity(db) -> None:
+    db.lock("poker:capacity")
     db.execute("DELETE FROM poker_rooms WHERE expires_at < ?", (int(time.time()),))
-    if db.execute("SELECT COUNT(*) FROM poker_rooms").fetchone()[0] >= MAX_ROOMS:
+    if db.execute("SELECT COUNT(*) FROM poker_rooms WHERE phase<>'closed'").fetchone()[0] >= MAX_ROOMS:
         raise HTTPException(503, "Столы временно заняты. Попробуй позже")
 
 
@@ -451,6 +569,7 @@ def solo(payload: SoloRequest, x_init_data: str | None = Header(default=None, al
     with _connection(True) as db:
         _capacity(db)
         _save(db, room)
+    _notify(room)
     return {"roomId": room["roomId"], "token": token, "state": player_view(room, 0)}
 
 
@@ -460,18 +579,25 @@ def create_room(user: dict = Depends(get_current_user)) -> dict:
     with _connection(True) as db:
         _capacity(db)
         _save(db, room)
+    _notify(room)
     return {"roomId": room["roomId"], "state": player_view(room, 0)}
 
 
 @router.post("/rooms/join")
 def join_room(payload: JoinRequest, user: dict = Depends(get_current_user)) -> dict:
+    changed = False
     with _connection(True) as db:
+        # A code and a room ID must resolve to the same lock for concurrent
+        # joins/actions; discover the ID, then re-read after the room lock.
         row = db.execute("SELECT payload FROM poker_rooms WHERE code=? AND expires_at>=?", (payload.code.upper(), int(time.time()))).fetchone()
         if not row:
             raise HTTPException(404, "Комната с таким кодом не найдена")
         room = json.loads(row["payload"])
+        db.lock("poker:" + room["roomId"])
+        room = _load(db, room["roomId"])
         identity = f"tg:{user['id']}"
-        if room["mode"] != "online" or room["phase"] == "closed":
+        if room["mode"] != "online" or room["phase"] == "closed" or (
+                room["phase"] == "waiting" and room.get("waitingExpiresAt") is not None and room["waitingExpiresAt"] <= time.time()):
             raise HTTPException(409, "Этот стол недоступен для подключения")
         seat = next((i for i, p in enumerate(room["players"]) if p["identity"] == identity), None)
         if seat is None:
@@ -482,7 +608,10 @@ def join_room(payload: JoinRequest, user: dict = Depends(get_current_user)) -> d
             _start_hand(room)
             room["version"] += 1
             _save(db, room)
-        return {"roomId": room["roomId"], "state": player_view(room, seat)}
+            changed = True
+    if changed:
+        _notify(room)
+    return {"roomId": room["roomId"], "state": player_view(room, seat)}
 
 
 @router.get("/rooms/{room_id}")
@@ -494,19 +623,34 @@ def get_room(room_id: str, identity: dict = Depends(get_poker_identity)) -> dict
 
 @router.post("/rooms/{room_id}/action")
 def act(room_id: str, payload: ActionRequest, identity: dict = Depends(get_poker_identity)) -> dict:
-    with _connection(True) as db:
+    # Monte Carlo bot decisions happen on a private snapshot without holding a
+    # SQLite global writer lock or a PostgreSQL room lock. A short CAS commit
+    # ensures two requests can never spend the same chips.
+    with _connection() as db:
         room = _load(db, room_id)
-        seat = _seat(room, identity)
-        if payload.version != room["version"]:
-            raise HTTPException(409, "Состояние стола изменилось. Обнови стол и повтори ход")
-        try:
-            apply_action(room, seat, payload.action, payload.amount)
-            _bot_turn(room)
-        except PokerRuleError as error:
-            raise HTTPException(409, str(error)) from error
-        room["version"] += 1
-        _save(db, room)
-        return player_view(room, seat)
+    seat = _seat(room, identity)
+    if payload.version != room["version"]:
+        raise HTTPException(409, "Состояние стола изменилось. Обнови стол и повтори ход")
+    deadline = room.get("turnDeadline") if room["phase"] == "playing" else room.get("waitingExpiresAt") if room["phase"] == "waiting" else None
+    if room["mode"] == "online" and deadline is not None and deadline <= time.time():
+        _expire(room_id, time.time())
+        raise HTTPException(409, "Время ожидания истекло. Обнови стол")
+    try:
+        apply_action(room, seat, payload.action, payload.amount)
+        _bot_turn(room)
+    except PokerRuleError as error:
+        raise HTTPException(409, str(error)) from error
+    _refresh_deadlines(room)
+    room["version"] += 1
+    with _connection(True) as db:
+        db.lock("poker:" + room_id)
+        if room["mode"] == "online" and deadline is not None and deadline <= time.time():
+            # Waiting for the writer/room lock does not extend a player's turn.
+            # The background timeout worker will persist the automatic fold.
+            raise HTTPException(409, "Время ожидания истекло. Обнови стол")
+        _save(db, room, payload.version)
+    _notify(room)
+    return player_view(room, seat)
 
 
 @router.get("/rooms/{room_id}/hint")

@@ -13,7 +13,7 @@ async (page) => {
     await page.waitForFunction(type=>saved.current?.type===type&&activeScreen==='game',type);
     const c=await page.evaluate(()=>JSON.parse(JSON.stringify(saved.current)));
     if(type==='sudoku'){
-      await page.screenshot({path:'output/playwright/sudoku-390.png'});
+      await page.screenshot({path:'C:/Users/1234567890/Desktop/PHANTOM_PROJECTS_COLLECTED_2026-09-20/01 Проекты/01 В работе/Развивайка — Teramont/output/playwright/sudoku-390.png'});
       for(let i=0;i<c.board.length;i++)if(!c.board[i]){
         await page.locator(`[data-sudoku-cell="${i}"]`).click();
         await page.locator(`[data-sudoku-number="${c.solution[i]}"]`).click();
@@ -59,9 +59,10 @@ async (page) => {
     const result=await page.evaluate(type=>({type,completed:saved.current.completed,xp:profile.xp,unlocked:profile.campaigns[type].unlockedLevel,completedCount:profile.campaigns[type].completedCount}),type);
     if(!result.completed||result.unlocked!==2||result.completedCount!==1)throw Error(JSON.stringify(result));
     results.push(result);
+    await page.locator('.success-panel [data-screen-link="levels"]').click();
   }
   await page.locator('.bottom-nav [data-screen-link="profile"]').click();
-  await page.screenshot({path:'output/playwright/profile-390.png'});
+  await page.screenshot({path:'C:/Users/1234567890/Desktop/PHANTOM_PROJECTS_COLLECTED_2026-09-20/01 Проекты/01 В работе/Развивайка — Teramont/output/playwright/profile-390.png'});
   for(const width of [320,390,768]){
     await page.setViewportSize({width,height:844});
     for(const section of ['home','levels','profile']){

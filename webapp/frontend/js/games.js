@@ -34,7 +34,7 @@ let timerHandle=null,memoryLocked=false,toastHandle=null,revealHandle=null,devic
 profile=profile?.campaigns?profile:buildLocalProfile();
 function deviceStorageAvailable(){return hasTelegramIdentity&&tg?.isVersionAtLeast?.("9.0")&&tg.DeviceStorage;}
 function flushDeviceSave(){clearTimeout(deviceSaveHandle);if(deviceStorageAvailable()){try{tg.DeviceStorage.setItem(STORAGE_KEY,JSON.stringify(saved),()=>{});}catch(_){}}}
-function saveState(){saved.updatedAt=Date.now();try{localStorage.setItem(STORAGE_KEY,JSON.stringify(saved));}catch(_){showToast("Не хватает места для локального сохранения.");}if(deviceStorageAvailable()){clearTimeout(deviceSaveHandle);deviceSaveHandle=setTimeout(flushDeviceSave,150);}}
+function saveState(){saved.updatedAt=Date.now();try{localStorage.setItem(STORAGE_KEY,JSON.stringify(saved));}catch(_){showToast("Не хватает места для локального сохранения.");}if(deviceStorageAvailable()){clearTimeout(deviceSaveHandle);deviceSaveHandle=setTimeout(flushDeviceSave,150);}Platform.changed();}
 async function hydrateDeviceSave(){
   if(!deviceStorageAvailable())return;
   const remote=await Promise.race([new Promise(resolve=>{try{tg.DeviceStorage.getItem(STORAGE_KEY,(error,value)=>{try{resolve(error?null:JSON.parse(value||"null"));}catch(_){resolve(null);}});}catch(_){resolve(null);}}),new Promise(resolve=>setTimeout(()=>resolve(null),1800))]);
@@ -153,7 +153,7 @@ function showScreen(name){
   activeScreen=name;$("#app").classList.toggle("is-playing",name==="game"||name==="chess-game"||name==="poker-game");$$("#main .screen").forEach(s=>s.classList.toggle("active",s.dataset.screen===name));$("#main").scrollTop=0;
   $$(".bottom-nav button").forEach(b=>{b.classList.toggle("active",b.dataset.screenLink===name);b.setAttribute("aria-current",b.dataset.screenLink===name?"page":"false");});
   if(name==="home")renderHome();else if(name==="profile"||name==="levels")updateProfileUI();
-  $("#app").classList.toggle("is-poker",name==="poker-game");PokerMode.onScreen(name);ChessMode.onScreen(name);hydrateIcons();
+  $("#app").classList.toggle("is-poker",name==="poker-game");PokerMode.onScreen(name);ChessMode.onScreen(name);Platform.onScreen(name);hydrateIcons();
   if(hasTelegramIdentity&&tg?.isVersionAtLeast?.("6.1")&&tg?.BackButton){if(name==="home")tg.BackButton.hide();else tg.BackButton.show();}
   const heading=$(`.screen[data-screen="${name}"] h1,.screen[data-screen="${name}"] h2`);if(heading){heading.tabIndex=-1;heading.focus({preventScroll:true});}
 }
@@ -172,22 +172,22 @@ async function loadProfile(){
   if(hasTelegramIdentity){try{cacheProfile(await apiRequest("/api/profile"));serverReady=true;status.parentElement.classList.add("connected");status.textContent="Профиль Telegram подключён · прогресс синхронизирован";}catch(error){serverReady=false;status.parentElement.classList.add("error");status.textContent=`Не удалось подключить профиль: ${error.message}`;$("#retryConnection").classList.remove("hidden");}}
   renderHome();
 }
-async function startGame(type,difficulty="easy",levelNumber=null){
+async function startGame(type,difficulty="easy",levelNumber=null,replace=false){
   if(starting)return;if(hasTelegramIdentity&&!serverReady){showToast("Сначала подключи профиль кнопкой «Повторить подключение».");return;}
-  const existing=saved.runs[type];if(existing&&!existing.completed&&existing.levelNumber===levelNumber&&existing.difficulty===difficulty){resumeGame(type);return;}
+  const existing=saved.runs[type];if(!replace&&existing&&!existing.completed&&existing.levelNumber===levelNumber&&existing.difficulty===difficulty){resumeGame(type);return;}
   if(existing&&!existing.completed&&!window.confirm("В этой игре уже есть незавершённая партия. Заменить её новой?"))return;
   starting=true;$("#launchStatus").textContent="Готовим поле…";
   try{
     const session=apiAvailable()?await apiRequest("/api/games/start",{game_type:type,difficulty,level_number:levelNumber}):null;
     const config=session||(levelNumber?levelConfig(levelNumber,type):{game:type,difficulty,number:null});
-    const game=createPuzzle(config.game,config.difficulty,config.number,session?.sessionId);game.lastTouchedAt=Date.now();
+    const game=session?.puzzle||createPuzzle(config.game,config.difficulty,config.number,session?.sessionId);game.sessionId=session?.sessionId||null;game.startedAt=Date.now();game.lastTouchedAt=Date.now();
     pauseGame();saved.current=game;saved.runs[type]=game;saved.selectedCampaign=type;saveState();openCurrentGame();
   }catch(error){showToast(`Не удалось начать: ${error.message}`);}finally{starting=false;$("#launchStatus").textContent="";}
 }
 function startLevel(number){const c=currentCampaign();if(number>c.unlockedLevel)return;const config=levelConfig(number,saved.selectedCampaign);startGame(config.game,config.difficulty,number);}
 function resumeGame(type){const c=saved.runs[type];if(!c||c.completed)return;pauseGame();saved.current=c;c.lastTouchedAt=Date.now();saved.selectedCampaign=type;if(type==="memory")c.cards.forEach(card=>{if(!card.matched)card.open=false;});if(type==="pattern"){c.revealing=false;c.ready=false;c.selectedCells=[];}openCurrentGame();}
 function openCurrentGame(){memoryLocked=false;$("#gameRules").classList.add("hidden");$("#gameHelp").setAttribute("aria-expanded","false");showScreen("game");renderCurrentGame();startTimer();$("#gameTitle").tabIndex=-1;$("#gameTitle").focus({preventScroll:true});}
-function renderCurrentGame(){$("#gameMount").removeAttribute("aria-busy");const c=saved.current;if(!c)return;if(c.completed){renderSuccess();return;}({sudoku:renderSudoku,memory:renderMemory,tiles:renderTiles,pattern:renderPattern,nonogram:renderNonogram,stroop:renderStroop}[c.type]||renderQuestionGame)();}
+function renderCurrentGame(){$("#gameMount").removeAttribute("aria-busy");const c=saved.current;if(!c)return;if(c.completed){renderSuccess();return;}({sudoku:renderSudoku,memory:renderMemory,tiles:renderTiles,pattern:renderPattern,nonogram:renderNonogram,stroop:renderStroop}[c.type]||renderQuestionGame)();if(c.sessionId&&!c.serverChallengeVersion)$("#gameMount").insertAdjacentHTML("afterbegin",'<div class="lobby-notice"><p>Эта партия начата до обновления проверки решений. Для сохранения XP нужно начать этап заново.</p><button class="text-button" type="button" data-restart-verified>Начать с серверной проверкой</button></div>');}
 function difficultyPicker(){const c=saved.current;return c.levelNumber?"":'<div class="level-picker" role="group" aria-label="Сложность">'+Object.entries(DIFFICULTIES).map(([key,d])=>'<button class="level-button'+(key===c.difficulty?" active":"")+'" aria-pressed="'+(key===c.difficulty)+'" data-game-difficulty="'+key+'" type="button">'+d.label+'</button>').join("")+'</div>';}
 function updateGameMeta(description){
   const c=saved.current;if(!c)return;
@@ -208,11 +208,18 @@ function applyLocalCompletion(current){
 }
 async function syncCompletedGame(current=saved.current){
   if(!current?.sessionId||current.syncPending)return;current.syncPending=true;current.syncError=null;if(current===saved.current&&activeScreen==="game")renderSuccess(true);
-  try{const result=await apiRequest("/api/games/complete",{session_id:current.sessionId,elapsed_seconds:Math.floor(current.elapsed),hints:current.hints||0,moves:current.moves||0});current.result=result;current.syncError=null;saved.pending=saved.pending.filter(c=>c.sessionId!==current.sessionId);cacheProfile(result.profile);}
+  try{const result=await apiRequest("/api/games/complete",{session_id:current.sessionId,elapsed_seconds:Math.floor(current.elapsed),hints:current.hints||0,moves:current.moves||0,proof:completionProof(current)});current.result=result;current.syncError=null;saved.pending=saved.pending.filter(c=>c.sessionId!==current.sessionId);cacheProfile(result.profile);}
   catch(error){current.syncError=error.message;if(!saved.pending.some(c=>c.sessionId===current.sessionId))saved.pending.push(current);showToast("Результат сохранён на устройстве. Можно повторить синхронизацию.");}
   finally{current.syncPending=false;saveState();if(current===saved.current&&activeScreen==="game")renderSuccess();renderHome();}
 }
 async function retryPending(){for(const c of [...saved.pending])await syncCompletedGame(c);}
+function completionProof(c){
+  if(["sudoku","nonogram"].includes(c.type))return {board:c.board};
+  if(c.type==="tiles")return {board:c.board,tileMoves:c.proofTileMoves||[]};
+  if(c.type==="memory")return {pairs:c.proofPairs||[]};
+  if(c.type==="pattern")return {patterns:c.proofPatterns||[]};
+  return {answers:c.proofAnswers||[]};
+}
 async function finishGame(){const c=saved.current;if(!c||c.completed)return;c.elapsed=updateElapsed();c.startedAt=null;c.completed=true;clearInterval(timerHandle);clearTimeout(revealHandle);saveState();if(hasTelegramIdentity&&tg?.isVersionAtLeast?.("6.1")){try{tg.HapticFeedback?.notificationOccurred("success");}catch(_){}}if(c.sessionId&&apiAvailable())await syncCompletedGame(c);else{c.result=applyLocalCompletion(c);cacheProfile(c.result.profile);saveState();renderSuccess();renderHome();}}
 function renderSuccess(pending=false){
   updateGameMeta();$("#gameMount").setAttribute("aria-busy",String(pending));
@@ -297,6 +304,7 @@ function selectMemoryCard(id) {
   const first = openCards[0];
   current.moves += 1;
   if (first.value === card.value) {
+    (current.proofPairs||=[]).push([first.id,card.id]);
     first.matched = true;
     card.matched = true;
     persistCurrent();
@@ -330,6 +338,7 @@ function checkPuzzleAnswer(){
   if(!answer){feedback.textContent="Впиши ответ.";input?.focus();return;}
   c.moves++;
   if(q.answers.some(a=>normalizeAnswer(a)===answer)){
+    (c.proofAnswers||=[]).push(input.value);
     feedback.textContent="Верно!";feedback.className="feedback correct";c.index++;c.hintShown=false;c.answerLocked=true;persistCurrent();
     setTimeout(()=>{c.answerLocked=false;if(saved.current!==c||c.completed)return;if(c.index===c.questions.length)finishGame();else if(activeScreen==="game"){renderQuestionGame();$("#puzzleAnswer")?.focus({preventScroll:true});}},250);
   }else{feedback.textContent="Пока не совпало. Проверь рассуждение или возьми подсказку.";feedback.className="feedback incorrect";input.select();persistCurrent();}
@@ -339,16 +348,16 @@ function renderTiles(){
   const c=saved.current,blank=c.board.indexOf(0),size=c.size;
   $("#gameMount").innerHTML=`${gameHeader("Сдвигай соседние с пустотой плитки. Расположи числа по порядку, пустую клетку — справа внизу.")}<div class="game-panel"><div class="memory-summary"><span>Поле ${size} × ${size}</span><span>Ходов: ${c.moves}</span></div><div class="tiles-grid" style="--grid-size:${size}" role="group" aria-label="Поле пятнашек">${c.board.map((n,i)=>{const adjacent=Math.abs(Math.floor(i/size)-Math.floor(blank/size))+Math.abs(i%size-blank%size)===1;return `<button class="tile${!n?" empty":""}${adjacent?" movable":""}" data-tile="${i}" aria-label="${n?`Плитка ${n}${adjacent?", можно сдвинуть":""}`:"Пустая клетка"}" type="button" ${!n?"disabled":""}>${n||""}</button>`;}).join("")}</div></div><div class="game-actions"><button class="secondary-button" data-tiles-undo="true" type="button" ${c.history.length?"":"disabled"}>Отменить ход</button></div><p class="game-note">Отмена считается подсказкой. На компьютере можно двигать пустую клетку стрелками.</p>`;
 }
-function moveTile(index){const c=saved.current;if(c?.type!=="tiles"||c.completed)return;const blank=c.board.indexOf(0);if(Math.abs(Math.floor(index/c.size)-Math.floor(blank/c.size))+Math.abs(index%c.size-blank%c.size)!==1){showToast("Сдвигается только плитка рядом с пустой клеткой.");return;}c.history.push(blank);[c.board[blank],c.board[index]]=[c.board[index],c.board[blank]];c.moves++;persistCurrent();renderTiles();if(c.board.every((v,i)=>v===(i+1)%c.board.length))finishGame();}
-function undoTile(){const c=saved.current;if(c?.type!=="tiles"||!c.history.length||c.completed)return;const blank=c.board.indexOf(0),previous=c.history.pop();[c.board[blank],c.board[previous]]=[c.board[previous],c.board[blank]];c.hints++;c.moves++;persistCurrent();renderTiles();}
+function moveTile(index){const c=saved.current;if(c?.type!=="tiles"||c.completed)return;const blank=c.board.indexOf(0);if(Math.abs(Math.floor(index/c.size)-Math.floor(blank/c.size))+Math.abs(index%c.size-blank%c.size)!==1){showToast("Сдвигается только плитка рядом с пустой клеткой.");return;}(c.proofTileMoves||=[]).push(index);c.history.push(blank);[c.board[blank],c.board[index]]=[c.board[index],c.board[blank]];c.moves++;persistCurrent();renderTiles();if(c.board.every((v,i)=>v===(i+1)%c.board.length))finishGame();}
+function undoTile(){const c=saved.current;if(c?.type!=="tiles"||!c.history.length||c.completed)return;const blank=c.board.indexOf(0),previous=c.history.pop();(c.proofTileMoves||=[]).push(previous);[c.board[blank],c.board[previous]]=[c.board[previous],c.board[blank]];c.hints++;c.moves++;persistCurrent();renderTiles();}
 function renderPattern(){
   const c=saved.current,pattern=c.patterns[c.round],selected=new Set(c.selectedCells);
   $("#gameMount").innerHTML=`${gameHeader("Запомни подсвеченные клетки, затем отметь их на пустом поле.")}<div class="game-panel"><div class="memory-summary"><span>Раунд ${c.round+1}/${c.patterns.length}</span><span>${c.revealing?"Запоминай":c.ready?`Выбрано ${selected.size}/${pattern.length}`:"Готов?"}</span></div><div class="pattern-grid" style="--grid-size:${c.size}" role="group" aria-label="Матрица памяти">${Array.from({length:c.size*c.size},(_,i)=>`<button class="pattern-cell${c.revealing&&pattern.includes(i)?" revealed":""}${!c.revealing&&selected.has(i)?" selected":""}" data-pattern-cell="${i}" type="button" aria-label="Клетка ${i+1}" aria-pressed="${selected.has(i)}" ${!c.ready||c.revealing?"disabled":""}>${c.revealing&&pattern.includes(i)||selected.has(i)?"●":""}</button>`).join("")}</div><p class="feedback" aria-live="polite">${escapeHtml(c.feedback||"")}</p><button class="primary-button" data-pattern-reveal="true" type="button" ${c.revealing?"disabled":""}>${c.revealing?"Запоминай узор…":c.ready?"Показать ещё раз (подсказка)":"Показать узор"}</button></div><p class="game-note">Повторный показ в одном раунде считается подсказкой. Можно менять выбранные клетки.</p>`;
 }
 function revealPattern(){const c=saved.current;if(c?.type!=="pattern"||c.revealing||c.completed)return;if(c.shownRound===c.round)c.hints++;c.shownRound=c.round;c.revealing=true;c.ready=false;c.selectedCells=[];c.feedback="";persistCurrent();renderPattern();clearTimeout(revealHandle);revealHandle=setTimeout(()=>{if(saved.current!==c||activeScreen!=="game"||c.completed)return;c.revealing=false;c.ready=true;persistCurrent();renderPattern();},c.revealDuration);}
-function selectPattern(index){const c=saved.current;if(c?.type!=="pattern"||!c.ready||c.revealing||c.completed)return;const at=c.selectedCells.indexOf(index);if(at>=0)c.selectedCells.splice(at,1);else c.selectedCells.push(index);c.moves++;const target=c.patterns[c.round];c.feedback="";if(c.selectedCells.length===target.length){if(target.every(i=>c.selectedCells.includes(i))){c.round++;c.selectedCells=[];c.ready=false;if(c.round===c.patterns.length){finishGame();return;}c.feedback="Верно. Следующий узор.";}else c.feedback="Узор отличается. Можно изменить выбор или показать его ещё раз.";}persistCurrent();renderPattern();}
+function selectPattern(index){const c=saved.current;if(c?.type!=="pattern"||!c.ready||c.revealing||c.completed)return;const at=c.selectedCells.indexOf(index);if(at>=0)c.selectedCells.splice(at,1);else c.selectedCells.push(index);c.moves++;const target=c.patterns[c.round];c.feedback="";if(c.selectedCells.length===target.length){if(target.every(i=>c.selectedCells.includes(i))){(c.proofPatterns||=[]).push([...c.selectedCells]);c.round++;c.selectedCells=[];c.ready=false;if(c.round===c.patterns.length){finishGame();return;}c.feedback="Верно. Следующий узор.";}else c.feedback="Узор отличается. Можно изменить выбор или показать его ещё раз.";}persistCurrent();renderPattern();}
 function renderStroop(){const c=saved.current,q=c.questions[c.index];$("#gameMount").innerHTML=`${gameHeader("Назови цвет букв. Значение самого слова не учитывается.")}<div class="game-panel stroop-panel"><p class="puzzle-progress">Раунд ${c.index+1}/${c.questions.length}</p><p class="stroop-word" style="color:${INK_COLORS[q.ink].color}" aria-label="Слово ${INK_COLORS[q.word].name}">${INK_COLORS[q.word].name}</p><div class="color-choices">${INK_COLORS.map((color,i)=>`<button class="secondary-button color-choice" data-ink="${i}" type="button"><span style="background:${color.color}" aria-hidden="true"></span>${color.name}</button>`).join("")}</div><p class="feedback" aria-live="polite">${escapeHtml(c.feedback||"")}</p></div>`;}
-function selectInk(index){const c=saved.current;if(c?.type!=="stroop"||c.completed)return;c.moves++;if(index===c.questions[c.index].ink){c.index++;c.feedback="Верно!";if(c.index===c.questions.length){finishGame();return;}}else c.feedback="Смотри на цвет букв, а не на значение слова.";persistCurrent();renderStroop();}
+function selectInk(index){const c=saved.current;if(c?.type!=="stroop"||c.completed)return;c.moves++;if(index===c.questions[c.index].ink){(c.proofAnswers||=[]).push(index);c.index++;c.feedback="Верно!";if(c.index===c.questions.length){finishGame();return;}}else c.feedback="Смотри на цвет букв, а не на значение слова.";persistCurrent();renderStroop();}
 function renderNonogram(){
   const c=saved.current;
   $("#gameMount").innerHTML=`${gameHeader("Числа задают длину закрашенных групп. Между группами оставь хотя бы одну пустую клетку.")}<div class="game-panel nonogram-panel"><div class="nonogram-grid" role="group" aria-label="Японский кроссворд 5 на 5"><span></span>${c.colClues.map(clue=>`<span class="nonogram-col-clue">${clue.join("<br>")}</span>`).join("")}${c.rowClues.map((clue,r)=>`<span class="nonogram-row-clue">${clue.join(" ")}</span>${c.board.slice(r*5,r*5+5).map((v,col)=>`<button class="nonogram-cell${v===1?" filled":v===-1?" crossed":""}" data-nonogram-cell="${r*5+col}" type="button" aria-label="Строка ${r+1}, столбец ${col+1}, ${v===1?"закрашено":v===-1?"пустая клетка":"не отмечено"}">${v===-1?"×":""}</button>`).join("")}`).join("")}</div><div class="level-picker" aria-label="Инструмент">${[["fill","Закрасить"],["cross","Крестик"]].map(([mode,label])=>`<button class="level-button${mode===c.markMode?" active":""}" data-nonogram-mode="${mode}" type="button">${label}</button>`).join("")}</div><p class="feedback" aria-live="polite">${escapeHtml(c.feedback||"")}</p></div><div class="game-actions"><button class="secondary-button" data-nonogram-hint="true" type="button">Подсказка</button><button class="primary-button" data-nonogram-check="true" type="button">Проверить</button></div><p class="game-note">Повторное нажатие снимает отметку. Пустые клетки можно оставлять без крестиков.</p>`;
@@ -368,6 +377,7 @@ function configureTelegram(){
 }
 document.addEventListener("click",event=>{
   const target=event.target.closest("button");if(!target||target.disabled)return;
+  if(target.hasAttribute("data-restart-verified")){const c=saved.current;startGame(c.type,c.difficulty,c.levelNumber,true);return;}
   if(PokerMode.click(target))return;
   if(ChessMode.click(target))return;
   if(target.dataset.resume==="poker"){PokerMode.resume();return;}
@@ -381,7 +391,7 @@ document.addEventListener("click",event=>{
   if(target.hasAttribute("data-play-current-level")){const c=currentCampaign();const run=saved.runs[saved.selectedCampaign];if(run&&!run.completed)resumeGame(run.type);else if(c.complete)startGame(saved.selectedCampaign);else startLevel(c.unlockedLevel);return;}
   if(target.id==="freePlay"){startGame(saved.selectedCampaign);return;}
   if(target.dataset.resume){resumeGame(target.dataset.resume);return;}
-  if(target.id==="retryConnection"){loadProfile();return;}
+  if(target.id==="retryConnection"){loadProfile().then(()=>{if(serverReady)return Platform.init();});return;}
   if(target.id==="retryPending"){retryPending();return;}
   if(target.dataset.retrySave){syncCompletedGame();return;}
   if(target.dataset.gameDifficulty){if(saved.current&&!saved.current.levelNumber)startGame(saved.current.type,target.dataset.gameDifficulty);return;}
@@ -414,5 +424,5 @@ document.addEventListener("keydown",event=>{
 });
 window.addEventListener("pagehide",()=>{pauseGame();flushDeviceSave();});
 document.addEventListener("visibilitychange",()=>{if(document.hidden)pauseGame();else if(activeScreen==="game"&&!saved.current?.completed)startTimer();});
-async function initializeGame(){hydrateIcons();configureTelegram();await hydrateDeviceSave();saveState();await loadProfile();if(serverReady&&hasTelegramIdentity)await retryPending();if(new URLSearchParams(location.search).get("screen")==="profile")showScreen("profile");}
+async function initializeGame(){hydrateIcons();configureTelegram();await hydrateDeviceSave();saveState();await loadProfile();if(serverReady&&hasTelegramIdentity){await Platform.init();await retryPending();}if(new URLSearchParams(location.search).get("screen")==="profile")showScreen("profile");}
 initializeGame().catch(error=>{$("#connectionStatus").parentElement.classList.add("error");$("#connectionStatus").textContent=`Ошибка запуска: ${error.message}`;$("#retryConnection").classList.remove("hidden");});
