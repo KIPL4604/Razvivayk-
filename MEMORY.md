@@ -724,3 +724,12 @@ design/platform-direction.md. Runtime/output игнорируются. Изме�
 и текущий HTTPS tunnel подтвердили4.0.0, публичный WebSocket upgrade/auth rejection
 1008 прошёл. Это работающий временный адрес, не постоянный VPS и не приёмка на
 телефоне. Новые raw initData/URL/токены в Git не записывались.
+
+
+Публикация платформенного кода подтверждена: commit
+`6ae3689a797937abc2b4b66b8120faf10325efa1`, push origin/main успешен и удалённый
+SHA совпал. GitHub Actions Platform checks / run39154925840 завершился success
+(84 Python tests с PostgreSQL/Redis, Node1000, syntax, Docker build, diff).
+Отчёт design/platform-review.md. Production deploy не запускался; сведений о VPS
+и домене пока нет. QA fixture8081 и тестовые контейнеры убраны, рабочая8080
+Развивайка/бот/супервизор/временныйHTTPS оставлены работающими.

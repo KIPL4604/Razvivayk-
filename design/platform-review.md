@@ -109,3 +109,17 @@ HTTPS tunnel дают service=teramont/version4.0.0, публичный WS upgra
 - VPS/домен/публичный сертификат, внешний backup, адресат уведомлений и реальный
   Telegram smoke на телефоне ещё не подтверждены. CI/deploy файлы подготовлены;
   факт запуска workflow/публикации проверяется отдельно после Git push.
+
+
+## Публикация и CI
+
+Код платформы отправлен в `KIPL4604/Razvivayk-`, ветка main, commit
+`6ae3689a797937abc2b4b66b8120faf10325efa1`. Удалённый SHA проверен через ls-remote.
+GitHub Actions [Platform checks](https://github.com/KIPL4604/Razvivayk-/actions/runs/39154925840)
+завершён успешно: зависимости, PostgreSQL/Redis tests, 1000 Node стадий, JS syntax,
+Docker build и diff check. Production deploy workflow не запускался: VPS/домен
+и его GitHub environment secrets не предоставлены.
+
+Изолированные QA API/контейнеры остановлены после проверок. Рабочая Развивайка
+на8080 и существующий supervisor/bot/HTTPS tunnel оставлены работающими. Новые
+копии SQLite/pg_dump находятся только в игнорируемом runtime/backups.
