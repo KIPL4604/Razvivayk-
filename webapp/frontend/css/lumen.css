@@ -1,3 +1,4 @@
+@font-face{font-family:LumenPixel;src:url('../assets/lumen/fonts/Tiny5-game.ttf') format('truetype');font-style:normal;font-weight:400;font-display:swap}
 /* The light Teramont library surrounds an original night-garden game world. */
 .lumen-catalog{grid-column:1/-1;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:center;padding:0;overflow:hidden;background:#E8F0ED;border-color:#CDDFD6}
 .lumen-catalog .game-art{height:100%;min-height:160px;object-fit:cover;border-radius:0}
@@ -35,3 +36,112 @@ html.lumen-active,html.lumen-active body{overflow:hidden;overscroll-behavior:non
 @media(max-width:540px){.lumen-tool{width:44px;min-width:44px}}
 @media(max-width:540px){.lumen-cover{min-height:230px}.lumen-cover h1{font-size:44px;margin-top:12px}.lumen-cover p{font-size:17px}.lumen-cover-coordinate{margin-top:10px;font-size:8px}.lumen-brief{padding:22px 20px}.lumen-brief h2{font-size:27px}.lumen-description{font-size:12px}.lumen-brief>.lumen-launch{margin-top:16px}}
 @media(prefers-reduced-motion:reduce){.lumen-launch,.lumen-health-track i,.lumen-xp-track i{transition:none}.lumen-catalog:hover{transform:none}}
+
+/* First art slice for review: stone, copper and mint. Scoped to Lumen. */
+#lumenCanvas,.lumen-cover canvas,.lumen-catalog img{image-rendering:pixelated;image-rendering:crisp-edges}
+.lumen-character-portrait{display:block;width:48px;height:48px;flex-shrink:0;background:url('../assets/lumen/scout.png') 0 0/288px 240px no-repeat;image-rendering:pixelated}
+.lumen-game.active{
+  --lumen-paper:#f1dfaf;--lumen-ink:#111b25;--lumen-mint:#83cda4;
+  --lumen-stone:#17262e;--lumen-border:#876a4e;--lumen-muted:#b6b8b0;
+  font-family:LumenPixel,monospace;font-size:20px;font-weight:400;
+  color:var(--lumen-paper);background:var(--lumen-stone);line-height:1.2
+}
+.lumen-game button{font:inherit;cursor:pointer;transition:background-color .12s,border-color .12s;letter-spacing:0}
+.lumen-pixel-icon{display:inline-block;width:32px;height:32px;flex-shrink:0;background-image:url('../assets/lumen/ui.png');background-repeat:no-repeat;background-size:512px 32px;background-position:calc(var(--icon) * -32px) 0;image-rendering:pixelated;vertical-align:middle}
+.lumen-hud{
+  top:max(20px,calc(var(--lumen-safe-top,0px) + 12px),calc(env(safe-area-inset-top) + 12px));
+  left:50%;right:auto;transform:translateX(-50%);width:min(720px,calc(100% - 40px));
+  display:grid;grid-template-columns:1fr 100px 1fr;align-items:center;gap:16px;
+  padding:12px 16px 14px;background:#17262ef5;text-shadow:none;
+  border:8px solid transparent;border-image:url('../assets/lumen/panel.png') 3 fill / 8px / 0 stretch;
+  box-shadow:0 6px 0 #111b2580
+}
+.lumen-health{width:178px;min-width:0}
+.lumen-hud-kicker{font-size:12px;letter-spacing:1px;font-weight:400;color:#c3ac7c;margin-bottom:3px}
+.lumen-health>div:nth-child(2){font-size:20px;gap:4px;height:25px}
+.lumen-health b{font-weight:400}
+.lumen-health>div>.lumen-pixel-icon{width:24px;height:24px;background-size:384px 24px;background-position:calc(var(--icon) * -24px) 0}
+.lumen-health-track{height:8px;margin-top:5px;border:2px solid #111b25;border-radius:0;background:#392e35;box-shadow:0 1px 0 #49725c;overflow:hidden}
+.lumen-health-track i{background:#83cda4;box-shadow:inset 0 2px #c5e8ba;transition:width .1s linear}
+.lumen-timer{position:static;transform:none;align-self:center;text-align:center}
+.lumen-timer strong{font-size:36px;font-weight:400;line-height:1;letter-spacing:1px;color:#f1dfaf}
+.lumen-timer span{font-size:14px;letter-spacing:0;margin-top:3px;color:#b6b8b0}
+.lumen-tools{gap:6px;justify-content:flex-end;align-items:center}
+.lumen-tool{width:44px;height:44px;min-width:44px;border:2px solid #49725c;border-radius:0;background:#1c3338;box-shadow:0 3px 0 #111b25;color:#f1dfaf;padding:0}
+.lumen-tool:hover{background:#29504a;border-color:#a4dbb1}.lumen-tool:active{box-shadow:none;translate:0 2px}
+.lumen-xp{
+  top:max(120px,calc(var(--lumen-safe-top,0px) + 112px),calc(env(safe-area-inset-top) + 112px));
+  left:50%;right:auto;transform:translateX(-50%);width:min(680px,calc(100% - 72px))
+}
+.lumen-xp>div:first-child{font-size:16px;letter-spacing:0;color:#c5e8ba;margin-bottom:4px;text-shadow:2px 2px #111b25}
+.lumen-xp-track{height:6px;background:#111b25;border:1px solid #49725c;box-shadow:0 2px 0 #111b2560}
+.lumen-xp-track i{background:#83cda4;box-shadow:inset 0 1px #c5e8ba;transition:width .12s}
+.lumen-wave{top:max(174px,calc(var(--lumen-safe-top,0px) + 166px));font-size:16px;letter-spacing:1px;color:#ddc994;text-shadow:2px 2px #111b25}
+.lumen-bottom{bottom:max(24px,calc(var(--lumen-safe-bottom,0px) + 16px),calc(env(safe-area-inset-bottom) + 16px));left:max(28px,calc(var(--lumen-safe-left,0px) + 16px));right:max(28px,calc(var(--lumen-safe-right,0px) + 16px));align-items:flex-end}
+.lumen-weapons{gap:8px}
+.lumen-slot{width:52px;height:52px;border:6px solid transparent;border-image:url('../assets/lumen/panel.png') 3 fill / 6px / 0 stretch;border-radius:0;background:#17262e;box-shadow:0 4px 0 #111b2580}
+.lumen-slot small{right:1px;bottom:-1px;font-size:16px;color:#f1dfaf;background:#17262e;line-height:1;padding:0 2px}
+.lumen-slot.locked{opacity:.55;filter:saturate(.3)}
+.lumen-tally{color:#f1dfaf;padding:6px 10px;background:#17262edb;border-left:2px solid #876a4e;text-shadow:none}
+.lumen-tally strong{font-size:28px;font-weight:400}.lumen-tally>span{font-size:16px;color:#b6b8b0}
+.lumen-hint{bottom:110px;font-size:18px;color:#e5f3d1;text-shadow:2px 2px #111b25;line-height:1.3}
+.lumen-hint>span{font-size:16px;opacity:1;color:#b6b8b0;margin-top:5px}
+.lumen-stick{border-radius:0;border:2px solid #83cda4;background:#17262e66;box-shadow:0 0 0 2px #111b25}
+.lumen-stick i{border-radius:0;border:2px solid #c5e8ba;background:#49725cbb}
+.lumen-overlay{background:#111b25d9;padding:max(24px,var(--lumen-safe-top,0px)) max(16px,var(--lumen-safe-right,0px)) max(24px,var(--lumen-safe-bottom,0px)) max(16px,var(--lumen-safe-left,0px))}
+.lumen-dialog{
+  width:min(100%,540px);padding:28px;border:12px solid transparent;
+  border-image:url('../assets/lumen/panel.png') 3 fill / 12px / 0 stretch;
+  border-radius:0;background:#17262e;box-shadow:0 12px 0 #111b2580;color:#f1dfaf;
+  font-family:LumenPixel,monospace
+}
+.lumen-dialog-kicker{font-size:16px;letter-spacing:1px;font-weight:400;color:#83cda4}
+.lumen-dialog h2{font-size:40px;line-height:1.05;font-weight:400;letter-spacing:0;color:#f1dfaf;margin:14px 0}
+.lumen-dialog>p{font-size:20px;line-height:1.35;color:#b6b8b0;margin-bottom:24px}
+.lumen-dialog .lumen-launch{border:2px solid #83cda4;border-radius:0;background:#29504a;box-shadow:inset 0 2px #49725c,0 4px #111b25;color:#e5f3d1;font-size:22px;font-weight:400;padding:12px 16px;min-height:52px}
+.lumen-dialog .lumen-launch:hover{background:#376157;border-color:#c5e8ba}
+.lumen-dialog .lumen-launch:active{background:#1c3338;transform:translateY(2px)}
+.lumen-menu-button{border:2px solid #376157;border-radius:0;background:#1c3338;color:#c5e8ba;font-size:20px;min-height:48px;margin-top:12px;padding:9px 12px}
+.lumen-menu-button:hover{background:#29504a;border-color:#83cda4}
+.lumen-pause-help{font-size:18px;line-height:1.4;color:#b6b8b0;border-top:2px solid #29504a;padding-top:18px;margin-top:24px}
+.lumen-upgrades{gap:12px}
+.lumen-upgrades button{border:2px solid #49725c;border-radius:0;background:#1c3338;padding:14px;gap:12px;min-height:112px;box-shadow:0 3px #111b25;color:#f1dfaf}
+.lumen-upgrades button:hover{background:#29504a;border-color:#c5e8ba;box-shadow:inset 4px 0 #83cda4,0 3px #111b25}
+.lumen-upgrade-icon{width:48px;height:52px;border-radius:0;background:#111b25;border:2px solid #376157;color:inherit;flex-shrink:0}
+.lumen-upgrades small{font-size:16px;color:#83cda4;letter-spacing:0}
+.lumen-upgrades strong{font-size:22px;font-weight:400;line-height:1.1}
+.lumen-upgrades button>span>span{font-size:18px;line-height:1.25;color:#b6b8b0}
+.lumen-upgrades button>b{color:#ddc994;font-size:24px}
+.lumen-result-mark{margin:8px 0;color:inherit;font-size:0;line-height:1}
+.lumen-result-mark .lumen-pixel-icon{width:64px;height:64px;background-size:1024px 64px;background-position:calc(var(--icon) * -64px) 0}
+.lumen-result-stats{border-block:2px solid #376157;margin-bottom:24px;padding:16px 0}
+.lumen-result-stats span{font-size:18px;color:#b6b8b0}.lumen-result-stats b{font-size:32px;font-weight:400;color:#f1dfaf}
+.lumen-result-note{font-size:16px;line-height:1.3;color:#b6b8b0}
+.lumen-game button:focus-visible{outline:3px solid #f1dfaf;outline-offset:4px}
+@media(max-width:540px){
+  .lumen-hud{width:calc(100% - 24px);padding:10px 8px 12px;gap:6px;grid-template-columns:minmax(0,1fr) 78px 92px;top:max(12px,calc(var(--lumen-safe-top,0px) + 8px),calc(env(safe-area-inset-top) + 8px))}
+  .lumen-health{width:100%;max-width:126px}.lumen-hud-kicker{font-size:10px;letter-spacing:0;margin-bottom:3px}
+  .lumen-health>div:nth-child(2){font-size:16px;gap:2px;height:22px}
+  .lumen-health>div>.lumen-pixel-icon{width:20px;height:20px;background-size:320px 20px;background-position:calc(var(--icon) * -20px) 0}
+  .lumen-timer{top:auto;left:auto}.lumen-timer strong{font-size:28px;letter-spacing:0}.lumen-timer span{font-size:12px;margin-top:4px}
+  .lumen-tools{gap:4px}.lumen-tool{width:44px;height:44px;min-width:44px;border:2px solid #49725c;background:#1c3338}
+  .lumen-xp{width:calc(100% - 44px);top:max(108px,calc(var(--lumen-safe-top,0px) + 104px),calc(env(safe-area-inset-top) + 104px))}
+  .lumen-xp>div:first-child{font-size:16px}.lumen-wave{top:max(157px,calc(var(--lumen-safe-top,0px) + 153px));font-size:14px;letter-spacing:0}
+  .lumen-bottom{left:max(16px,var(--lumen-safe-left,0px));right:max(16px,var(--lumen-safe-right,0px));bottom:max(18px,calc(var(--lumen-safe-bottom,0px) + 12px))}
+  .lumen-slot{width:48px;height:48px}.lumen-weapons{gap:6px}.lumen-tally strong{font-size:24px}.lumen-tally>span{font-size:14px}
+  .lumen-hint{font-size:18px;bottom:104px}.lumen-hint>span{font-size:16px}
+  .lumen-dialog{padding:20px 14px;border-width:10px;border-image-width:10px}.lumen-dialog h2{font-size:32px}.lumen-dialog>p{font-size:18px;margin-bottom:20px}
+  .lumen-dialog-kicker{font-size:14px;letter-spacing:0}.lumen-upgrades button{padding:12px 9px;gap:10px;min-height:112px}
+  .lumen-upgrades small{font-size:14px}.lumen-upgrades strong{font-size:20px}.lumen-upgrades button>span>span{font-size:18px}
+  .lumen-upgrade-icon{width:36px;height:44px}.lumen-upgrades button>b{display:none}
+  .lumen-dialog .lumen-launch{font-size:20px;padding:12px}.lumen-pause-help{font-size:18px}
+}
+@media(max-height:500px) and (min-width:541px){
+  .lumen-hud{top:max(8px,var(--lumen-safe-top,0px));width:min(600px,calc(100% - 36px));padding:6px 12px;grid-template-columns:1fr 100px 1fr}
+  .lumen-health{width:150px}.lumen-hud-kicker{font-size:10px}.lumen-timer strong{font-size:28px}
+  .lumen-xp{top:88px;width:min(560px,calc(100% - 60px))}.lumen-wave{top:132px;font-size:14px}
+  .lumen-bottom{bottom:max(12px,var(--lumen-safe-bottom,0px))}.lumen-hint{bottom:72px;font-size:16px}
+  .lumen-dialog{padding:16px;max-width:660px}.lumen-dialog h2{font-size:30px}.lumen-dialog>p{font-size:18px;margin-bottom:16px}
+  .lumen-upgrades button{padding:10px;min-height:0}.lumen-upgrades strong{font-size:20px}.lumen-upgrade-icon{height:40px;width:40px}
+}
+@media(prefers-reduced-motion:reduce){.lumen-game button,.lumen-health-track i,.lumen-xp-track i{transition:none}}

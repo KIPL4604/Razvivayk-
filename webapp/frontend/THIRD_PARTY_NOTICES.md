@@ -52,9 +52,25 @@ No new runtime dependency is required by poker.
 
 ## Lumen: The Last Beacon
 
-The survival simulation, Canvas artwork (scout, keeper, creatures, guardians,
-garden, beacon), SVG library thumbnail, interface and Web Audio synthesized
-tones are original implementation for Teramont. No external sprite, music,
-texture, game code or font files are distributed by this module. It uses only
-browser APIs and the platform's existing Telegram integration. No new runtime
-dependency. Provenance and scope: `design/lumen-provenance.md` in the repository.
+The survival simulation, interface, Web Audio tones and preserved legacy art
+are original implementation for Teramont. The first pixel-art slice (19 Oct 2026)
+uses project-specific PNG artwork generated with the built-in OpenAI imagegen
+tool: scout, seed-creature, botanical scenery and paving. Full source outputs,
+generation prompts, normalization code and SHA-256 manifest are retained in
+`design/lumen-pixel/` and `assets/lumen/manifest.json`. Device glyphs, particles
+and panel pixels are original editable project artwork. No Vampire Survivors
+assets, third-party sprite packs, music or game code were copied or distributed.
+This provenance does not assert exclusive copyright in generated outputs.
+
+The locally bundled Tiny5 font is by The Tiny5 Project Authors / Stefan Schmidt,
+under SIL Open Font License 1.1. Source: https://github.com/Gissio/font_tiny5 and
+https://github.com/google/fonts/tree/main/ofl/tiny5. The complete source font is
+retained in `design/lumen-pixel/sources/Tiny5.ttf`; the runtime font is a static
+default-axis Latin/Cyrillic subset. Its license and attribution are distributed
+at `assets/lumen/fonts/OFL.txt`. This font remains under OFL.
+
+The game still uses browser APIs and the existing Telegram integration, without
+a new runtime library. `openai/plugins` game-studio skills were consulted as
+workflow instructions; their code/assets are not bundled into the game.
+Provenance and staging scope: `design/lumen-provenance.md` and
+`design/lumen-pixel/direction.md` in the repository.

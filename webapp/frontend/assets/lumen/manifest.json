@@ -1,0 +1,140 @@
+{
+  "version": 1,
+  "frameSize": 48,
+  "columns": 6,
+  "anchor": [
+    24,
+    45
+  ],
+  "animations": {
+    "idle": {
+      "row": 0,
+      "frames": 6,
+      "fps": 6,
+      "loop": true
+    },
+    "walk": {
+      "row": 1,
+      "frames": 6,
+      "fps": 10,
+      "loop": true
+    },
+    "attack": {
+      "row": 2,
+      "frames": 6,
+      "fps": 16,
+      "loop": false
+    },
+    "hurt": {
+      "row": 3,
+      "frames": 6,
+      "fps": 16,
+      "loop": false
+    },
+    "death": {
+      "row": 4,
+      "frames": 6,
+      "fps": 10,
+      "loop": false
+    }
+  },
+  "palette": [
+    "#111b25",
+    "#17262e",
+    "#1c3338",
+    "#25434a",
+    "#29504a",
+    "#376157",
+    "#49725c",
+    "#648269",
+    "#75945b",
+    "#98ac76",
+    "#83cda4",
+    "#a4dbb1",
+    "#c5e8ba",
+    "#e5f3d1",
+    "#f1dfaf",
+    "#ddc994",
+    "#c3ac7c",
+    "#a58c60",
+    "#876a4e",
+    "#6b503c",
+    "#533f3d",
+    "#392e35",
+    "#75463d",
+    "#94533f",
+    "#b66b45",
+    "#cd8050",
+    "#e39b5d",
+    "#efbe7c",
+    "#647488",
+    "#8b96a4",
+    "#b6b8b0",
+    "#ca7970"
+  ],
+  "sources": {
+    "floor-raw.png": {
+      "bytes": 1179331,
+      "sha256": "df4d9a2f27afa3a9f784e58cdb720a39e3bfb0dfabb54c868e837306700d70b7"
+    },
+    "garden-raw.png": {
+      "bytes": 2003029,
+      "sha256": "80ba88dda1e80efe9b976186ae3cf9246b44380a4fe396262f86d2559b9e8ecb"
+    },
+    "mote-raw.png": {
+      "bytes": 1868246,
+      "sha256": "7ef220354ee30b1f98777494b40d1353bee79bac4045d8046aec347bae413cee"
+    },
+    "scout-raw.png": {
+      "bytes": 1870504,
+      "sha256": "7874fe2f71ee894a65e7eca9ebee6d30709f90d94e142cdafe5ef9023e8643a5"
+    },
+    "seed.png": {
+      "bytes": 720434,
+      "sha256": "45e28860f59f7d71dbd01cf757f1478f3a229fc807cb764e5f94d0ca77f4c76f"
+    },
+    "Tiny5.ttf": {
+      "bytes": 433432,
+      "sha256": "588626f2c1b164f55927c0d8123f4bc134651aad7d257da68fc19b0824b0d8fa"
+    }
+  },
+  "font": {
+    "file": "fonts/Tiny5-game.ttf",
+    "license": "fonts/OFL.txt",
+    "sha256": "44095dd9b4dfe35d55b1d06f30e82fce8a821ec0df7f85b9541ffe55cdd02bd3"
+  },
+  "cover": {
+    "file": "cover.png",
+    "sha256": "1bddc0b2e77954e3217c74a7c15f32961a442e2dbc3b60bbe701b05b9ef65972"
+  },
+  "files": {
+    "fx.png": {
+      "bytes": 267,
+      "sha256": "6a59b5c0afc939b5d4d7bd8fd29d83e95404f18ce7605c5194949609625b2ebf"
+    },
+    "garden.png": {
+      "bytes": 16251,
+      "sha256": "f9307ce3e6f3556ab741be0b37ed9b77d23ef0c4bd26e0bb92638d97e17a0395"
+    },
+    "mote.png": {
+      "bytes": 35281,
+      "sha256": "9b1bbc7eb563a3232a998207d07ecaa4990de670c6f51b0acbf4e61974e6309d"
+    },
+    "panel.png": {
+      "bytes": 152,
+      "sha256": "6a4a39d199d112204aa94882e0399d773f487f004f2ad02e656c278765cc11e4"
+    },
+    "scout.png": {
+      "bytes": 41480,
+      "sha256": "fb743ee05492395765a4d61a065afc4c5655dc0094ee0bb06450d8514c7d3cf0"
+    },
+    "tiles.png": {
+      "bytes": 1164,
+      "sha256": "2a9f17e28d60de8d4bff397df48d458d64668536d4fed30a91b6f35078fa870f"
+    },
+    "ui.png": {
+      "bytes": 718,
+      "sha256": "4d48295c667eb50b3df91cd34285f7aaaee052f4b64ff2550cfeb6e59e36eec3"
+    }
+  }
+}

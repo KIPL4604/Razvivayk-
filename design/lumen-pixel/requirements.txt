@@ -1,0 +1,3 @@
+# Offline art tools only; not application/runtime requirements.
+Pillow==12.1.1
+fonttools==4.62.1
