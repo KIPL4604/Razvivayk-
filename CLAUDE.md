@@ -28,6 +28,12 @@ Teramont — игровая платформа внутри Telegram Mini App. �
 
 ## Команды
 
+Люмен20.10: над героем постоянно видна пиксельная шкала HP, попадание даёт
+короткую подсветку PNG и hurt-анимацию. Только presentation, без изменений
+урона/неуязвимости/save. Проверено57Node/3art, health/pixel/motion browser
+scenarios; две итерации,6героев/2карты/4ширины/DPR1–3/reduced motion.
+См. design/lumen-pixel/health-feedback.md и MEMORY.md11.19.
+
 - Локальный запуск: `python run_local.py`; состояние `--status`, остановка `--stop`.
 - Автозапуск при входе Windows: `install_autostart.ps1`, задача `TeramontGamesAutoStart`; скрытая оболочка `start_background.ps1`. Отключение: `install_autostart.ps1 -Remove`.
 - Туннель: keepalive SSH, HTTPS-проверка каждые 20 секунд, переподключение после трёх неудачных проверок, срок подключения 60 секунд, пауза повторов 2–30 секунд. Адрес бота меняется после подтверждённой доступности нового туннеля.

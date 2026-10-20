@@ -1,4 +1,4 @@
-import { FIXED_STEP, cameraScale, sceneryOpacity, lerp, crystalTier } from './presentation.mjs';
+import { FIXED_STEP, cameraScale, sceneryOpacity, lerp, crystalTier, HealthFeedback } from './presentation.mjs';
 import {WEAPONS,weaponStats,BOSSES,MAPS} from './catalog.mjs';
 
 const TAU = Math.PI * 2;
@@ -18,6 +18,7 @@ export class Renderer {
     this.width = 0; this.height = 0;
     this.views = new Map(); this.ghosts = [];
     this.lastTime = -1; this.lastAttack = 0; this.attackUntil = 0;
+    this.health = new HealthFeedback(); this.hitSheets = new Map();
     this.media = matchMedia('(prefers-reduced-motion: reduce)');
     this.previous = { player: null, enemies: new Map(), shots: new Map(), gems: new WeakMap() };
     this.captureTick = this.captureTick.bind(this);
@@ -52,6 +53,7 @@ export class Renderer {
   at(x, y) { return [round(this.cx + x * this.zoom), round(this.cy + y * this.zoom)]; }
 
   captureTick(state) {
+    this.health.update(state);
     this.previous.time=state.time;
     this.previous.player={x:state.player.x,y:state.player.y};
     for(const [key,entities] of [['enemies',state.enemies],['shots',state.projectiles]]){
@@ -66,8 +68,7 @@ export class Renderer {
     return old&&this.alpha<1?{x:lerp(old.x,entity.x,this.alpha),y:lerp(old.y,entity.y,this.alpha)}:entity;
   }
 
-  blit(key, sx, sy, sw, sh, x, y, worldWidth, worldHeight = worldWidth, anchor = .94, flip = false) {
-    const image = this.art.images[key];
+  blit(key, sx, sy, sw, sh, x, y, worldWidth, worldHeight = worldWidth, anchor = .94, flip = false, image = this.art.images[key]) {
     const [px, py] = this.at(x, y);
     const width = Math.max(1, round(worldWidth * this.zoom)), height = Math.max(1, round(worldHeight * this.zoom));
     const left = px - Math.floor(width / 2), top = py - Math.round(height * anchor);
@@ -77,15 +78,44 @@ export class Renderer {
     } else this.ctx.drawImage(image, sx, sy, sw, sh, left, top, width, height);
   }
 
-  actor(key, animation, x, y, size, time, since = 0, flip = false) {
+  hitSheet(key, color) {
+    const id=key+color;
+    if(!this.hitSheets.has(id)){
+      const image=this.art.images[key],sheet=document.createElement('canvas');
+      sheet.width=image.width;sheet.height=image.height;
+      const c=sheet.getContext('2d');c.drawImage(image,0,0);
+      c.globalCompositeOperation='source-in';c.fillStyle=color;
+      c.fillRect(0,0,sheet.width,sheet.height);
+      this.hitSheets.set(id,sheet);
+    }
+    return this.hitSheets.get(id);
+  }
+
+  actor(key, animation, x, y, size, time, since = 0, flip = false, tint) {
     const data = this.art.manifest.animations[animation];
     const actor=this.art.manifest.actors[key],frameSize=actor?.frameSize||48,anchor=(actor?.anchor?.[1]||45)/frameSize;
     const elapsed = Math.max(0, time - since);
     const frame = this.media.matches && animation === 'idle' ? 0
       : data.loop ? Math.floor(elapsed * data.fps) % data.frames
         : Math.min(data.frames - 1, Math.floor(elapsed * data.fps));
-    this.blit('fx', 0, 0, 16, 16, x, y + 7, size * .58, size * .28, .75);
-    this.blit(key, frame * frameSize, data.row * frameSize, frameSize, frameSize, x, y + 7, size, size, anchor, flip);
+    if(!tint)this.blit('fx', 0, 0, 16, 16, x, y + 7, size * .58, size * .28, .75);
+    this.blit(key, frame * frameSize, data.row * frameSize, frameSize, frameSize, x, y + 7, size, size, anchor, flip,
+      tint?this.hitSheet(key,tint):this.art.images[key]);
+  }
+
+  heroHealth(player, cue) {
+    const c=this.ctx,d=this.dpr;
+    // CSS-sized minimum keeps the bar readable with the wider mobile camera.
+    const width=round(Math.max(48,58*this.scale)*d),height=round(8*d),edge=round(d);
+    const [x,y]=this.at(player.x,player.y-90);
+    const left=x-Math.floor(width/2),top=y-height;
+    c.fillStyle='#101820';c.fillRect(left-edge,top-edge,width+2*edge,height+2*edge);
+    c.fillStyle=cue.ratio<=.3?'#f3b09e':'#b9cbbb';c.fillRect(left,top,width,height);
+    c.fillStyle='#233039';c.fillRect(left+edge,top+edge,width-2*edge,height-2*edge);
+    const inner=width-4*edge,fill=ratio=>Math.max(0,round(inner*ratio));
+    c.fillStyle='#a35e4d';c.fillRect(left+2*edge,top+2*edge,fill(cue.trail),height-4*edge);
+    c.fillStyle=cue.ratio<=.3?'#f17478':cue.ratio<=.55?'#ebbe69':'#85dfb4';
+    c.fillRect(left+2*edge,top+2*edge,fill(cue.ratio),height-4*edge);
   }
 
   view(state) {
@@ -171,6 +201,12 @@ export class Renderer {
     this.cx = this.canvas.width / 2 - p.x * z;
     this.cy = this.canvas.height * .49 - p.y * z;
     this.view(state);
+    this.health.update(state);
+    const cue=this.health.sample(t+(state.status==='lost'?(this.terminalElapsed||0):state.remainder||0));
+    const heroAnimation=state.status==='lost'?'death':cue.hurt?'hurt'
+      :this.attackUntil>t?'attack':state.moving?'walk':'idle';
+    const heroSince=heroAnimation==='death'?t-(this.terminalElapsed??.6)
+      :heroAnimation==='hurt'?this.health.hitSince:heroAnimation==='attack'?this.attackUntil-.375:0;
     const props = this.ground(p);
     for(const zone of state.zones||[]){
       c.globalAlpha=Math.min(.85,zone.life/.4);
@@ -201,11 +237,7 @@ export class Renderer {
         this.blit(MAPS[this.map].props, entity.index * 64, 0, 64, 64, entity.x, entity.y, entity.size);
         c.globalAlpha = 1;
       } else if (entity.kind === 'hero') {
-          const animation = state.status === 'lost' ? 'death' : p.invulnerable > .42 ? 'hurt'
-            : this.attackUntil > t ? 'attack' : state.moving ? 'walk' : 'idle';
-          const since = animation === 'death' ? t - (this.terminalElapsed ?? .6) : animation === 'hurt' ? t - (.8 - p.invulnerable)
-            : animation === 'attack' ? this.attackUntil - .375 : 0;
-          this.actor(state.character, animation, p.x, p.y, 96, t, since, state.player.facingX < -.1);
+          this.actor(state.character, heroAnimation, p.x, p.y, 96, t, heroSince, state.player.facingX < -.1);
       } else if(entity.kind==='chest'){
         const frame=this.media.matches?0:Math.floor(t*5)%3;
         this.blit('arsenal',frame*48,144,48,48,entity.x,entity.y,78,78,.85);
@@ -268,6 +300,15 @@ export class Renderer {
         this.blit('ui', 15 * 16, 0, 16, 16, x, y, 12, 12, .5); c.restore();
       }
     }
+    if(!preview){
+      // Keep the essential hit cue and local HP readable even in dense combat.
+      if(cue.flash>0){
+        c.save();c.globalAlpha=cue.flash*.85;
+        this.actor(state.character,heroAnimation,p.x,p.y,96,t,heroSince,state.player.facingX<-.1,
+          cue.age<.07?'#fff0dc':'#ff777d');c.restore();
+      }
+      this.heroHealth(p,cue);
+    }
     // Discrete edge shade keeps pixel clusters intact; no blur/filters over art.
     c.fillStyle = '#111b2533';
     c.fillRect(0, 0, this.canvas.width, 4); c.fillRect(0, this.canvas.height - 4, this.canvas.width, 4);
@@ -277,6 +318,7 @@ export class Renderer {
   destroy() {
     this.canvas.width = 1; this.canvas.height = 1;
     this.views.clear(); this.ghosts = []; this.art = null;this.floorPatterns={};
+    this.hitSheets.clear();
     this.previous.enemies.clear();this.previous.shots.clear();this.previous.gems=new WeakMap();
   }
 }
