@@ -59,6 +59,16 @@ class LumenArtTests(unittest.TestCase):
         manifest = json.loads((ART / 'manifest.json').read_text(encoding='utf-8'))
         self.assertIn('SIL OPEN FONT LICENSE', (ART / manifest['font']['license']).read_text(encoding='utf-8'))
 
+    @unittest.skipIf(Image is None, 'Offline pixel checks: install design/lumen-pixel/requirements.txt')
+    def test_xp_tiers_share_the_same_crystal_mask_and_colored_facets(self):
+        with Image.open(ART / 'combat.png') as sheet:
+            cells = [sheet.crop((i*32, 0, (i+1)*32, 32)).convert('RGBA') for i in [4,5,6]]
+            self.assertEqual(len({c.getchannel('A').tobytes() for c in cells}), 1)
+            self.assertEqual(len({c.tobytes() for c in cells}), 3)
+            self.assertEqual(len({c.getbbox() for c in cells}), 1)
+            for cell, color in zip(cells, [(141,201,238), (255,211,111), (244,173,195)]):
+                self.assertEqual(cell.getpixel((18,18))[:3], color)
+
 
 if __name__ == '__main__':
     unittest.main()

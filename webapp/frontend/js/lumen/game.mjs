@@ -3,6 +3,7 @@ import {Renderer} from './renderer.mjs';
 import {loadArt} from './assets.mjs';
 import {WEAPONS,upgradeSummary} from './presentation.mjs';
 import {waveAt} from './progression.mjs';
+import {touchingEnemies} from './physics.mjs';
 import {CHARACTERS,WEAPON_IDS,BASE_WEAPON_IDS,HYBRIDS,ARTIFACTS,BOSSES,MAPS,MAX_WEAPON_STAGE} from './catalog.mjs';
 import {normalizeMeta,buyCharacter,bankCoins,recordProgress,mapAvailable,characterRequirement} from './economy.mjs';
 
@@ -126,8 +127,9 @@ export function createGame(context) {
     if(loot&&notice.dataset.id!==String(loot.id)){notice.dataset.id=loot.id;notice.innerHTML=`${pixelIcon(loot.weapon||'coin')}<span>+${loot.coins} монет${loot.weapon?` · ${WEAPONS[loot.weapon].short} ${roman[loot.stage]}`:''}</span>`;$('#lumenAnnouncement').textContent=notice.textContent;}
     const wave=state.enemies.find(e=>e.kind==='guardian');
     const phase=waveAt(state.time);
-    const text=wave?BOSSES[wave.guardianStage].name.toUpperCase():state.chests.length?'СУНДУК НА ПОЛЕ · ПОДОЙДИ И ОТКРОЙ':state.time<8?'СОБИРАЙ ОСКОЛКИ СВЕТА':phase.kind==='harvest'?'СЛАБЫЙ РОЙ · СОБИРАЙ ОПЫТ':phase.kind==='pressure'&&phase.age<5?`НОВАЯ ВОЛНА · ЭТАП ${phase.stage}`:'';
-    $('#lumenWave').dataset.phase=wave?'guardian':phase.kind;
+    const trapped=touchingEnemies(state).length>=3;
+    const text=trapped?'ТЕБЯ ЗАЖАЛИ · ПРОБЕЙ ПРОХОД':wave?BOSSES[wave.guardianStage].name.toUpperCase():state.chests.length?'СУНДУК НА ПОЛЕ · ПОДОЙДИ И ОТКРОЙ':state.time<8?'СОБИРАЙ ОСКОЛКИ СВЕТА':phase.kind==='harvest'?'СЛАБЫЙ РОЙ · СОБИРАЙ ОПЫТ':phase.kind==='pressure'&&phase.age<5?`НОВАЯ ВОЛНА · ЭТАП ${phase.stage}`:'';
+    $('#lumenWave').dataset.phase=trapped?'contact':wave?'guardian':phase.kind;
     if($('#lumenWave').textContent!==text)$('#lumenWave').textContent=text;
     $('#lumenMoveHint').hidden=state.time>12||pointer!==null||keys.size>0;
     const sb=$('[data-lumen-action="sound"]',gameMount);if(sb){sb.setAttribute('aria-pressed',String(record().settings.sound));sb.setAttribute('aria-label',record().settings.sound?'Выключить звук':'Включить звук');sb.innerHTML=pixelIcon(record().settings.sound?'sound':'mute');}

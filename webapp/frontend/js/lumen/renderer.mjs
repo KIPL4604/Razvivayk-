@@ -1,5 +1,6 @@
 import { FIXED_STEP, cameraScale, sceneryOpacity, lerp, crystalTier, HealthFeedback } from './presentation.mjs';
 import {WEAPONS,weaponStats,BOSSES,MAPS} from './catalog.mjs';
+import {bodyRadius,PLAYER_BODY} from './physics.mjs';
 
 const TAU = Math.PI * 2;
 const round = Math.round;
@@ -17,7 +18,7 @@ export class Renderer {
     this.art = art;
     this.width = 0; this.height = 0;
     this.views = new Map(); this.ghosts = [];
-    this.lastTime = -1; this.lastAttack = 0; this.attackUntil = 0;
+    this.lastTime = -1; this.lastAttack = 0; this.attackUntil = 0; this.lastContact = 0;
     this.health = new HealthFeedback(); this.hitSheets = new Map();
     this.media = matchMedia('(prefers-reduced-motion: reduce)');
     this.previous = { player: null, enemies: new Map(), shots: new Map(), gems: new WeakMap() };
@@ -124,18 +125,21 @@ export class Renderer {
     if (this.lastTime < 0 || t < this.lastTime) {
       this.views.clear(); this.ghosts = []; this.attackUntil = 0;
       this.lastAttack = state.attackSerial||0;
+      this.lastContact = state.contactTimer||0;
     }
     if (t === this.lastTime) return;
     if ((state.attackSerial||0)>this.lastAttack) this.attackUntil = t + .375;
     this.lastAttack = state.attackSerial||0;
+    const biting=(state.contactTimer||0)>this.lastContact;
+    this.lastContact=state.contactTimer||0;
     const next = new Map();
     for (const enemy of state.enemies || []) {
       const old = this.views.get(enemy.id);
-      const near = distance(enemy, state.player) < enemy.radius + state.player.radius + 10;
+      const near = distance(enemy, state.player) <= bodyRadius(enemy) + PLAYER_BODY + 2;
       const hurtUntil = enemy.hitFlash > (old?.flash || 0) ? t + .375 : old?.hurtUntil || 0;
       const animation = hurtUntil > t ? 'hurt' : near||enemy.actionTimer>0 ? 'attack'
         : old && distance(enemy, old) < .02 ? 'idle' : 'walk';
-      const since = animation === old?.animation && !(animation === 'attack' && t - old.since >= .8) ? old.since : t;
+      const since = animation === old?.animation && !(animation === 'attack' && (t - old.since >= .8 || near&&biting)) ? old.since : t;
       next.set(enemy.id, { ...enemy, animation, since, hurtUntil, flash: enemy.hitFlash,
         flip: enemy.x > state.player.x });
     }
@@ -224,7 +228,7 @@ export class Renderer {
     }
     for (const gem of state.gems || []) {
       const tier=crystalTier(gem),point=this.pose(gem,'gems');
-      this.blit('combat', (3+tier)*32, 0, 32, 32, point.x, point.y, 32+(tier-1)*8, undefined, .5);
+      this.blit('combat', (3+tier)*32, 0, 32, 32, point.x, point.y, 32, undefined, .5);
     }
     for(const orbitId of ['orbit','cyclone'])if (state.upgrades?.[orbitId]) {
       const stats=weaponStats(orbitId,state.upgrades[orbitId]),count=stats.count,radius=stats.radius*(1+(state.upgrades.amplifier||0)*.12);

@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import {steer} from './helpers/lumen-pilot.mjs';
+import {WEAPON_IDS} from '../webapp/frontend/js/lumen/catalog.mjs';
 import { DURATION, LIMITS, UPGRADES, createRun, step, chooseUpgrade, serialize, restore } from '../webapp/frontend/js/lumen/engine.mjs';
 
 const advance = (run, seconds, direction = { x: 0, y: 0 }) => {
@@ -35,7 +37,7 @@ test('enemies pursue; contact damage has an invulnerability window', () => {
   assert.equal(run.player.hp, before - 9);
   advance(run, 0.3);
   assert.equal(run.player.hp, before - 9);
-  assert.ok(run.player.invulnerable > 0);
+  assert.ok(run.contactTimer > 0);
   advance(run, 0.7);
   assert.ok(run.player.hp < before - 9);
 });
@@ -195,39 +197,15 @@ for(const map of ['garden','quarry'])for(const character of ['scout','keeper','a
   // A survival game allows losing a seed. Prove each fighter can complete both
   // maps across three fixed seeds, always through legal choices and real HP.
   for(const seed of [1,17,61]){
-  const run = createRun({ seed,character,map });
-  const preference = ['orbit', 'pulse', 'spark', 'focus', 'haste', 'storm','ice','flame','cleaver','thorn','aegis','chronogear','amplifier','collector','chakram','spear','prism','cyclone','briar','sunrise','magnet', 'vitality', 'stride', 'repair'];
+  const run = createRun({ seed,character,map }),pilotMemory={};
+  const preference = [...(character==='stormcaller'?['storm','haste','focus']:[]),'pulse', 'spark', 'orbit','flame', 'focus', 'haste', 'storm','ice','cleaver','thorn','aegis','chronogear','amplifier','collector','chakram','spear','prism','cyclone','briar','sunrise','magnet', 'vitality', 'stride', 'repair'];
   for (let frame = 0; frame < 900 * 60 && !['lost', 'won'].includes(run.status); frame += 1) {
-    const player = run.player;
-    let target = null;
-    for (const crystal of [...run.chests,...run.gems]) {
-      if (!target || Math.hypot(crystal.x - player.x, crystal.y - player.y) < Math.hypot(target.x - player.x, target.y - player.y)) target = crystal;
-    }
-    const distance = target ? Math.hypot(target.x - player.x, target.y - player.y) || 1 : 1;
-    let x = target ? (target.x - player.x) / distance : Math.cos(frame / 260) * 0.4;
-    let y = target ? (target.y - player.y) / distance : Math.sin(frame / 260) * 0.4;
-    for (const creature of run.enemies) {
-      const dx = player.x - creature.x;
-      const dy = player.y - creature.y;
-      const near = Math.hypot(dx, dy) || 1;
-      if (near < 85) { const force = (85 - near) / 45; x += dx / near * force; y += dy / near * force; }
-    }
-    for (const shot of run.projectiles.filter(s=>s.hostile)) {
-      const dx=player.x-shot.x,dy=player.y-shot.y,near=Math.hypot(dx,dy)||1;
-      if(near<65){x+=dx/near*(65-near)/30;y+=dy/near*(65-near)/30;}
-    }
-    // The quarry dash is telegraphed: move out of its marked corridor.
-    for(const warning of run.effects.filter(e=>e.kind==='charge')){
-      const dx=warning.toX-warning.x,dy=warning.toY-warning.y,len=dx*dx+dy*dy;
-      const along=Math.max(0,Math.min(1,((player.x-warning.x)*dx+(player.y-warning.y)*dy)/len));
-      const awayX=player.x-warning.x-dx*along,awayY=player.y-warning.y-dy*along,near=Math.hypot(awayX,awayY)||1;
-      if(near<65){x+=awayX/near*(65-near)/22;y+=awayY/near*(65-near)/22;}
-    }
-    step(run, { x, y }, 1 / 60);
+    step(run, steer(run,frame,pilotMemory), 1 / 60);
     while (run.status === 'upgrade') {
       const recovery=run.player.hp<run.player.maxHp*.65&&['vitality','repair'].find(id=>run.choices.includes(id));
+      const discovery=WEAPON_IDS.filter(id=>run.upgrades[id]).length<3&&preference.find(id=>WEAPON_IDS.includes(id)&&!run.upgrades[id]&&run.choices.includes(id));
       const defense=run.player.hp<run.player.maxHp*.8&&['aegis','stride'].find(id=>run.choices.includes(id));
-      const id = recovery || defense || preference.find((candidate) => run.choices.includes(candidate));
+      const id = recovery || discovery || defense || preference.find((candidate) => run.choices.includes(candidate));
       assert.equal(chooseUpgrade(run, id), true);
     }
   }

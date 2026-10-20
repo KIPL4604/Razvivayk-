@@ -58,8 +58,9 @@ async (page) => {
     await p.screenshot({path:out+'lumen-pixel-upgrade-375-final.png'});
     for(const el of await p.locator('.lumen-upgrades button').all())assert((await el.boundingBox()).width<375,'Upgrade overflow');
     const id=await p.locator('[data-lumen-action="upgrade"]').first().getAttribute('data-lumen-value');
+    const beforeRank=await p.evaluate(id=>saved.lumen.run.upgrades[id]||0,id);
     await p.locator('[data-lumen-action="upgrade"]').first().click();await p.keyboard.press('Escape');
-    assert(await p.evaluate(id=>saved.lumen.run.upgrades[id]===1,id),'Upgrade not applied');
+    assert(await p.evaluate(({id,beforeRank})=>saved.lumen.run.upgrades[id]===beforeRank+1,{id,beforeRank}),'Upgrade not applied');
     results.push('Pause/focus/landscape and real upgrade action persisted');
 
     const presentation=await p.evaluate(async()=>{

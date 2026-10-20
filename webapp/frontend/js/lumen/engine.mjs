@@ -6,6 +6,7 @@
 import {waveAt,xpForLevel,crystalLoot,crystalTier,creatureStats} from './progression.mjs';
 import {CHARACTERS,WEAPONS,WEAPON_IDS,BASE_WEAPON_IDS,HYBRIDS,ARTIFACTS,MAX_WEAPONS,MAX_WEAPON_STAGE,ENEMIES,MAPS} from './catalog.mjs';
 import {updateWeapons,flameImpact} from './combat.mjs';
+import {CONTACT_PERIOD,movePlayer,separateCrowd,touchingEnemies,contactDamage} from './physics.mjs';
 
 export const DURATION = 480; // Historical benchmark for older harnesses; no time limit.
 export const LIMITS = Object.freeze({ enemies: 240, projectiles: 100, gems: 220, effects: 80, zones:24, chests:12 });
@@ -62,7 +63,7 @@ export function createRun({ seed = 0x1a71be, character = 'scout',runId,map='gard
   const normalizedSeed = Number.isInteger(seed) ? seed >>> 0 : 0x1a71be;
   const selected = own(CHARACTERS, character) ? character : 'scout';
   const state = {
-    version: 4, map:own(MAPS,map)?map:'garden',foundWeapons:[],masteredWeapons:[], seed: normalizedSeed, rngState: normalizedSeed || 0x9e3779b9,
+    version: 5, map:own(MAPS,map)?map:'garden',foundWeapons:[],masteredWeapons:[], seed: normalizedSeed, rngState: normalizedSeed || 0x9e3779b9,
     runId:typeof runId==='string'&&/^[a-zA-Z0-9-]{1,90}$/.test(runId)?runId:`run-${normalizedSeed.toString(16)}-${selected}`,
     character: selected, time: 0, status: 'playing', endReason: '',
     player: { x: 0, y: 0, hp: CHARACTERS[selected].hp, maxHp: CHARACTERS[selected].hp,
@@ -72,7 +73,7 @@ export function createRun({ seed = 0x1a71be, character = 'scout',runId,map='gard
     zones:[],chests:[],coinsEarned:0,openedChests:0,lootLog:[],spawnedElites:0,attackSerial:0,
     weaponTimers:Object.fromEntries(WEAPON_IDS.map(id=>[id,0])),
     bossesDefeated: 0, spawnedGuardians: 0, finalGuardianDefeated: false,
-    nextId: 1, remainder: 0, spawnTimer: 0.65, boltTimer: 0,
+    nextId: 1, remainder: 0, contactTimer:0, spawnTimer: 0.65, boltTimer: 0,
     pulseTimer: 0, orbitTimer: 0, orbitAngle: 0, pickupRadius: 58,
   };
   return state;
@@ -131,12 +132,13 @@ function hit(state, enemy, amount, push = 0) {
   }
 }
 
-function hurt(state, damage) {
-  if (state.player.invulnerable > 0 || state.status !== 'playing') return;
+function hurt(state, damage, grace=.3) {
+  if (state.player.invulnerable > 0 || state.status !== 'playing') return false;
   state.player.hp = Math.max(0, state.player.hp - Math.max(1,damage-rank(state,'aegis')*2));
-  state.player.invulnerable = 0.8;
+  state.player.invulnerable = grace;
   effect(state, 'hurt', state.player.x, state.player.y, 30, 0.3);
   if (!state.player.hp) { state.status = 'lost'; state.endReason = 'health'; }
+  return true;
 }
 
 function spawn(state, guardianStage = 0, wave = waveAt(state.time),elite=false) {
@@ -194,7 +196,6 @@ function creatures(state, dt) {
     const speed = enemy.speed * dt*(enemy.slowTime>0?.58:1)*(windup?0:dash?4.5:charging?2.2:raging?1.5:1)*spacing;
     enemy.x += dash?Math.cos(enemy.phase)*speed:(dx - dy * sway) / distance * speed;
     enemy.y += dash?Math.sin(enemy.phase)*speed:(dy + dx * sway) / distance * speed;
-    if (distance < enemy.radius + state.player.radius) hurt(state, enemy.damage);
     if(['quartzling','shardback'].includes(enemy.kind)){
       enemy.fireTimer=Math.max(0,enemy.fireTimer-dt);
       if(enemy.fireTimer<=0&&distance<330){
@@ -331,8 +332,8 @@ function tick(state, input, dt) {
   state.time += dt;
   const player = state.player;
   player.invulnerable = Math.max(0, player.invulnerable - dt);
-  player.x += input.x * player.speed * dt;
-  player.y += input.y * player.speed * dt;
+  state.contactTimer = Math.max(0,state.contactTimer-dt);
+  movePlayer(player,state.enemies,input.x*player.speed*dt,input.y*player.speed*dt);
   if (Math.hypot(input.x, input.y) > 0.01) { player.facingX = input.x; player.facingY = input.y; }
   for (const event of state.effects) event.life -= dt;
   state.effects = state.effects.filter((event) => event.life > 0);
@@ -352,6 +353,11 @@ function tick(state, input, dt) {
   }
   updateWeapons(state, dt, {hit,effect,limits:LIMITS});
   creatures(state, dt);
+  separateCrowd(state.enemies,player);
+  const contacts=touchingEnemies(state);
+  if(state.contactTimer<=0&&contacts.length&&hurt(state,contactDamage(contacts),.2)){
+    state.contactTimer=CONTACT_PERIOD;
+  }
   if (state.status === 'lost') return;
   projectiles(state, dt);
   if (state.status === 'lost') return;
@@ -443,7 +449,8 @@ export function restore(snapshot) {
     if(object(snapshot)&&snapshot.version===1)snapshot=migrateLegacy(snapshot);
     if(object(snapshot)&&snapshot.version===2)snapshot=migrateCampaign(snapshot);
     if(object(snapshot)&&snapshot.version===3)snapshot=migrateArsenal(snapshot);
-    if (!object(snapshot) || snapshot.version !== 4 || !own(MAPS,snapshot.map)||!own(CHARACTERS, snapshot.character) ||
+    if(object(snapshot)&&snapshot.version===4)snapshot={...snapshot,version:5,contactTimer:0};
+    if (!object(snapshot) || snapshot.version !== 5 || !own(MAPS,snapshot.map)||!own(CHARACTERS, snapshot.character) ||
       !integer(snapshot.seed, 0, 0xffffffff) || !integer(snapshot.rngState, 1, 0xffffffff) ||
       !number(snapshot.time, 0, 1e7) || !['playing', 'upgrade', 'won', 'lost'].includes(snapshot.status) ||
       !['', 'health', 'beacon', 'dawn','level'].includes(snapshot.endReason) ||
@@ -451,7 +458,7 @@ export function restore(snapshot) {
       !integer(snapshot.kills, 0, 1e7) || !integer(snapshot.bossesDefeated, 0, 3) ||
       !integer(snapshot.spawnedGuardians, 0, 3) || typeof snapshot.finalGuardianDefeated !== 'boolean' ||
       !integer(snapshot.nextId, 1, 0x7fffffff) || !number(snapshot.remainder, 0, H + 1e-7) ||
-      !number(snapshot.spawnTimer, -H, 3) || !number(snapshot.boltTimer, 0, 3) ||
+      !number(snapshot.contactTimer,0,CONTACT_PERIOD) || !number(snapshot.spawnTimer, -H, 3) || !number(snapshot.boltTimer, 0, 3) ||
       !number(snapshot.pulseTimer, 0, 6) || !number(snapshot.orbitTimer, 0, 1) ||
       !number(snapshot.orbitAngle, 0, TAU) || !object(snapshot.upgrades) ||
       typeof snapshot.runId!=='string'||!/^[a-zA-Z0-9-]{1,90}$/.test(snapshot.runId)||
@@ -548,7 +555,7 @@ export function restore(snapshot) {
       state.lootLog.push({id:item.id,coins:item.coins,weapon:item.weapon,stage:item.stage,time:item.time});
     }
     for (const key of ['rngState', 'time', 'status', 'endReason', 'level', 'xp', 'xpNext', 'kills', 'bossesDefeated',
-      'spawnedGuardians', 'finalGuardianDefeated', 'nextId', 'remainder', 'spawnTimer', 'boltTimer', 'pulseTimer', 'orbitTimer', 'orbitAngle',
+      'spawnedGuardians', 'finalGuardianDefeated', 'nextId', 'remainder', 'contactTimer', 'spawnTimer', 'boltTimer', 'pulseTimer', 'orbitTimer', 'orbitAngle',
       'coinsEarned','openedChests','spawnedElites','attackSerial']) state[key] = snapshot[key];
     state.choices = snapshot.choices.slice();
     return state;

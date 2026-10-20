@@ -169,8 +169,8 @@ def ui():
     fx.save(DEST / 'fx.png')
 
 
-def combat_art():
-    """Editable native pixel source. Distinct weapon shapes and gem silhouettes."""
+def combat_art(legacy_weapons=True):
+    """Editable native pixels: weapon shapes and one recolored crystal family."""
     sheet = Image.new('RGBA',(256,32))
     ink='#111b25'; gold='#ffd36f'; cream='#fff2bd'; blue='#8dc9ee'; ice='#d9f2ff'; purple='#c1a4eb'
     for i in range(8):
@@ -194,25 +194,17 @@ def combat_art():
             d.polygon([(16,11),(21,16),(16,21),(11,16)],fill='#ffe0cb')
         elif i in [4,5,6]:
             color=[blue,gold,'#f4adc3'][i-4]
-            if i==4:
-                points=[(16,3),(23,12),(21,23),(16,29),(11,23),(9,12)]
-                d.polygon(points,fill=ink);d.polygon([(16,6),(21,13),(19,22),(16,26),(13,22),(11,13)],fill=color)
-                d.line([(16,7),(13,13),(14,20)],fill=ice,width=2)
-            elif i==5:
-                d.polygon([(10,3),(22,3),(29,14),(22,27),(10,27),(3,14)],fill=ink)
-                d.polygon([(11,6),(21,6),(26,14),(21,24),(11,24),(6,14)],fill=color)
-                d.line([(11,8),(8,14),(12,22)],fill=cream,width=2)
-                d.line((16,7,16,23),fill='#c58c45')
-            else:
-                d.polygon([(8,8),(16,2),(24,8),(30,16),(24,24),(16,30),(8,24),(2,16)],fill=ink)
-                d.polygon([(9,10),(16,5),(23,10),(27,16),(22,23),(16,27),(10,22),(5,16)],fill=color)
-                d.polygon([(16,8),(22,16),(16,24),(10,16)],fill='#db6983')
-                d.line([(15,9),(11,16),(15,21)],fill='#ebd5fa',width=2)
+            highlight=[ice,cream,'#ffe5ef'][i-4]
+            d.polygon([(16,3),(23,12),(21,23),(16,29),(11,23),(9,12)],fill=ink)
+            d.polygon([(16,6),(21,13),(19,22),(16,26),(13,22),(11,13)],fill=color)
+            d.line([(16,7),(13,13),(14,20)],fill=highlight,width=2)
         else:
             for x,y in [(8,8),(23,10),(12,23),(25,24)]:
                 d.line((x-2,y,x+2,y),fill=gold);d.line((x,y-2,x,y+2),fill=cream)
         sheet.alpha_composite(cell,(i*32,0))
     sheet.save(DEST/'combat.png',optimize=True)
+    if not legacy_weapons:
+        return
     weapons=Image.new('RGBA',(96,32))
     for i in range(3):
         cell=Image.new('RGBA',(32,32));d=ImageDraw.Draw(cell)

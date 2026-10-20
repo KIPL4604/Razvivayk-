@@ -151,7 +151,7 @@ html.lumen-active,html.lumen-active body{overflow:hidden;overscroll-behavior:non
 /* Native-resolution movement, a readable weapon dock and a compact field choice. */
 .lumen-xp{background:#14232ed9;padding:4px 0 6px}
 .lumen-wave[data-phase="harvest"]{color:#ffd36f}
-.lumen-wave[data-phase="pressure"],.lumen-wave[data-phase="guardian"]{color:#f4adc3}
+.lumen-wave[data-phase="pressure"],.lumen-wave[data-phase="guardian"],.lumen-wave[data-phase="contact"]{color:#f4adc3}
 #lumenCanvas{image-rendering:pixelated}
 .lumen-weapon-icon{display:block;width:32px;height:32px;flex-shrink:0;background:url('../assets/lumen/weapons.png') calc(var(--weapon) * -32px) 0/256px 32px no-repeat;image-rendering:pixelated}
 .lumen-slot.amber{border-image:none;border:2px solid #c58c45;background:#24252b}

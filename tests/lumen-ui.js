@@ -13,16 +13,14 @@ async (page) => {
       showScreen('home');
       const core=await import('/static/js/lumen/engine.mjs');let run=core.createRun({seed:1});
       if(kind==='scene'){
-        const preference=['orbit','pulse','spark','focus','haste','storm','ice','flame','cleaver','thorn','magnet','vitality','stride','repair'];
-        for(let f=0;f<125*60;f++){
-          const player=run.player;let target=null;
-          for(const gem of run.gems)if(!target||Math.hypot(gem.x-player.x,gem.y-player.y)<Math.hypot(target.x-player.x,target.y-player.y))target=gem;
-          const d=target?Math.hypot(target.x-player.x,target.y-player.y)||1:1;
-          let x=target?(target.x-player.x)/d:Math.cos(f/260)*.4,y=target?(target.y-player.y)/d:Math.sin(f/260)*.4;
-          for(const enemy of run.enemies){const dx=player.x-enemy.x,dy=player.y-enemy.y,near=Math.hypot(dx,dy)||1;if(near<85){const force=(85-near)/45;x+=dx/near*force;y+=dy/near*force;}}
-          core.step(run,{x,y},1/60);
-          while(run.status==='upgrade')if(!core.chooseUpgrade(run,preference.find(id=>run.choices.includes(id))))throw Error('No legal upgrade');
-        }
+        // Explicit visual fixture; full legal playthroughs live in lumen-engine.mjs.
+        run.time=125;run.spawnedGuardians=1;run.spawnedElites=1;run.spawnTimer=3;
+        run.level=10;run.xpNext=(await import('/static/js/lumen/progression.mjs')).xpForLevel(10);
+        run.player.y=85;run.upgrades={spark:3,orbit:2,pulse:2};run.foundWeapons=['orbit','pulse'];
+        run.enemies=Array.from({length:12},(_,i)=>({id:50+i,kind:i%3?'mote':'beetle',
+          x:Math.cos(i*2.4)*(160+i*12),y:85+Math.sin(i*2.4)*(160+i*12),
+          hp:150,maxHp:150,radius:i%3?10:16,speed:24,damage:7,value:12,
+          phase:0,hitFlash:0,guardianStage:0,fireTimer:3}));run.nextId=1000;
       }else if(kind==='upgrade'){run.xp=run.xpNext;core.step(run,{},1/60);}
       else if(kind==='won'){run.level=29;run.xp=run.xpNext;}
       else if(kind==='lost'){run.player.hp=1;run.enemies=[{id:1,x:0,y:0,kind:'mote',hp:100,maxHp:100,radius:10,speed:0,damage:7,value:2,phase:0,hitFlash:0,guardianStage:0,fireTimer:3}];run.nextId=2;}
@@ -95,11 +93,11 @@ async (page) => {
     await p.waitForFunction(()=>document.querySelector('#lumenCanvas').getBoundingClientRect().height===375);
     const rect=await p.locator('#lumenCanvas').boundingBox();assert(rect.width===812&&rect.height===375,'Landscape resize');
     await capture('lumen-landscape-pause-iteration2');
-    results.push('real simulation fixture, four arena widths, landscape pause');
+    results.push('deterministic visual fixture, four arena widths, landscape pause');
     await p.setViewportSize({width:375,height:812});await seed('upgrade');
     await capture('lumen-upgrade-375-iteration2');
-    const upgraded=await saveRecord(),id=upgraded.run.choices[0];await p.locator(`[data-lumen-action="upgrade"][data-lumen-value="${id}"]`).click();
-    await p.keyboard.press('Escape');assert((await saveRecord()).run.upgrades[id]===1,'Upgrade did not apply');
+    const upgraded=await saveRecord(),id=upgraded.run.choices[0],beforeRank=upgraded.run.upgrades[id]||0;await p.locator(`[data-lumen-action="upgrade"][data-lumen-value="${id}"]`).click();
+    await p.keyboard.press('Escape');assert((await saveRecord()).run.upgrades[id]===beforeRank+1,'Upgrade did not apply');
     await p.emulateMedia({reducedMotion:'reduce'});await p.reload();await p.locator('[data-resume="lumen"]').click();
     assert(await p.evaluate(()=>matchMedia('(prefers-reduced-motion:reduce)').matches),'Reduced motion unavailable');
     assert(await p.evaluate(()=>!document.getAnimations().some(a=>a.effect.getTiming().iterations===Infinity)),'Unbounded reduced motion animation');

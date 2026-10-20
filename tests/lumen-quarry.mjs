@@ -99,6 +99,6 @@ test('new weapons bounce and pierce; hybrids slow, chain, burn and return withou
 
 test('v3 saves migrate without losing position, XP, kit or pending level choice; corrupt fusions are rejected',()=>{
   const v3=serialize(createRun());v3.version=3;delete v3.masteredWeapons;v3.player.x=98;v3.upgrades.ice=8;v3.foundWeapons=['ice'];v3.xp=3;v3.status='upgrade';v3.choices=['magnet'];
-  const r=restore(v3);assert(r);assert.equal(r.version,4);assert.equal(r.player.x,98);assert.equal(r.xp,3);assert.deepEqual(r.masteredWeapons,['ice']);assert(chooseUpgrade(r,'magnet'));
+  const r=restore(v3);assert(r);assert.equal(r.version,5);assert.equal(r.player.x,98);assert.equal(r.xp,3);assert.deepEqual(r.masteredWeapons,['ice']);assert(chooseUpgrade(r,'magnet'));
   for(const changed of [{upgrades:{prism:5}},{upgrades:{prism:1,ice:8}},{masteredWeapons:['ice']},{status:'upgrade',choices:['prism']}])assert.equal(restore({...serialize(createRun()),...changed}),null);
 });
