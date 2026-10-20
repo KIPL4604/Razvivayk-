@@ -24,7 +24,8 @@ async (page) => {
           while(run.status==='upgrade')if(!core.chooseUpgrade(run,preference.find(id=>run.choices.includes(id))))throw Error('No legal upgrade');
         }
       }else if(kind==='upgrade'){run.xp=run.xpNext;core.step(run,{},1/60);}
-      else if(kind==='won'||kind==='lost'){run.time=479.95;run.spawnedGuardians=3;run.bossesDefeated=kind==='won'?3:0;run.finalGuardianDefeated=kind==='won';}
+      else if(kind==='won'){run.level=29;run.xp=run.xpNext;}
+      else if(kind==='lost'){run.player.hp=1;run.enemies=[{id:1,x:0,y:0,kind:'mote',hp:100,maxHp:100,radius:10,speed:0,damage:7,value:2,phase:0,hitFlash:0,guardianStage:0,fireTimer:3}];run.nextId=2;}
       saved.lumen||={};saved.lumen.run=core.serialize(run);saved.lumen.lastTouchedAt=Date.now();saveState();
     },kind);
     await p.reload();await p.locator('[data-resume="lumen"]').click();
@@ -103,7 +104,7 @@ async (page) => {
     assert(await p.evaluate(()=>matchMedia('(prefers-reduced-motion:reduce)').matches),'Reduced motion unavailable');
     assert(await p.evaluate(()=>!document.getAnimations().some(a=>a.effect.getTiming().iterations===Infinity)),'Unbounded reduced motion animation');
     results.push('upgrade choice persisted, reduced motion');
-    await seed('won');await p.waitForSelector('#lumenDialogTitle');assert(await p.locator('#lumenDialogTitle').innerText()==='Маяк выстоял','Victory result');
+    await seed('won');await p.waitForSelector('#lumenDialogTitle');assert(await p.locator('#lumenDialogTitle').innerText()==='Биосад пройден','Victory result');
     await capture('lumen-victory-375-iteration2');const stats=await saveRecord();await p.waitForTimeout(200);assert((await saveRecord()).stats.runs===stats.stats.runs,'Result counted twice');
     await seed('lost');await p.waitForSelector('#lumenDialogTitle');assert(await p.locator('#lumenDialogTitle').innerText()==='Новая ночь. Новый шанс.','Defeat result');
     await capture('lumen-defeat-375-iteration2');

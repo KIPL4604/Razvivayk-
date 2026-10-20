@@ -184,6 +184,14 @@
     "arsenal/wisp-raw.png": {
       "bytes": 1722993,
       "sha256": "63b24ce58254f1189e93024b06f09304effcf1b0a62a1c79fcd72007805f7fc7"
+    },
+    "campaign/quarry-original-raw.png": {
+      "bytes": 1683384,
+      "sha256": "f0db4ccf78c42258452bee588948b2543cdf013edcb4187dc05ca47c16e8ef7c"
+    },
+    "campaign/quarry-raw.png": {
+      "bytes": 1371604,
+      "sha256": "c4c0293b8e12a6a3d93a62d771f32f97e937653539697d61d17604ae161b607b"
     }
   },
   "font": {
@@ -257,6 +265,14 @@
     "panel.png": {
       "bytes": 152,
       "sha256": "6a4a39d199d112204aa94882e0399d773f487f004f2ad02e656c278765cc11e4"
+    },
+    "quarry-props.png": {
+      "bytes": 13241,
+      "sha256": "bff710ed638f4e24f259dce2247b8654f4181326065cc8e5bb72eb043986b0a3"
+    },
+    "quarry-tiles.png": {
+      "bytes": 5842,
+      "sha256": "1a9db097f4ffa8c2ad2961a9ea65e47a2c0b04b9f1353afadf79d04904856fa0"
     },
     "ranger.png": {
       "bytes": 52007,

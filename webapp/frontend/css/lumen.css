@@ -250,3 +250,19 @@ html.lumen-active,html.lumen-active body{overflow:hidden;overscroll-behavior:non
   .lumen-loot{bottom:112px;font-size:16px;padding:6px 9px;max-width:calc(100% - 20px);white-space:normal;width:max-content}
 }
 @media(prefers-reduced-motion:reduce){.lumen-roster{scroll-behavior:auto}}
+
+/* Two expeditions, each with its own level goal and environment palette. */
+.lumen-maps{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;border:0;padding:0;margin:18px 0 0;min-width:0}
+.lumen-maps legend{font-size:12px;color:#5d705b;margin-bottom:8px}
+.lumen-maps button{display:flex;flex-direction:column;align-items:flex-start;gap:5px;text-align:left;min-height:84px;padding:10px 12px;background:#edf0e7;border:1px solid #c6cebc;cursor:pointer;color:#38503d;border-radius:2px}
+.lumen-maps button[aria-pressed=true]{background:#253541;color:#f1dfaf;border-color:#96876a;box-shadow:inset 0 -3px var(--map-accent)}
+.lumen-maps button:disabled{cursor:default;background:#f0f1ec;color:#798371;border-color:#d5dbce}
+.lumen-maps button:disabled,.lumen-buy:disabled{opacity:1}
+.lumen-maps b{font:18px LumenSquare,monospace}.lumen-maps small{font-size:9px;letter-spacing:.04em}.lumen-maps span{font-size:10px;line-height:1.4}
+.lumen-maps button:focus-visible{outline:3px solid #3567dc;outline-offset:2px}
+.lumen-unlock-rule{font:16px/1.4 LumenSquare,monospace;color:#754d29;margin:12px 0 0}
+.lumen-unlock-rule small{display:block;font-size:13px;color:#627358;margin-top:5px}
+.lumen-unlock-rule[data-ready=true]{color:#356149}
+.lumen-timer span{max-width:160px;font-size:12px;line-height:1.2}
+.lumen-timer{min-width:0}
+@media(max-width:540px){.lumen-maps button{padding:10px 8px}.lumen-maps b{font-size:16px}.lumen-maps span{font-size:9px}.lumen-timer span{font-size:10px}.lumen-facts{margin-top:16px}}

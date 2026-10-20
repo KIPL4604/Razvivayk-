@@ -7,7 +7,7 @@ async(page)=>{
     const simulation=await p.evaluate(async()=>{
       const core=await import('/static/js/lumen/engine.mjs'),run=core.createRun({seed:1});
       const preference=['orbit','pulse','spark','focus','haste','storm','ice','flame','cleaver','thorn','magnet','vitality','stride','repair'];
-      const snapshots={},tiers=new Set(),checkpoints=[50,58,178,358];let peak=0;
+      const snapshots={},tiers=new Set(),checkpoints=[50,58,178,258];let peak=0;
       for(let frame=0;frame<480*60&&!['lost','won'].includes(run.status);frame++){
         const player=run.player;let target=null;
         for(const gem of [...run.chests,...run.gems])if(!target||Math.hypot(gem.x-player.x,gem.y-player.y)<Math.hypot(target.x-player.x,target.y-player.y))target=gem;
@@ -22,10 +22,10 @@ async(page)=>{
       }
       return {snapshots,tiers:[...tiers].sort(),peak,result:{status:run.status,hp:run.player.hp,level:run.level,kills:run.kills,bosses:run.bossesDefeated,time:run.time,upgrades:run.upgrades}};
     });
-    assert(simulation.result.status==='won'&&simulation.result.bosses===3,'Real normal run failed '+JSON.stringify(simulation.result));
+    assert(simulation.result.status==='won'&&simulation.result.level===30,'Real normal run failed '+JSON.stringify(simulation.result));
     assert(simulation.tiers.join(',')==='1,2,3','Real drops did not reach all tiers');
     const results=[];
-    for(const width of [375,1440])for(const time of [50,58,178,358]){
+    for(const width of [375,1440])for(const time of [50,58,178,258]){
       await p.setViewportSize({width,height:width===375?812:900});
       await p.evaluate(async snapshot=>{
         showScreen('home');const core=await import('/static/js/lumen/engine.mjs');

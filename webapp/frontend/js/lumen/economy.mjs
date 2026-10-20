@@ -1,4 +1,4 @@
-import {CHARACTERS} from './catalog.mjs';
+import {CHARACTERS,WEAPON_IDS,MAX_WEAPON_STAGE,MAPS} from './catalog.mjs';
 const amount=n=>Number.isSafeInteger(n)&&n>=0&&n<=1e8?n:0;
 export function normalizeMeta(value){
   const unlocked=new Set(['scout','keeper']);
@@ -7,12 +7,30 @@ export function normalizeMeta(value){
   if(value?.credited&&typeof value.credited==='object')for(const [key,n] of Object.entries(value.credited).slice(-50)){
     if(/^[a-zA-Z0-9-]{1,90}$/.test(key)&&Number.isSafeInteger(n)&&n>=0&&n<=1e6)credited[key]=n;
   }
-  return {version:1,coins:amount(value?.coins),unlocked:[...unlocked],credited};
+  const weaponBest={};
+  for(const id of WEAPON_IDS){const rank=value?.weaponBest?.[id];if(Number.isInteger(rank)&&rank>0&&rank<=MAX_WEAPON_STAGE)weaponBest[id]=rank;}
+  const clearedMaps=Array.isArray(value?.clearedMaps)?Object.keys(MAPS).filter(id=>value.clearedMaps.includes(id)):[];
+  if(!clearedMaps.includes('garden'))clearedMaps.length=0;
+  return {version:2,coins:amount(value?.coins),unlocked:[...unlocked],credited,weaponBest,clearedMaps};
+}
+export const mapAvailable=(meta,id)=>Object.hasOwn(MAPS,id)&&(id==='garden'||meta.clearedMaps.includes('garden'));
+export function characterRequirement(meta,id){
+  const hero=Object.hasOwn(CHARACTERS,id)?CHARACTERS[id]:null;
+  const best=hero?meta.weaponBest[hero.weapon]||0:0;
+  return {eligible:Boolean(hero&&(!hero.price||meta.unlocked.includes(id)||best>=MAX_WEAPON_STAGE)),best,target:MAX_WEAPON_STAGE,weapon:hero?.weapon};
 }
 export function buyCharacter(meta,id){
   const hero=CHARACTERS[id];
-  if(!Object.hasOwn(CHARACTERS,id)||!hero.price||meta.unlocked.includes(id)||meta.coins<hero.price)return false;
+  if(!Object.hasOwn(CHARACTERS,id)||!hero.price||meta.unlocked.includes(id)||meta.coins<hero.price||!characterRequirement(meta,id).eligible)return false;
   meta.coins-=hero.price;meta.unlocked.push(id);return true;
+}
+export function recordProgress(meta,run){
+  for(const id of run.foundWeapons||[]){
+    if(!WEAPON_IDS.includes(id)||id===CHARACTERS[run.character]?.weapon)continue;
+    const rank=run.upgrades?.[id];
+    if(Number.isInteger(rank)&&rank>0&&rank<=MAX_WEAPON_STAGE)meta.weaponBest[id]=Math.max(meta.weaponBest[id]||0,rank);
+  }
+  if(run.status==='won'&&Object.hasOwn(MAPS,run.map)&&run.level>=MAPS[run.map].goal&&mapAvailable(meta,run.map)&&!meta.clearedMaps.includes(run.map))meta.clearedMaps.push(run.map);
 }
 // Credit a monotonically increasing run total once. Wallet and run are persisted
 // together by the UI; resume, autosave and result rendering cannot duplicate it.

@@ -95,34 +95,16 @@ test('guardians spawn at the three milestones, including with a crowded arena', 
   }
 });
 
-test('final guardian death is required for the 480-second victory', () => {
-  assert.equal(DURATION, 480);
-  const won = createRun({ seed: 1 });
-  won.time = DURATION - 1 / 60;
-  won.spawnedGuardians = 3;
-  won.finalGuardianDefeated = true;
-  won.bossesDefeated = 3;
-  step(won, {}, 1 / 60);
-  assert.equal(won.status, 'won');
-  assert.equal(won.time, DURATION);
-  const timeout = createRun({ seed: 1 });
-  timeout.time = DURATION - 1 / 60;
-  timeout.spawnedGuardians = 3;
-  step(timeout, {}, 1 / 60);
-  assert.equal(timeout.status, 'lost');
-  assert.equal(timeout.endReason, 'beacon');
-  const dead = createRun({ seed: 2 });
-  dead.player.hp = 1;
-  dead.boltTimer = 2;
-  dead.enemies = [enemy({ x: 0 })];
-  step(dead, {}, 1 / 60);
-  assert.equal(dead.status, 'lost');
-  assert.equal(dead.player.hp, 0);
-  const finalKill = createRun({ seed: 20 });
-  finalKill.enemies = [enemy({ kind: 'guardian', guardianStage: 3, x: 60, hp: 1, maxHp: 1, value: 25 })];
-  advance(finalKill, 0.3);
-  assert.equal(finalKill.finalGuardianDefeated, true);
-  assert.equal(finalKill.bossesDefeated, 1);
+test('target level ends the map, while time and boss kills alone do not', () => {
+  const won=createRun({seed:1});won.level=29;won.xp=won.xpNext;
+  step(won,{},1/60);assert.equal(won.status,'won');assert.equal(won.level,30);assert.equal(won.endReason,'level');
+  assert.deepEqual(won.choices,[]);assert.equal(won.bossesDefeated,0);assert.ok(restore(serialize(won)));
+  const ongoing=createRun({seed:1});ongoing.time=480;ongoing.spawnedGuardians=3;ongoing.spawnedElites=4;ongoing.finalGuardianDefeated=true;
+  step(ongoing,{},1/60);assert.equal(ongoing.status,'playing');assert.ok(ongoing.time>480);assert.ok(restore(serialize(ongoing)));
+  const dead=createRun({seed:2});dead.player.hp=1;dead.boltTimer=2;dead.enemies=[enemy({x:0})];
+  step(dead,{},1/60);assert.equal(dead.status,'lost');assert.equal(dead.player.hp,0);
+  const finalKill=createRun({seed:20});finalKill.enemies=[enemy({kind:'guardian',guardianStage:3,x:60,hp:1,maxHp:1,value:25})];
+  advance(finalKill,.3);assert.equal(finalKill.finalGuardianDefeated,true);assert.notEqual(finalKill.status,'won');
 });
 
 test('snapshot restoration preserves seeded random state and every combat timer', () => {
@@ -170,7 +152,7 @@ test('long seeded runs respect entity caps and remain finite', () => {
       for (const collection of ['enemies', 'projectiles', 'gems', 'effects']) assert.ok(run[collection].length <= LIMITS[collection]);
       assert.ok(Number.isFinite(run.player.x) && Number.isFinite(run.player.hp));
     }
-    assert.ok(run.time >= DURATION - 1 / 60);
+    assert.ok(run.status==='won'||run.time>=DURATION-1/60);
     assert.ok(restore(serialize(run)), 'a real long-run snapshot must remain valid');
   }
 });
@@ -208,10 +190,10 @@ test('exhausted upgrade ranks never produce an impossible choice', () => {
   assert.equal(run.status, 'playing');
 });
 
-for(const character of ['scout','keeper','alchemist','ranger','duelist','stormcaller'])test(`a complete normal ${character} run wins through movement, pickups, and legal upgrades`, () => {
-  const run = createRun({ seed: 1,character });
+for(const map of ['garden','quarry'])for(const character of ['scout','keeper','alchemist','ranger','duelist','stormcaller'])test(`a complete normal ${map}/${character} run wins through movement, pickups, and legal upgrades`, () => {
+  const run = createRun({ seed: 1,character,map });
   const preference = ['orbit', 'pulse', 'spark', 'focus', 'haste', 'storm','ice','flame','cleaver','thorn','magnet', 'vitality', 'stride', 'repair'];
-  for (let frame = 0; frame < DURATION * 60 && !['lost', 'won'].includes(run.status); frame += 1) {
+  for (let frame = 0; frame < 900 * 60 && !['lost', 'won'].includes(run.status); frame += 1) {
     const player = run.player;
     let target = null;
     for (const crystal of [...run.chests,...run.gems]) {
@@ -238,7 +220,7 @@ for(const character of ['scout','keeper','alchemist','ranger','duelist','stormca
     }
   }
   assert.equal(run.status, 'won');
-  assert.equal(run.bossesDefeated, 3);
+  assert.equal(run.level,map==='garden'?30:35);
   assert.ok(run.kills > 100 && run.player.hp > 0);
   assert.ok(restore(serialize(run)));
 });

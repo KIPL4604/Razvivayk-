@@ -1,16 +1,16 @@
 /* Original Teramont simulation. No DOM, wall clock, network, or third-party code.
  * step() accepts seconds and advances at 60 Hz, with at most 0.25 seconds per call.
- * Survive 480 seconds AND dismantle the final guardian before the deadline to win.
+ * Reach the selected map's target level to win. Time only paces encounters.
  * Local results are entertainment data and never award campaign/server XP.
  */
 import {waveAt,xpForLevel,crystalLoot,crystalTier,creatureStats} from './progression.mjs';
-import {CHARACTERS,WEAPONS,WEAPON_IDS,MAX_WEAPONS,ENEMIES} from './catalog.mjs';
+import {CHARACTERS,WEAPONS,WEAPON_IDS,MAX_WEAPONS,MAX_WEAPON_STAGE,ENEMIES,MAPS} from './catalog.mjs';
 import {updateWeapons,flameImpact} from './combat.mjs';
 
-export const DURATION = 480;
+export const DURATION = 480; // Historical benchmark for older harnesses; no time limit.
 export const LIMITS = Object.freeze({ enemies: 240, projectiles: 100, gems: 220, effects: 80, zones:24, chests:12 });
 export const UPGRADES = Object.freeze([
-  ...WEAPON_IDS.map(id=>({id,title:WEAPONS[id].title,description:WEAPONS[id].verb+'; на стадиях III и V усиливается число атак.',max:5,kind:'weapon'})),
+  ...WEAPON_IDS.map(id=>({id,title:WEAPONS[id].title,description:WEAPONS[id].verb+'; на стадиях III, V и VII усиливается число атак.',max:MAX_WEAPON_STAGE,kind:'weapon'})),
   { id: 'focus', title: 'Чистая линза', description: 'Урон всего оружия +20%.', max: 5, kind: 'power' },
   { id: 'haste', title: 'Быстрый конденсатор', description: 'Всё оружие срабатывает на 15% чаще.', max: 4, kind: 'power' },
   { id: 'stride', title: 'Лёгкий привод', description: 'Скорость движения +10%.', max: 3, kind: 'utility' },
@@ -45,11 +45,11 @@ function derived(state) {
   state.pickupRadius = 58 + rank(state, 'magnet') * 42;
 }
 
-export function createRun({ seed = 0x1a71be, character = 'scout',runId } = {}) {
+export function createRun({ seed = 0x1a71be, character = 'scout',runId,map='garden' } = {}) {
   const normalizedSeed = Number.isInteger(seed) ? seed >>> 0 : 0x1a71be;
   const selected = own(CHARACTERS, character) ? character : 'scout';
   const state = {
-    version: 2, seed: normalizedSeed, rngState: normalizedSeed || 0x9e3779b9,
+    version: 3, map:own(MAPS,map)?map:'garden',foundWeapons:[], seed: normalizedSeed, rngState: normalizedSeed || 0x9e3779b9,
     runId:typeof runId==='string'&&/^[a-zA-Z0-9-]{1,90}$/.test(runId)?runId:`run-${normalizedSeed.toString(16)}-${selected}`,
     character: selected, time: 0, status: 'playing', endReason: '',
     player: { x: 0, y: 0, hp: CHARACTERS[selected].hp, maxHp: CHARACTERS[selected].hp,
@@ -153,6 +153,7 @@ function spawn(state, guardianStage = 0, wave = waveAt(state.time),elite=false) 
     ? { hp: [0, 1800, 3600, 7800][guardianStage], radius: 31, speed: 38 + guardianStage * 3, damage: 22 }
     : creatureStats(kind,wave);
   if(elite){base.hp=700+wave.stage*150;base.radius=22;base.speed=48;base.damage=16;}
+  if(wave.kind!=='harvest'||guardianStage||elite)base.hp=Math.round(base.hp*MAPS[state.map].hp);
   const value=crystalLoot(base.hp,guardianStage).value;
   state.enemies.push({ id: state.nextId++, kind, x: state.player.x + Math.cos(angle) * range,
     y: state.player.y + Math.sin(angle) * range, ...base, value, maxHp: base.hp,
@@ -236,6 +237,7 @@ function offerUpgrade(state) {
   state.xp -= state.xpNext;
   state.level += 1;
   state.xpNext = xpForLevel(state.level);
+  if(state.level>=MAPS[state.map].goal){state.status='won';state.endReason='level';state.choices=[];state.remainder=0;return;}
   const owned=WEAPON_IDS.filter(id=>rank(state,id)>0).length;
   const candidates = UPGRADES.filter((upgrade) => rank(state, upgrade.id) < upgrade.max &&
     (upgrade.kind!=='weapon'||rank(state,upgrade.id)>0||owned<MAX_WEAPONS)&&
@@ -268,7 +270,7 @@ function collect(state, dt) {
   state.gems = remaining;
   state.chests=state.chests.filter(chest=>{
     if(distanceSquared(chest,state.player)>(state.player.radius+24)**2)return true;
-    const candidates=WEAPON_IDS.filter(id=>rank(state,id)>0&&rank(state,id)<5);
+    const candidates=WEAPON_IDS.filter(id=>rank(state,id)>0&&rank(state,id)<MAX_WEAPON_STAGE);
     const weapon=chest.upgrade&&candidates.length?candidates[Math.floor(random(state)*candidates.length)]:'';
     if(weapon)state.upgrades[weapon]++;
     const coins=chest.coins+(chest.upgrade&&!candidates.length?25:0);
@@ -280,7 +282,8 @@ function collect(state, dt) {
 }
 
 function tick(state, input, dt) {
-  state.time = Math.min(DURATION, state.time + dt);
+  if(state.level>=MAPS[state.map].goal){state.status='won';state.endReason='level';state.choices=[];return;}
+  state.time += dt;
   const player = state.player;
   player.invulnerable = Math.max(0, player.invulnerable - dt);
   player.x += input.x * player.speed * dt;
@@ -307,12 +310,6 @@ function tick(state, input, dt) {
   if (state.status === 'lost') return;
   projectiles(state, dt);
   if (state.status === 'lost') return;
-  if (state.time + 1e-7 >= DURATION) {
-    state.time = DURATION;
-    state.status = state.finalGuardianDefeated ? 'won' : 'lost';
-    state.endReason = state.finalGuardianDefeated ? 'dawn' : 'beacon';
-    return;
-  }
   collect(state, dt);
 }
 
@@ -338,6 +335,7 @@ export function chooseUpgrade(state, id) {
   if (!state || state.status !== 'upgrade' || !state.choices.includes(id)) return false;
   const definition = CATALOG.get(id);
   if (!definition || rank(state, id) >= definition.max) return false;
+  if(definition.kind==='weapon'&&!rank(state,id)&&id!==CHARACTERS[state.character].weapon&&!state.foundWeapons.includes(id))state.foundWeapons.push(id);
   state.upgrades[id] = rank(state, id) + 1;
   derived(state);
   if (id === 'vitality') state.player.hp = Math.min(state.player.maxHp, state.player.hp + 30);
@@ -374,14 +372,23 @@ function migrateLegacy(snapshot){
   }
   return old;
 }
+function migrateCampaign(snapshot){
+  const old=serialize(snapshot);old.version=3;old.map='garden';
+  old.foundWeapons=WEAPON_IDS.filter(id=>old.upgrades?.[id]>0&&id!==CHARACTERS[old.character]?.weapon);
+  if(old.status==='won'&&old.level>=MAPS.garden.goal)old.endReason='level';
+  // A pending old level choice remains selectable. The next simulation tick
+  // settles a run already above the newly introduced target.
+  return old;
+}
 
 export function restore(snapshot) {
   try {
     if(object(snapshot)&&snapshot.version===1)snapshot=migrateLegacy(snapshot);
-    if (!object(snapshot) || snapshot.version !== 2 || !own(CHARACTERS, snapshot.character) ||
+    if(object(snapshot)&&snapshot.version===2)snapshot=migrateCampaign(snapshot);
+    if (!object(snapshot) || snapshot.version !== 3 || !own(MAPS,snapshot.map)||!own(CHARACTERS, snapshot.character) ||
       !integer(snapshot.seed, 0, 0xffffffff) || !integer(snapshot.rngState, 1, 0xffffffff) ||
-      !number(snapshot.time, 0, DURATION) || !['playing', 'upgrade', 'won', 'lost'].includes(snapshot.status) ||
-      !['', 'health', 'beacon', 'dawn'].includes(snapshot.endReason) ||
+      !number(snapshot.time, 0, 1e7) || !['playing', 'upgrade', 'won', 'lost'].includes(snapshot.status) ||
+      !['', 'health', 'beacon', 'dawn','level'].includes(snapshot.endReason) ||
       !integer(snapshot.level, 1, 1000) || !number(snapshot.xp, 0, 1e7) || !integer(snapshot.xpNext, 1, 1e6) ||
       !integer(snapshot.kills, 0, 1e7) || !integer(snapshot.bossesDefeated, 0, 3) ||
       !integer(snapshot.spawnedGuardians, 0, 3) || typeof snapshot.finalGuardianDefeated !== 'boolean' ||
@@ -395,12 +402,14 @@ export function restore(snapshot) {
     for (const [collection, limit] of Object.entries(LIMITS)) {
       if (!Array.isArray(snapshot[collection]) || snapshot[collection].length > limit) return null;
     }
-    const state = createRun({ seed: snapshot.seed, character: snapshot.character,runId:snapshot.runId });state.upgrades={};
+    const state = createRun({ seed: snapshot.seed, character: snapshot.character,runId:snapshot.runId,map:snapshot.map });state.upgrades={};
     for (const [id, value] of Object.entries(snapshot.upgrades)) {
       if (!CATALOG.has(id) || !integer(value, 1, CATALOG.get(id).max)) return null;
       state.upgrades[id] = value;
     }
     if(WEAPON_IDS.filter(id=>rank(state,id)>0).length>MAX_WEAPONS)return null;
+    if(!Array.isArray(snapshot.foundWeapons)||snapshot.foundWeapons.length>MAX_WEAPONS||new Set(snapshot.foundWeapons).size!==snapshot.foundWeapons.length||snapshot.foundWeapons.some(id=>!WEAPON_IDS.includes(id)||!rank(state,id)||id===CHARACTERS[state.character].weapon))return null;
+    state.foundWeapons=snapshot.foundWeapons.slice();
     for(const [id,value] of Object.entries(snapshot.weaponTimers))if(!own(WEAPONS,id)||!number(value,0,6))return null;
     state.weaponTimers={...state.weaponTimers,...snapshot.weaponTimers};
     derived(state);
@@ -414,8 +423,7 @@ export function restore(snapshot) {
       snapshot.choices.some((id) => !CATALOG.has(id) || rank(state, id) >= CATALOG.get(id).max)) return null;
     if ((snapshot.status === 'upgrade') !== (snapshot.choices.length > 0) ||
       (snapshot.status !== 'lost' && player.hp <= 0) ||
-      (snapshot.status === 'won' && (snapshot.time !== DURATION || !snapshot.finalGuardianDefeated)) ||
-      (snapshot.time >= DURATION && !['won', 'lost'].includes(snapshot.status))) return null;
+      (snapshot.status === 'won' && (snapshot.level<MAPS[state.map].goal||snapshot.endReason!=='level'))) return null;
     const ids = new Set();
     for (const enemy of snapshot.enemies) {
       if (!position(enemy) || !integer(enemy.id, 1, 0x7fffffff) || ids.has(enemy.id) || !TYPES.includes(enemy.kind) ||
@@ -475,7 +483,7 @@ export function restore(snapshot) {
     if(!Array.isArray(snapshot.lootLog)||snapshot.lootLog.length>4)return null;
     for(const item of snapshot.lootLog){
       if(!object(item)||!integer(item.id,1,0x7fffffff)||!integer(item.coins,0,1e6)||
-        (item.weapon!==''&&!own(WEAPONS,item.weapon))||!integer(item.stage,0,5)||!number(item.time,0,DURATION))return null;
+        (item.weapon!==''&&!own(WEAPONS,item.weapon))||!integer(item.stage,0,MAX_WEAPON_STAGE)||!number(item.time,0,1e7))return null;
       state.lootLog.push({id:item.id,coins:item.coins,weapon:item.weapon,stage:item.stage,time:item.time});
     }
     for (const key of ['rngState', 'time', 'status', 'endReason', 'level', 'xp', 'xpNext', 'kills', 'bossesDefeated',

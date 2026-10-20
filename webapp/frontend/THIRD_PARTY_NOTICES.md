@@ -98,3 +98,9 @@ prompts, the corrected Spitter source and normalization code are retained in
 No third-party character, weapon, icon or sound pack was added. This records
 provenance; it does not claim exclusive copyright in generated images. The
 existing Tektur/OFL attribution above remains applicable.
+
+The Moon Quarry biome uses an original imagegen environment atlas, with a
+second whole-atlas edit to reduce floor noise. Both raw sources, exact prompts
+and offline normalization code are in `design/lumen-campaign/`. Runtime tiles
+and props are separate hard-alpha PNGs. No external asset pack or new font was
+added; the existing Tektur/OFL attribution continues to apply.

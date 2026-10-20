@@ -1,5 +1,5 @@
 import { FIXED_STEP, cameraScale, sceneryOpacity, lerp, crystalTier } from './presentation.mjs';
-import {WEAPONS,weaponStats,BOSSES} from './catalog.mjs';
+import {WEAPONS,weaponStats,BOSSES,MAPS} from './catalog.mjs';
 
 const TAU = Math.PI * 2;
 const round = Math.round;
@@ -21,13 +21,16 @@ export class Renderer {
     this.media = matchMedia('(prefers-reduced-motion: reduce)');
     this.previous = { player: null, enemies: new Map(), shots: new Map(), gems: new WeakMap() };
     this.captureTick = this.captureTick.bind(this);
-    const floor = document.createElement('canvas');floor.width=256;floor.height=256;
-    const floorContext=floor.getContext('2d');floorContext.imageSmoothingEnabled=false;
-    for(let y=0;y<8;y++)for(let x=0;x<8;x++){
-      const n=hash(x,y),variant=n%11<7?0:n%4;
-      floorContext.drawImage(art.images.tiles,variant*32,0,32,32,x*32,y*32,32,32);
+    this.floorPatterns={};
+    for(const [id,map] of Object.entries(MAPS)){
+      const floor = document.createElement('canvas');floor.width=256;floor.height=256;
+      const floorContext=floor.getContext('2d');floorContext.imageSmoothingEnabled=false;
+      for(let y=0;y<8;y++)for(let x=0;x<8;x++){
+        const n=hash(x,y),variant=n%11<7?0:n%4;
+        floorContext.drawImage(art.images[map.tiles],variant*32,0,32,32,x*32,y*32,32,32);
+      }
+      this.floorPatterns[id]=this.ctx.createPattern(floor,'repeat');
     }
-    this.floorPattern=this.ctx.createPattern(floor,'repeat');
   }
 
   resize() {
@@ -125,7 +128,7 @@ export class Renderer {
     // Cache a world-anchored tile field once; never stretch individual tiles as
     // the fractional camera moves. Their pixels no longer change width per frame.
     const unit=this.zoom*2;
-    c.setTransform(unit,0,0,unit,this.cx,this.cy);c.fillStyle=this.floorPattern;
+    c.setTransform(unit,0,0,unit,this.cx,this.cy);c.fillStyle=this.floorPatterns[this.map];
     c.fillRect(-this.cx/unit,-this.cy/unit,this.canvas.width/unit,this.canvas.height/unit);
     c.setTransform(1,0,0,1,0,0);
     const props = [];
@@ -161,6 +164,7 @@ export class Renderer {
     this.alpha=state.status==='playing'&&Math.abs(state.time-(this.previous.time+FIXED_STEP))<1e-6
       ? Math.min(1,state.remainder/FIXED_STEP) : 1;
     const c = this.ctx, p = {...state.player,...this.pose(state.player)}, t = state.time || 0, z = this.zoom;
+    this.map=state.map||'garden';
     if (terminalElapsed !== undefined) this.terminalElapsed = terminalElapsed;
     c.setTransform(1, 0, 0, 1, 0, 0); c.imageSmoothingEnabled = false;
     c.globalAlpha = 1; c.fillStyle = '#17262e'; c.fillRect(0, 0, this.canvas.width, this.canvas.height);
@@ -194,7 +198,7 @@ export class Renderer {
         || Math.abs(entity.y - p.y) > this.height / this.scale * .6 + 180) continue;
       if (entity.kind === 'prop') {
         c.globalAlpha = sceneryOpacity(entity,p);
-        this.blit('garden', entity.index * 64, 0, 64, 64, entity.x, entity.y, entity.size);
+        this.blit(MAPS[this.map].props, entity.index * 64, 0, 64, 64, entity.x, entity.y, entity.size);
         c.globalAlpha = 1;
       } else if (entity.kind === 'hero') {
           const animation = state.status === 'lost' ? 'death' : p.invulnerable > .42 ? 'hurt'
@@ -272,7 +276,7 @@ export class Renderer {
 
   destroy() {
     this.canvas.width = 1; this.canvas.height = 1;
-    this.views.clear(); this.ghosts = []; this.art = null;this.floorPattern=null;
+    this.views.clear(); this.ghosts = []; this.art = null;this.floorPatterns={};
     this.previous.enemies.clear();this.previous.shots.clear();this.previous.gems=new WeakMap();
   }
 }

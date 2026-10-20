@@ -48,9 +48,14 @@ class LumenArtTests(unittest.TestCase):
 
     @unittest.skipIf(Image is None, 'Offline pixel checks: install design/lumen-pixel/requirements.txt')
     def test_tile_prop_and_ui_cells(self):
-        for name, size in [('tiles.png', (128, 32)), ('garden.png', (256, 64)), ('ui.png', (256, 16)), ('weapons.png',(384,48)), ('arsenal.png',(384,192))]:
+        for name, size in [('tiles.png', (128, 32)), ('garden.png', (256, 64)), ('quarry-tiles.png',(128,32)), ('quarry-props.png',(256,64)), ('ui.png', (256, 16)), ('weapons.png',(384,48)), ('arsenal.png',(384,192))]:
             with Image.open(ART / name) as image:
                 self.assertEqual(image.size, size)
+                if name.startswith('quarry-'):
+                    pixels=list(image.convert('RGBA').get_flattened_data())
+                    self.assertTrue({p[3] for p in pixels}.issubset({0,255}))
+                    self.assertLessEqual(len({p[:3] for p in pixels if p[3]}),48)
+                    if name=='quarry-tiles.png': self.assertEqual({p[3] for p in pixels},{255})
         manifest = json.loads((ART / 'manifest.json').read_text(encoding='utf-8'))
         self.assertIn('SIL OPEN FONT LICENSE', (ART / manifest['font']['license']).read_text(encoding='utf-8'))
 

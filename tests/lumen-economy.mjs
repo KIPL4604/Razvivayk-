@@ -1,7 +1,7 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import {CHARACTERS,WEAPON_IDS,WEAPONS,weaponStats} from '../webapp/frontend/js/lumen/catalog.mjs';
 import {normalizeMeta,buyCharacter,bankCoins} from '../webapp/frontend/js/lumen/economy.mjs';
-test('six heroes have distinct native weapons; every weapon has real five-stage stats',()=>{
+test('six heroes have distinct native weapons; every weapon has real eight-stage stats',()=>{
   assert.equal(Object.keys(CHARACTERS).length,6);assert.equal(new Set(Object.values(CHARACTERS).map(c=>c.weapon)).size,6);
   assert.equal(WEAPON_IDS.length,8);
   for(const hero of Object.values(CHARACTERS))assert(WEAPONS[hero.weapon]&&hero.hp>0&&hero.speed>0);
@@ -9,7 +9,7 @@ test('six heroes have distinct native weapons; every weapon has real five-stage 
   assert.equal(weaponStats('orbit',1).count,1);assert.equal(weaponStats('orbit',2).count,1);assert.equal(weaponStats('orbit',3).count,2);
 });
 test('purchases spend exactly once and reject unavailable or unknown transactions',()=>{
-  const meta=normalizeMeta({coins:200});assert(buyCharacter(meta,'ranger'));assert.equal(meta.coins,0);
+  const meta=normalizeMeta({coins:200,weaponBest:{ice:8}});assert(buyCharacter(meta,'ranger'));assert.equal(meta.coins,0);
   assert(!buyCharacter(meta,'ranger'));assert(!buyCharacter(meta,'alchemist'));assert(!buyCharacter(meta,'constructor'));
   assert(meta.unlocked.includes('scout')&&meta.unlocked.includes('keeper')&&meta.unlocked.includes('ranger'));
 });

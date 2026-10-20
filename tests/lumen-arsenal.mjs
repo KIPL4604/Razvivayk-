@@ -54,8 +54,8 @@ test('boss and elite deaths drop chests; pickup upgrades an owned weapon and cre
 });
 
 test('maxed weapon chest awards extra coins, and a six-weapon build cannot offer a seventh',()=>{
-  const r=createRun();r.upgrades={spark:5};r.chests=[{id:1,x:0,y:0,coins:60,upgrade:true,boss:true}];r.nextId=2;
-  step(r,{},1/60);assert.equal(r.upgrades.spark,5);assert.equal(r.coinsEarned,85);
+  const r=createRun();r.upgrades={spark:8};r.chests=[{id:1,x:0,y:0,coins:60,upgrade:true,boss:true}];r.nextId=2;
+  step(r,{},1/60);assert.equal(r.upgrades.spark,8);assert.equal(r.coinsEarned,85);
   r.upgrades=Object.fromEntries(WEAPON_IDS.slice(0,6).map(id=>[id,1]));
   for(let i=0;i<12;i++){
     r.xp=r.xpNext;step(r,{},1/60);
@@ -79,7 +79,7 @@ test('three bosses have different shot patterns; all six common species spawn in
 test('real version1 record migrates without moving the player, losing XP or duplicating kit',()=>{
   const old=JSON.parse(readFileSync(new URL('./fixtures/lumen-v1.json',import.meta.url),'utf8'));
   old.player.x=123;old.xp=4;old.upgrades={orbit:2};
-  const r=restore(old);assert(r);assert.equal(r.version,2);assert.equal(r.player.x,123);assert.equal(r.xp,4);
+  const r=restore(old);assert(r);assert.equal(r.version,3);assert.equal(r.player.x,123);assert.equal(r.xp,4);
   assert.deepEqual(r.upgrades,{spark:1,orbit:3});assert.equal(r.coinsEarned,0);assert.deepEqual(serialize(restore(serialize(r))),serialize(r));
   assert.equal(old.version,1);assert.deepEqual(old.upgrades,{orbit:2});
 });

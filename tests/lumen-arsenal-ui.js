@@ -47,7 +47,7 @@ async (page) => {
       await p.locator('.lumen-armory summary').click();assert(await p.locator('.lumen-armory article').count()===8,'Armory count');
       await p.locator('.lumen-roster').scrollIntoViewIfNeeded();await p.screenshot({path:out+`lumen-arsenal-roster-${width}-v2.png`});
     }
-    await p.evaluate(()=>{saved.lumen.meta={coins:400,unlocked:['scout','keeper']};saveState();});
+    await p.evaluate(()=>{saved.lumen.meta={coins:400,weaponBest:{orbit:8},unlocked:['scout','keeper']};saveState();});
     await p.reload();await p.locator('[data-lumen-action="open"]').click();await p.locator('[data-lumen-action="character"][data-lumen-value="duelist"]').click();
     await p.locator('[data-lumen-action="buy"]').click();assert(await p.locator('#lumenWallet').innerText()==='80','Purchase not deducted');
     await p.locator('[data-lumen-action="start"]').click();await p.keyboard.press('Escape');

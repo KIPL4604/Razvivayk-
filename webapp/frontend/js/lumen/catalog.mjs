@@ -1,4 +1,9 @@
 // Art style is shared; color belongs to an entity or biome, never the whole game.
+export const MAX_WEAPON_STAGE=8;
+export const MAPS=Object.freeze({
+  garden:{name:'Биосад',sector:'БИОСАД 07 / СЕКТОР МАЯКА',goal:30,next:'quarry',hp:1,tiles:'tiles',props:'garden',accent:'#83cda4'},
+  quarry:{name:'Лунный карьер',sector:'ЛУННЫЙ КАРЬЕР / МИНЕРАЛЬНЫЙ РАЗЛОМ',goal:35,next:null,hp:1.2,tiles:'quarry-tiles',props:'quarry-props',accent:'#d7b8ef'},
+});
 export const CHARACTERS=Object.freeze({
   scout:{name:'Следопыт',hp:110,speed:160,weapon:'spark',price:0,accent:'#efbe7c',story:'Медный фонарь ищет ближайшую цель.'},
   keeper:{name:'Хранитель',hp:145,speed:142,weapon:'pulse',price:0,accent:'#c1a4eb',story:'Тяжёлый молот выпускает круговую волну.'},
@@ -8,21 +13,21 @@ export const CHARACTERS=Object.freeze({
   stormcaller:{name:'Грозовик',hp:115,speed:150,weapon:'storm',price:450,accent:'#ffe17c',story:'Жезл передаёт молнию от врага к врагу.'},
 });
 export const WEAPONS=Object.freeze({
-  spark:{index:0,title:'Световой разряд',short:'Разряд',verb:'Бьёт ближайшего',color:'#efbe7c',className:'amber',max:5},
-  orbit:{index:1,title:'Лунные клинки',short:'Клинки',verb:'Вращаются вокруг тебя',color:'#aabaff',className:'blue',max:5},
-  pulse:{index:2,title:'Молот рассвета',short:'Волна',verb:'Бьёт кругом и отталкивает',color:'#c1a4eb',className:'violet',max:5},
-  flame:{index:3,title:'Огненная колба',short:'Пламя',verb:'Оставляет горящее поле',color:'#f27358',className:'coral',max:5},
-  ice:{index:4,title:'Ледяной арбалет',short:'Мороз',verb:'Замедляет; с III — пробивает',color:'#8de8ee',className:'cyan',max:5},
-  storm:{index:5,title:'Грозовой жезл',short:'Гроза',verb:'Молния скачет между врагами',color:'#ffe17c',className:'gold',max:5},
-  cleaver:{index:6,title:'Возвратные секиры',short:'Секиры',verb:'Летят вперёд и возвращаются',color:'#e9a67b',className:'copper',max:5},
-  thorn:{index:7,title:'Терновый посох',short:'Тернии',verb:'Выращивает колючие ловушки',color:'#b4de8b',className:'leaf',max:5},
+  spark:{index:0,title:'Световой разряд',short:'Разряд',verb:'Бьёт ближайшего',color:'#efbe7c',className:'amber',max:MAX_WEAPON_STAGE},
+  orbit:{index:1,title:'Лунные клинки',short:'Клинки',verb:'Вращаются вокруг тебя',color:'#aabaff',className:'blue',max:MAX_WEAPON_STAGE},
+  pulse:{index:2,title:'Молот рассвета',short:'Волна',verb:'Бьёт кругом и отталкивает',color:'#c1a4eb',className:'violet',max:MAX_WEAPON_STAGE},
+  flame:{index:3,title:'Огненная колба',short:'Пламя',verb:'Оставляет горящее поле',color:'#f27358',className:'coral',max:MAX_WEAPON_STAGE},
+  ice:{index:4,title:'Ледяной арбалет',short:'Мороз',verb:'Замедляет; с III — пробивает',color:'#8de8ee',className:'cyan',max:MAX_WEAPON_STAGE},
+  storm:{index:5,title:'Грозовой жезл',short:'Гроза',verb:'Молния скачет между врагами',color:'#ffe17c',className:'gold',max:MAX_WEAPON_STAGE},
+  cleaver:{index:6,title:'Возвратные секиры',short:'Секиры',verb:'Летят вперёд и возвращаются',color:'#e9a67b',className:'copper',max:MAX_WEAPON_STAGE},
+  thorn:{index:7,title:'Терновый посох',short:'Тернии',verb:'Выращивает колючие ловушки',color:'#b4de8b',className:'leaf',max:MAX_WEAPON_STAGE},
 });
 export const WEAPON_IDS=Object.freeze(Object.keys(WEAPONS));
 export const MAX_WEAPONS=6;
 export const ENEMIES=Object.freeze(['mote','beetle','wasp','crawler','spitter','wisp']);
 export const BOSSES=Object.freeze({1:{name:'Шипоносец',sprite:'boss-briar'},2:{name:'Матка роя',sprite:'boss-queen'},3:{name:'Пепельный колосс',sprite:'boss-ash'}});
 export function weaponStats(id,stage=1){
-  const level=Math.max(1,Math.min(5,stage)),count=1+Math.floor((level-1)/2);
+  const level=Math.max(1,Math.min(MAX_WEAPON_STAGE,stage)),count=1+Math.floor((level-1)/2);
   const definitions={
     spark:{count,damage:24+(level-1)*7,cooldown:.7,speed:490,radius:4},
     orbit:{count,damage:28+level*6,cooldown:.23,radius:76+level*6},
