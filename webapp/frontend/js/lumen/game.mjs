@@ -3,6 +3,8 @@ import {Renderer} from './renderer.mjs';
 import {loadArt} from './assets.mjs';
 import {WEAPONS,upgradeSummary} from './presentation.mjs';
 import {waveAt} from './progression.mjs';
+import {CHARACTERS,WEAPON_IDS,BOSSES,weaponStats} from './catalog.mjs';
+import {normalizeMeta,buyCharacter,bankCoins} from './economy.mjs';
 
 const art = await loadArt();
 
@@ -10,6 +12,7 @@ const clock = n => `${String(Math.floor(n/60)).padStart(2,'0')}:${String(Math.fl
 const iconIndex={spark:0,orbit:1,pulse:2,focus:3,haste:4,stride:5,magnet:6,vitality:7,repair:8,pause:9,fullscreen:10,sound:11,mute:12,gem:13,light:14,stars:15};
 const pixelIcon = name => WEAPONS[name]
   ? `<span class="lumen-weapon-icon ${WEAPONS[name].className}" style="--weapon:${WEAPONS[name].index}" aria-hidden="true"></span>`
+  : name==='coin'?'<span class="lumen-coin-icon" aria-hidden="true"></span>'
   : `<span class="lumen-pixel-icon" style="--icon:${iconIndex[name] ?? 0}" aria-hidden="true"></span>`;
 
 export function createGame(context) {
@@ -19,8 +22,8 @@ export function createGame(context) {
   let pointer=null,stickOrigin=null,input={x:0,y:0},keys=new Set(),audio=null,fullscreenOwned=false;
   let terminalFrameStart=0;
   const handlers=new AbortController(),signal=handlers.signal;
-  function record(){const root=getSaved();if(!root.lumen||typeof root.lumen!=='object'||Array.isArray(root.lumen))root.lumen={};const r=root.lumen;r.settings={sound:r.settings?.sound===true};if(!r.stats||typeof r.stats!=='object'||Array.isArray(r.stats))r.stats={};for(const key of ['runs','wins','bestTime','bestKills']){if(!Number.isFinite(r.stats[key])||r.stats[key]<0)r.stats[key]=0;}return r;}
-  function save(){if(!state)return;const r=record();r.run=['playing','upgrade'].includes(state.status)?serialize(state):null;r.lastTouchedAt=Date.now();persist();lastSave=performance.now();}
+  function record(){const root=getSaved();if(!root.lumen||typeof root.lumen!=='object'||Array.isArray(root.lumen))root.lumen={};const r=root.lumen;r.meta=normalizeMeta(r.meta);r.settings={sound:r.settings?.sound===true};if(!r.stats||typeof r.stats!=='object'||Array.isArray(r.stats))r.stats={};for(const key of ['runs','wins','bestTime','bestKills']){if(!Number.isFinite(r.stats[key])||r.stats[key]<0)r.stats[key]=0;}return r;}
+  function save(){if(!state)return;const r=record();bankCoins(r.meta,state);r.run=['playing','upgrade'].includes(state.status)?serialize(state):null;r.lastTouchedAt=Date.now();persist();lastSave=performance.now();}
   function sound(kind){
     if(!record().settings.sound)return;
     try{
@@ -55,21 +58,24 @@ export function createGame(context) {
   }
   function releaseFullscreen(){if(fullscreenOwned&&document.fullscreenElement)document.exitFullscreen?.().catch(()=>{});fullscreenOwned=false;}
   function stopRenderer(){cancelAnimationFrame(raf);raf=0;renderer?.destroy();renderer=null;clearInput();}
-  function setup(){
+  function setup(preserveScroll=false){
+    const main=$('#main'),scroll=main?.scrollTop||0,rosterScroll=$('.lumen-roster')?.scrollLeft||0;
     navigate('lumen');screen='lumen';stopRenderer();preview?.destroy();preview=null;
     const r=record(),canResume=Boolean(r.run&&['playing','upgrade'].includes(r.run.status));
-    setupMount.innerHTML=`<div class="lumen-intro"><div class="lumen-cover"><canvas id="lumenPreview" aria-hidden="true"></canvas><div class="lumen-cover-copy"><span class="lumen-tag">Твоя экспедиция начинается здесь</span><h1 id="lumenTitle">ЛЮМЕН<span>Последний маяк</span></h1><p>Ночь наступает.<br>Сохрани свой свет.</p><span class="lumen-cover-coordinate">БИОСАД 07 / СЕКТОР МАЯКА</span></div></div><div class="lumen-brief"><span class="eyebrow">Двигайся. Собирай. Усиливайся.</span><h2>Восемь минут<br>до рассвета.</h2><p class="lumen-description">Пробивайся сквозь рой, собирай осколки света и создавай своё сочетание устройств. Маяк должен выстоять.</p><div class="lumen-facts"><span><b>03</b>стража</span><span><b>∞</b>направлений</span><span><b>01</b>попытка</span></div><fieldset class="lumen-characters"><legend>Кто отправится в биосад?</legend><button type="button" data-lumen-action="character" data-lumen-value="scout" aria-pressed="${character==='scout'}"><span class="lumen-character-portrait" aria-hidden="true"></span><span><b>Следопыт</b><small>Быстрее движется · 110 здоровья</small></span></button><button type="button" data-lumen-action="character" data-lumen-value="keeper" aria-pressed="${character==='keeper'}"><span><b>Хранитель</b><small>Крепче броня · 145 здоровья</small></span></button></fieldset>${canResume?'<button class="lumen-launch" type="button" data-lumen-action="resume">Продолжить экспедицию <span>→</span></button><button class="text-button lumen-new" type="button" data-lumen-action="start">Начать заново</button>':'<button class="lumen-launch" type="button" data-lumen-action="start">Зажечь маяк <span>→</span></button>'}<p class="lumen-controls-note">Джойстик на экране или <kbd>WASD</kbd> / стрелки.<br>Оружие атакует само. Пауза — <kbd>Esc</kbd> / <kbd>P</kbd>.</p></div></div><div class="lumen-how"><div><span>01 / ДВИЖЕНИЕ</span><h3>Не стой на месте</h3><p>Уходи от роя и подбирай осколки побеждённых существ.</p></div><div><span>02 / УСТРОЙСТВА</span><h3>Найди своё сочетание</h3><p>Искровой излучатель, орбитальные огни и импульсная волна.</p></div><div><span>03 / РАССВЕТ</span><h3>Победи стражей</h3><p>Последний приходит на седьмой минуте. Выдержи восемь минут и одолей его.</p></div></div><p class="game-note">Забег и рекорды сохраняются на этом устройстве. Без XP кампаний.${r.stats.runs?` Экспедиций: ${r.stats.runs}. Побед: ${r.stats.wins}. Лучшее время: ${clock(r.stats.bestTime)}.`:''}</p>`;
+    const hero=CHARACTERS[character],owned=r.meta.unlocked.includes(character),missing=Math.max(0,hero.price-r.meta.coins);
+    setupMount.innerHTML=`<div class="lumen-intro"><div class="lumen-cover"><canvas id="lumenPreview" aria-hidden="true"></canvas><div class="lumen-cover-copy"><span class="lumen-tag">Твоя экспедиция начинается здесь</span><h1 id="lumenTitle">ЛЮМЕН<span>Последний маяк</span></h1><p>Ночь наступает.<br>Сохрани свой свет.</p><span class="lumen-cover-coordinate">БИОСАД 07 / СЕКТОР МАЯКА</span></div></div><div class="lumen-brief"><span class="eyebrow">Двигайся. Собирай. Усиливайся.</span><h2>Восемь минут<br>до рассвета.</h2><p class="lumen-description">Пробивайся сквозь рой, собирай осколки света и создавай своё сочетание оружия. Маяк должен выстоять.</p><div class="lumen-facts"><span><b>06</b>героев</span><span><b>08</b>видов оружия</span><span><b>03</b>стража</span></div><div class="lumen-roster-heading"><b>Кто отправится в биосад?</b><span class="lumen-wallet" aria-label="Монет в кошельке: ${r.meta.coins}">${pixelIcon('coin')}<strong id="lumenWallet">${r.meta.coins}</strong></span></div><fieldset class="lumen-roster"><legend class="sr-only">Выбор героя</legend>${Object.entries(CHARACTERS).map(([id,h])=>`<button type="button" data-lumen-action="character" data-lumen-value="${id}" aria-pressed="${character===id}" aria-label="${h.name}, ${r.meta.unlocked.includes(id)?'доступен':`${h.price} монет`}" style="--hero-accent:${h.accent};--hero-image:url('../assets/lumen/${id}.png')"><span class="lumen-character-portrait" aria-hidden="true"></span><b>${h.name}</b><small>${r.meta.unlocked.includes(id)?WEAPONS[h.weapon].short:`${h.price} монет`}</small></button>`).join('')}</fieldset><div class="lumen-hero-detail" style="--weapon-color:${hero.accent}"><span class="lumen-native-icon">${pixelIcon(hero.weapon)}</span><div><h3>${hero.name} <small>${hero.hp} здоровья</small></h3><b>${WEAPONS[hero.weapon].title}</b><p>${hero.story}</p></div></div>${!owned?`<button class="lumen-buy" type="button" data-lumen-action="buy" data-lumen-value="${character}" ${missing?'disabled':''}>${pixelIcon('coin')} Открыть героя · ${hero.price}</button><p class="lumen-shop-note">${missing?`Нужно ещё ${missing} монет. Ищи сундуки у элиты и стражей.`:'Герой останется доступен во всех следующих экспедициях.'}</p>`:''}${canResume?'<button class="lumen-launch" type="button" data-lumen-action="resume">Продолжить экспедицию <span>→</span></button>':''}<button class="${canResume?'text-button lumen-new':'lumen-launch'}" type="button" data-lumen-action="start" ${owned?'':'disabled'}>${!owned?'Сначала открой героя':canResume?'Начать заново':'Зажечь маяк <span>→</span>'}</button><p class="lumen-controls-note">Джойстик на экране или <kbd>WASD</kbd> / стрелки.<br>Оружие атакует само. Пауза — <kbd>Esc</kbd> / <kbd>P</kbd>.</p></div></div><details class="lumen-armory"><summary>Арсенал маяка <span>8 видов · 5 стадий · до 6 в забеге</span></summary><div>${WEAPON_IDS.map(id=>`<article style="--weapon-color:${WEAPONS[id].color}">${pixelIcon(id)}<div><h3>${WEAPONS[id].title}</h3><p>${WEAPONS[id].verb}</p><small>I: ${weaponStats(id,1).count} · III: ${weaponStats(id,3).count} · V: ${weaponStats(id,5).count} ${id==='storm'?'цели':id==='orbit'?'клинка':id==='pulse'?'волны':id==='thorn'?'ловушки':'снаряда'}</small></div></article>`).join('')}</div></details><div class="lumen-how"><div><span>01 / ДВИЖЕНИЕ</span><h3>Не стой на месте</h3><p>Уходи от роя и подбирай осколки побеждённых существ.</p></div><div><span>02 / СОКРОВИЩА</span><h3>Охоться за сундуками</h3><p>Элита и стражи оставляют монеты. Иногда сундук усиливает уже взятое оружие.</p></div><div><span>03 / РАССВЕТ</span><h3>Победи стражей</h3><p>Последний приходит на седьмой минуте. Выдержи восемь минут и одолей его.</p></div></div><p class="game-note">Забег, монеты и открытые герои сохраняются на этом устройстве. Без XP кампаний.${r.stats.runs?` Экспедиций: ${r.stats.runs}. Побед: ${r.stats.wins}. Лучшее время: ${clock(r.stats.bestTime)}.`:''}</p>`;
     // Keep the primary action in the first mobile screen; character choice stays editable below.
-    if(matchMedia('(max-width:900px)').matches){const brief=setupMount.querySelector('.lumen-brief');brief.insertBefore(brief.querySelector('.lumen-launch'),brief.querySelector('.lumen-facts'));}
+    if(matchMedia('(max-width:900px)').matches){const brief=setupMount.querySelector('.lumen-brief'),launch=brief.querySelector('.lumen-launch');brief.insertBefore(launch,brief.querySelector('.lumen-facts'));}
     preview=new Renderer($('#lumenPreview'),art);preview.resize();
     const demo=createRun({seed:17,character});demo.player.x=0;demo.player.y=110;demo.time=9;
     demo.enemies=[{id:1,x:-120,y:20,kind:'beetle',radius:15,hp:40,maxHp:40},{id:2,x:120,y:80,kind:'mote',radius:12,hp:20,maxHp:20},{id:3,x:180,y:-80,kind:'wasp',radius:12,hp:20,maxHp:20}];
     demo.gems=[{x:80,y:150,value:1},{x:-70,y:150,value:1}];previewState=demo;preview.draw(demo,true);
+    if(preserveScroll){if(main)main.scrollTop=scroll;$('.lumen-roster').scrollLeft=rosterScroll;}
   }
   function mountRun(){
     terminalFrameStart=0;
     preview?.destroy();preview=null;stopRenderer();
-    gameMount.innerHTML=`<canvas id="lumenCanvas" tabindex="0" role="img" aria-label="Арена Люмена. Двигайся WASD или стрелками. Оружие атакует само. Escape открывает паузу.">Для этой игры необходим Canvas 2D.</canvas><div class="lumen-hud"><div class="lumen-health"><span class="lumen-hud-kicker">СВЕТОВОЕ ЯДРО</span><div>${pixelIcon('vitality')}<b id="lumenHealth">110 / 110</b></div><div class="lumen-health-track" role="meter" aria-label="Здоровье" aria-valuemin="0" id="lumenHealthMeter"><i></i></div></div><div class="lumen-timer"><strong id="lumenTimer">00:00</strong><span>из 08:00</span></div><div class="lumen-tools"><button type="button" class="lumen-tool" data-lumen-action="sound" aria-label="Включить звук" aria-pressed="false">${pixelIcon('mute')}</button><button type="button" class="lumen-tool" data-lumen-action="fullscreen" aria-label="Полный экран">${pixelIcon('fullscreen')}</button><button type="button" class="lumen-tool" data-lumen-action="pause" aria-label="Пауза">${pixelIcon('pause')}</button></div></div><div class="lumen-xp"><div><span id="lumenLevel">Уровень 1</span><span id="lumenXpLabel">0 / 10</span></div><div class="lumen-xp-track" role="progressbar" aria-label="Опыт забега" aria-valuemin="0" id="lumenXpMeter"><i></i></div></div><div class="lumen-wave" id="lumenWave" aria-live="polite"></div><div class="lumen-bottom"><div class="lumen-weapons" id="lumenWeapons"></div><div class="lumen-tally"><strong id="lumenKills">0</strong><span>побеждено</span></div></div><p class="lumen-hint" id="lumenMoveHint">Проведи по полю, чтобы двигаться<span>или используй WASD / стрелки</span></p><div class="lumen-stick" id="lumenStick" hidden aria-hidden="true"><i></i></div><div class="lumen-overlay" id="lumenOverlay" hidden></div><p class="sr-only" id="lumenAnnouncement" role="status" aria-live="polite"></p>`;
+    gameMount.innerHTML=`<canvas id="lumenCanvas" tabindex="0" role="img" aria-label="Арена Люмена. Двигайся WASD или стрелками. Оружие атакует само. Escape открывает паузу.">Для этой игры необходим Canvas 2D.</canvas><div class="lumen-hud"><div class="lumen-health"><span class="lumen-hud-kicker">СВЕТОВОЕ ЯДРО</span><div>${pixelIcon('vitality')}<b id="lumenHealth">110 / 110</b></div><div class="lumen-health-track" role="meter" aria-label="Здоровье" aria-valuemin="0" id="lumenHealthMeter"><i></i></div></div><div class="lumen-timer"><strong id="lumenTimer">00:00</strong><span>из 08:00</span></div><div class="lumen-tools"><button type="button" class="lumen-tool" data-lumen-action="sound" aria-label="Включить звук" aria-pressed="false">${pixelIcon('mute')}</button><button type="button" class="lumen-tool" data-lumen-action="fullscreen" aria-label="Полный экран">${pixelIcon('fullscreen')}</button><button type="button" class="lumen-tool" data-lumen-action="pause" aria-label="Пауза">${pixelIcon('pause')}</button></div></div><div class="lumen-xp"><div><span id="lumenLevel">Уровень 1</span><span id="lumenXpLabel">0 / 10</span></div><div class="lumen-xp-track" role="progressbar" aria-label="Опыт забега" aria-valuemin="0" id="lumenXpMeter"><i></i></div></div><div class="lumen-wave" id="lumenWave" aria-live="polite"></div><div class="lumen-bottom"><div class="lumen-weapons" id="lumenWeapons"></div><div class="lumen-tally"><strong id="lumenKills">0</strong><span>побеждено</span><div class="lumen-run-coins">${pixelIcon('coin')}<b id="lumenCoins">0</b></div></div></div><div class="lumen-loot" id="lumenLoot" hidden></div><p class="lumen-hint" id="lumenMoveHint">Проведи по полю, чтобы двигаться<span>или используй WASD / стрелки</span></p><div class="lumen-stick" id="lumenStick" hidden aria-hidden="true"><i></i></div><div class="lumen-overlay" id="lumenOverlay" hidden></div><p class="sr-only" id="lumenAnnouncement" role="status" aria-live="polite"></p>`;
     renderer=new Renderer($('#lumenCanvas'),art);lockScreen(true);renderer.resize();
     $('#lumenCanvas').addEventListener('pointerdown',pointerDown,{signal});
     $('#lumenCanvas').addEventListener('pointermove',pointerMove,{signal});
@@ -79,8 +85,9 @@ export function createGame(context) {
     updateHud();renderer.draw(state);$('#lumenCanvas').focus({preventScroll:true});
   }
   function start(){
+    if(!record().meta.unlocked.includes(character))return;
     if(record().run&&!window.confirm('Начать заново? Текущая экспедиция будет заменена.'))return;
-    state=createRun({seed:crypto.getRandomValues(new Uint32Array(1))[0],character});state.player.y=85;resultRecorded=false;paused=false;overlayKey='';
+    state=createRun({seed:crypto.getRandomValues(new Uint32Array(1))[0],character,runId:crypto.randomUUID()});state.player.y=85;resultRecorded=false;paused=false;overlayKey='';
     navigate('lumen-game');screen='lumen-game';mountRun();save();unlockAudio();
     if(tg?.initData&&tg.isVersionAtLeast?.('8.0')){try{tg.requestFullscreen();}catch(_){}}
     lastFrame=performance.now();raf=requestAnimationFrame(frame);
@@ -88,7 +95,7 @@ export function createGame(context) {
   function resume(){
     state=restore(record().run);
     if(!state){record().run=null;persist();setup();toast('Сохранение повреждено или устарело. Можно начать новую экспедицию.');return;}
-    resultRecorded=false;paused=true;overlayKey='';navigate('lumen-game');screen='lumen-game';mountRun();
+    character=state.character;resultRecorded=false;paused=true;overlayKey='';navigate('lumen-game');screen='lumen-game';mountRun();
     if(state.status==='upgrade'){paused=false;showUpgrade();}else showPause('Экспедиция ждёт');
     lastFrame=performance.now();raf=requestAnimationFrame(frame);
   }
@@ -100,11 +107,14 @@ export function createGame(context) {
     $('#lumenTimer').textContent=clock(state.time);$('#lumenLevel').textContent=`Уровень ${state.level}`;$('#lumenXpLabel').textContent=`${state.xp} / ${state.xpNext}`;
     const xp=$('#lumenXpMeter');xp.setAttribute('aria-valuemax',state.xpNext);xp.setAttribute('aria-valuenow',state.xp);xp.firstElementChild.style.width=`${Math.min(100,state.xp/state.xpNext*100)}%`;
     $('#lumenKills').textContent=state.kills;
-    const weapons=['spark','orbit','pulse'],dock=$('#lumenWeapons'),dockKey=weapons.map(id=>state.upgrades[id]||0).join(':');
-    if(dock.dataset.key!==dockKey){dock.dataset.key=dockKey;dock.innerHTML=weapons.map(id=>{const rank=state.upgrades[id]||0,available=id==='spark'||rank>0,tier=id==='spark'?rank+1:rank;return `<span class="lumen-slot ${WEAPONS[id].className} ${available?'':'locked'}" title="${UPGRADES.find(u=>u.id===id)?.title}: ${WEAPONS[id].verb}">${pixelIcon(id)}<small>${available?tier:'—'}</small><span class="lumen-slot-caption">${WEAPONS[id].short}</span><span class="sr-only">${UPGRADES.find(u=>u.id===id)?.title}: ${available?`ступень ${tier}`:'не открыто'}</span></span>`;}).join('');}
+    const weapons=WEAPON_IDS.filter(id=>state.upgrades[id]),dock=$('#lumenWeapons'),dockKey=weapons.map(id=>`${id}:${state.upgrades[id]}`).join(':');
+    if(dock.dataset.key!==dockKey){dock.dataset.key=dockKey;dock.innerHTML=weapons.map(id=>`<span class="lumen-slot ${WEAPONS[id].className}" style="--weapon-color:${WEAPONS[id].color}" title="${WEAPONS[id].title}: ${WEAPONS[id].verb}">${pixelIcon(id)}<small>${state.upgrades[id]}</small><span class="lumen-slot-caption">${WEAPONS[id].short}</span><span class="sr-only">${WEAPONS[id].title}: стадия ${state.upgrades[id]}</span></span>`).join('');}
+    $('#lumenCoins').textContent=state.coinsEarned;
+    const loot=state.lootLog.at(-1),notice=$('#lumenLoot');notice.hidden=!loot||state.time-loot.time>3;
+    if(loot&&notice.dataset.id!==String(loot.id)){notice.dataset.id=loot.id;notice.innerHTML=`${pixelIcon(loot.weapon||'coin')}<span>+${loot.coins} монет${loot.weapon?` · ${WEAPONS[loot.weapon].short} ${['','I','II','III','IV','V'][loot.stage]}`:''}</span>`;$('#lumenAnnouncement').textContent=notice.textContent;}
     const wave=state.enemies.find(e=>e.kind==='guardian');
     const phase=waveAt(state.time);
-    const text=wave?'СТРАЖ В БИОСАДУ':state.time<8?'СОБИРАЙ ОСКОЛКИ СВЕТА':phase.kind==='harvest'?'СЛАБЫЙ РОЙ · СОБИРАЙ ОПЫТ':phase.kind==='pressure'&&phase.age<5?`НОВАЯ ВОЛНА · ЭТАП ${phase.stage}`:'';
+    const text=wave?BOSSES[wave.guardianStage].name.toUpperCase():state.chests.length?'СУНДУК НА ПОЛЕ · ПОДОЙДИ И ОТКРОЙ':state.time<8?'СОБИРАЙ ОСКОЛКИ СВЕТА':phase.kind==='harvest'?'СЛАБЫЙ РОЙ · СОБИРАЙ ОПЫТ':phase.kind==='pressure'&&phase.age<5?`НОВАЯ ВОЛНА · ЭТАП ${phase.stage}`:'';
     $('#lumenWave').dataset.phase=wave?'guardian':phase.kind;
     if($('#lumenWave').textContent!==text)$('#lumenWave').textContent=text;
     $('#lumenMoveHint').hidden=state.time>12||pointer!==null||keys.size>0;
@@ -115,9 +125,10 @@ export function createGame(context) {
     const dt=Math.min(.1,Math.max(0,(now-lastFrame)/1000));lastFrame=now;
     if(!paused&&state.status==='playing'){
       const x=(keys.has('KeyD')||keys.has('ArrowRight')?1:0)-(keys.has('KeyA')||keys.has('ArrowLeft')?1:0),y=(keys.has('KeyS')||keys.has('ArrowDown')?1:0)-(keys.has('KeyW')||keys.has('ArrowUp')?1:0);
-      const hp=state.player.hp,kills=state.kills;
+      const hp=state.player.hp,kills=state.kills,coins=state.coinsEarned;
       const direction=pointer===null?{x,y}:input;state.moving=Math.hypot(direction.x,direction.y)>.01;step(state,direction,dt,renderer.captureTick);
       if(state.player.hp<hp)sound('hurt');else if(state.kills>kills)sound('kill');
+      if(state.coinsEarned>coins){save();sound('level');updateHud();}
       if(state.status==='upgrade'){sound('level');save();showUpgrade();}
       if(['won','lost'].includes(state.status)){updateHud();showResult();}
       if(now-lastSave>5000)save();
@@ -143,11 +154,11 @@ export function createGame(context) {
     soundSuspend();
   }
   function showUpgrade(){
-    showOverlay(`upgrade-${state.level}`,`<div class="lumen-upgrade-heading"><h2 id="lumenDialogTitle">Усиль свой свет</h2><span class="lumen-dialog-kicker">УРОВЕНЬ ${state.level} · ВЫБЕРИ ОДНО</span></div><div class="lumen-upgrades">${state.choices.map(id=>{const u=UPGRADES.find(u=>u.id===id),rank=state.upgrades[id]||0,theme=WEAPONS[id]?.className||(u.kind==='recovery'?'rose':'neutral');return `<button class="${theme}" type="button" data-lumen-action="upgrade" data-lumen-value="${id}" title="${u.description}"><span class="lumen-upgrade-icon" aria-hidden="true">${pixelIcon(id)}</span><span><small>${rank?`Ранг ${rank} → ${rank+1}`:u.kind==='weapon'?'Новое оружие':'Новое улучшение'}</small><strong>${u.title}</strong><span>${upgradeSummary(id,rank)}</span><span class="sr-only">${u.description}</span></span></button>`;}).join('')}</div><button class="lumen-upgrade-exit" data-lumen-action="exit" type="button">Сохранить и выйти</button>`);
+    showOverlay(`upgrade-${state.level}`,`<div class="lumen-upgrade-heading"><h2 id="lumenDialogTitle">Усиль свой свет</h2><span class="lumen-dialog-kicker">УРОВЕНЬ ${state.level} · ВЫБЕРИ ОДНО</span></div><div class="lumen-upgrades">${state.choices.map(id=>{const u=UPGRADES.find(u=>u.id===id),rank=state.upgrades[id]||0,theme=WEAPONS[id]?.className||(u.kind==='recovery'?'rose':'neutral');return `<button class="${theme}" style="--weapon-color:${WEAPONS[id]?.color||'#a4b9c9'}" type="button" data-lumen-action="upgrade" data-lumen-value="${id}" title="${u.description}"><span class="lumen-upgrade-icon" aria-hidden="true">${pixelIcon(id)}</span><span><small>${rank?`${WEAPONS[id]?'Стадия':'Ранг'} ${rank} → ${rank+1}`:u.kind==='weapon'?'Новое оружие':'Новое улучшение'}</small><strong>${u.title}</strong><span>${upgradeSummary(id,rank)}</span><span class="sr-only">${u.description}</span></span></button>`;}).join('')}</div><button class="lumen-upgrade-exit" data-lumen-action="exit" type="button">Сохранить и выйти</button>`);
   }
   function showResult(){
     if(!resultRecorded){const r=record();r.stats.runs++;if(state.status==='won')r.stats.wins++;r.stats.bestTime=Math.max(r.stats.bestTime,state.time);r.stats.bestKills=Math.max(r.stats.bestKills,state.kills);resultRecorded=true;save();}
-    showOverlay('result',`<span class="lumen-dialog-kicker">${state.status==='won'?'РАССВЕТ / ЭКСПЕДИЦИЯ ЗАВЕРШЕНА':'СВЕТ НЕ ПОГАС НАВСЕГДА'}</span><div class="lumen-result-mark" aria-hidden="true">${pixelIcon(state.status==='won'?'stars':'light')}</div><h2 id="lumenDialogTitle">${state.status==='won'?'Маяк выстоял':'Новая ночь. Новый шанс.'}</h2><p>${state.status==='won'?'Стражи побеждены. Биосад снова видит свет.':'Рой оказался сильнее. В следующей экспедиции попробуй другое сочетание устройств.'}</p><div class="lumen-result-stats"><span><b>${clock(state.time)}</b>время</span><span><b>${state.kills}</b>побеждено</span><span><b>${state.level}</b>уровень</span></div><button class="lumen-launch" data-lumen-action="start" type="button">Новая экспедиция <span>→</span></button><button class="lumen-menu-button" data-lumen-action="exit" type="button">Вернуться к маяку</button><small class="lumen-result-note">Рекорд сохранён на устройстве. XP кампаний не начисляется.</small>`);
+    showOverlay('result',`<span class="lumen-dialog-kicker">${state.status==='won'?'РАССВЕТ / ЭКСПЕДИЦИЯ ЗАВЕРШЕНА':'СВЕТ НЕ ПОГАС НАВСЕГДА'}</span><div class="lumen-result-mark" aria-hidden="true">${pixelIcon(state.status==='won'?'stars':'light')}</div><h2 id="lumenDialogTitle">${state.status==='won'?'Маяк выстоял':'Новая ночь. Новый шанс.'}</h2><p>${state.status==='won'?'Стражи побеждены. Биосад снова видит свет.':'Рой оказался сильнее. В следующей экспедиции попробуй другое сочетание устройств.'}</p><div class="lumen-result-stats"><span><b>${clock(state.time)}</b>время</span><span><b>${state.kills}</b>побеждено</span><span><b>${state.level}</b>уровень</span></div><p class="lumen-earned">${pixelIcon('coin')} +${state.coinsEarned} монет за забег <small>В кошельке: ${record().meta.coins}</small></p><button class="lumen-launch" data-lumen-action="start" type="button">Новая экспедиция <span>→</span></button><button class="lumen-menu-button" data-lumen-action="exit" type="button">Вернуться к маяку</button><small class="lumen-result-note">Рекорд сохранён на устройстве. XP кампаний не начисляется.</small>`);
   }
   function pointerDown(e){
     if(paused||state?.status!=='playing'||pointer!==null||e.button>0)return;
@@ -164,7 +175,8 @@ export function createGame(context) {
   function soundSuspend(){if(audio?.state==='running')audio.suspend().catch(()=>{});}
   function action(name,value){
     if(name==='setup'){setup();return;}
-    if(name==='character'){character=value==='keeper'?'keeper':'scout';setup();$(`[data-lumen-value="${character}"]`)?.focus({preventScroll:true});return;}
+    if(name==='character'&&Object.hasOwn(CHARACTERS,value)){character=value;setup(true);$(`[data-lumen-action="character"][data-lumen-value="${character}"]`)?.focus({preventScroll:true});return;}
+    if(name==='buy'){const r=record();if(buyCharacter(r.meta,value)){persist();setup(true);$('[data-lumen-action="start"]')?.focus({preventScroll:true});toast(`${CHARACTERS[value].name} готов к экспедиции`);}return;}
     if(name==='start'){start();return;}
     if(name==='resume'){resume();return;}
     if(name==='pause'){showPause();return;}

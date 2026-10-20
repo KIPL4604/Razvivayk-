@@ -1,10 +1,7 @@
 // Pure presentation rules: no simulation writes or device assumptions.
 export const FIXED_STEP = 1 / 60;
-export const WEAPONS = Object.freeze({
-  spark: { index: 0, short: 'Разряд', verb: 'Бьёт ближайшего', color: '#efbe7c', className: 'amber' },
-  orbit: { index: 1, short: 'Орбита', verb: 'Режет вокруг тебя', color: '#8dc9ee', className: 'blue' },
-  pulse: { index: 2, short: 'Волна', verb: 'Бьёт кругом и отталкивает', color: '#c1a4eb', className: 'violet' },
-});
+import {WEAPONS,weaponSummary} from './catalog.mjs';
+export {WEAPONS};
 export const lerp = (a, b, alpha) => a + (b - a) * alpha;
 const clamp = value => Math.max(0, Math.min(1, value));
 const smooth = value => { const t = clamp(value); return t * t * (3 - 2 * t); };
@@ -17,12 +14,10 @@ export function sceneryOpacity(prop, player) {
 }
 export {crystalTier} from './progression.mjs';
 export function upgradeSummary(id, rank = 0) {
+  if(WEAPONS[id])return weaponSummary(id,rank);
   const summaries = {
-    spark: `${WEAPONS.spark.verb} · +7 урона${[1, 3].includes(rank) ? ' · +1 луч' : ''}`,
-    orbit: rank ? '+1 клинок вокруг тебя' : 'Два клинка бьют вокруг тебя',
-    pulse: rank ? 'Больше урон и радиус волны' : 'Бьёт кругом и отталкивает',
-    focus: 'Всем трём устройствам +20% урона',
-    haste: 'Разряд и волна срабатывают чаще',
+    focus: 'Всему оружию +20% урона',
+    haste: 'Всё оружие срабатывает чаще',
     stride: 'Движение быстрее на 10%',
     magnet: 'Притягивает опыт издалека',
     vitality: '+20 к максимуму · лечит 30',

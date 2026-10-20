@@ -6,16 +6,17 @@ async(page)=>{
     await p.goto('http://127.0.0.1:8081');
     const simulation=await p.evaluate(async()=>{
       const core=await import('/static/js/lumen/engine.mjs'),run=core.createRun({seed:1});
-      const preference=['orbit','pulse','spark','focus','haste','magnet','vitality','stride','repair'];
+      const preference=['orbit','pulse','spark','focus','haste','storm','ice','flame','cleaver','thorn','magnet','vitality','stride','repair'];
       const snapshots={},tiers=new Set(),checkpoints=[50,58,178,358];let peak=0;
       for(let frame=0;frame<480*60&&!['lost','won'].includes(run.status);frame++){
         const player=run.player;let target=null;
-        for(const gem of run.gems)if(!target||Math.hypot(gem.x-player.x,gem.y-player.y)<Math.hypot(target.x-player.x,target.y-player.y))target=gem;
+        for(const gem of [...run.chests,...run.gems])if(!target||Math.hypot(gem.x-player.x,gem.y-player.y)<Math.hypot(target.x-player.x,target.y-player.y))target=gem;
         const d=target?Math.hypot(target.x-player.x,target.y-player.y)||1:1;
         let x=target?(target.x-player.x)/d:Math.cos(frame/260)*.4,y=target?(target.y-player.y)/d:Math.sin(frame/260)*.4;
         for(const enemy of run.enemies){const dx=player.x-enemy.x,dy=player.y-enemy.y,near=Math.hypot(dx,dy)||1;if(near<85){const force=(85-near)/45;x+=dx/near*force;y+=dy/near*force;}}
+        for(const shot of run.projectiles.filter(s=>s.hostile)){const dx=player.x-shot.x,dy=player.y-shot.y,near=Math.hypot(dx,dy)||1;if(near<65){x+=dx/near*(65-near)/30;y+=dy/near*(65-near)/30;}}
         core.step(run,{x,y},1/60);
-        while(run.status==='upgrade')core.chooseUpgrade(run,run.player.hp<run.player.maxHp*.5&&run.choices.includes('repair')?'repair':preference.find(id=>run.choices.includes(id)));
+        while(run.status==='upgrade'){const recovery=run.player.hp<run.player.maxHp*.65&&['vitality','repair'].find(id=>run.choices.includes(id));if(!core.chooseUpgrade(run,recovery||preference.find(id=>run.choices.includes(id))))throw Error('No legal upgrade');}
         peak=Math.max(peak,run.enemies.length);for(const gem of run.gems)tiers.add(gem.tier);
         for(const time of checkpoints)if(!snapshots[time]&&run.time>=time)snapshots[time]=core.serialize(run);
       }

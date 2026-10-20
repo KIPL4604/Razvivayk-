@@ -5,7 +5,7 @@ import {waveAt,xpForLevel,crystalLoot} from '../webapp/frontend/js/lumen/progres
 
 const tick=1/60;
 function spawnAt(time){
-  const run=createRun({seed:44});run.time=time;run.spawnTimer=0;run.spawnedGuardians=3;
+  const run=createRun({seed:44});run.time=time;run.spawnTimer=0;run.spawnedGuardians=3;run.spawnedElites=4;
   step(run,{},tick);return run;
 }
 test('seven dense harvests precede stronger groups and finish before guardians',()=>{
@@ -62,7 +62,7 @@ test('crystal overflow conserves XP, favors matching tiers and preserves merged 
     assert(restore(serialize(run)));
   }
 });
-test('version1 saves without tiers round-trip exactly, invalid tiers are rejected',()=>{
+test('unlabelled gems retain their XP and invalid tiers are rejected',()=>{
   const old=serialize(createRun({seed:77}));old.level=22;old.xpNext=156;
   old.gems=[{x:100,y:0,value:4},{x:110,y:0,value:25}];
   assert.deepEqual(serialize(restore(old)),old);

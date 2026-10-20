@@ -12,7 +12,7 @@ export const WEAPONS=Object.freeze({
   orbit:{index:1,title:'Лунные клинки',short:'Клинки',verb:'Вращаются вокруг тебя',color:'#aabaff',className:'blue',max:5},
   pulse:{index:2,title:'Молот рассвета',short:'Волна',verb:'Бьёт кругом и отталкивает',color:'#c1a4eb',className:'violet',max:5},
   flame:{index:3,title:'Огненная колба',short:'Пламя',verb:'Оставляет горящее поле',color:'#f27358',className:'coral',max:5},
-  ice:{index:4,title:'Ледяной арбалет',short:'Мороз',verb:'Пробивает и замедляет',color:'#8de8ee',className:'cyan',max:5},
+  ice:{index:4,title:'Ледяной арбалет',short:'Мороз',verb:'Замедляет; с III — пробивает',color:'#8de8ee',className:'cyan',max:5},
   storm:{index:5,title:'Грозовой жезл',short:'Гроза',verb:'Молния скачет между врагами',color:'#ffe17c',className:'gold',max:5},
   cleaver:{index:6,title:'Возвратные секиры',short:'Секиры',verb:'Летят вперёд и возвращаются',color:'#e9a67b',className:'copper',max:5},
   thorn:{index:7,title:'Терновый посох',short:'Тернии',verb:'Выращивает колючие ловушки',color:'#b4de8b',className:'leaf',max:5},
@@ -39,6 +39,6 @@ export function weaponSummary(id,stage){
   const current=weaponStats(id,stage),next=weaponStats(id,stage+1);
   if(!current)return '';
   if(stage<1)return `${WEAPONS[id].verb} · стадия I`;
-  const unit=id==='storm'?'целей':id==='orbit'?'клинков':id==='pulse'?'волн':id==='thorn'?'ловушек':'снарядов';
+  const unit=id==='storm'?'цели':id==='orbit'?'клинка':id==='pulse'?'волны':id==='thorn'?'ловушки':'снаряда';
   return next.count>current.count?`${current.count} → ${next.count} ${unit} · больше урон`:'Больше урон · сильнее действие';
 }

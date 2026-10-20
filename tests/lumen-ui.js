@@ -13,7 +13,7 @@ async (page) => {
       showScreen('home');
       const core=await import('/static/js/lumen/engine.mjs');let run=core.createRun({seed:1});
       if(kind==='scene'){
-        const preference=['orbit','pulse','spark','focus','haste','magnet','vitality','stride','repair'];
+        const preference=['orbit','pulse','spark','focus','haste','storm','ice','flame','cleaver','thorn','magnet','vitality','stride','repair'];
         for(let f=0;f<125*60;f++){
           const player=run.player;let target=null;
           for(const gem of run.gems)if(!target||Math.hypot(gem.x-player.x,gem.y-player.y)<Math.hypot(target.x-player.x,target.y-player.y))target=gem;
@@ -21,7 +21,7 @@ async (page) => {
           let x=target?(target.x-player.x)/d:Math.cos(f/260)*.4,y=target?(target.y-player.y)/d:Math.sin(f/260)*.4;
           for(const enemy of run.enemies){const dx=player.x-enemy.x,dy=player.y-enemy.y,near=Math.hypot(dx,dy)||1;if(near<85){const force=(85-near)/45;x+=dx/near*force;y+=dy/near*force;}}
           core.step(run,{x,y},1/60);
-          while(run.status==='upgrade')core.chooseUpgrade(run,preference.find(id=>run.choices.includes(id)));
+          while(run.status==='upgrade')if(!core.chooseUpgrade(run,preference.find(id=>run.choices.includes(id))))throw Error('No legal upgrade');
         }
       }else if(kind==='upgrade'){run.xp=run.xpNext;core.step(run,{},1/60);}
       else if(kind==='won'||kind==='lost'){run.time=479.95;run.spawnedGuardians=3;run.bossesDefeated=kind==='won'?3:0;run.finalGuardianDefeated=kind==='won';}

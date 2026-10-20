@@ -26,27 +26,29 @@ class LumenArtTests(unittest.TestCase):
     @unittest.skipIf(Image is None, 'Offline pixel checks: install design/lumen-pixel/requirements.txt')
     def test_actor_frames_have_hard_alpha_shared_palette_and_baseline(self):
         manifest = json.loads((ART / 'manifest.json').read_text(encoding='utf-8'))
-        palette = {tuple(bytes.fromhex(color[1:])) for color in manifest['palette']}
-        for actor in ['scout', 'mote', 'beetle', 'wasp']:
+        self.assertEqual(len(manifest['actors']), 15)
+        for actor, data in manifest['actors'].items():
+            palette = {tuple(bytes.fromhex(color[1:])) for color in manifest.get('palettes', {}).get(actor, manifest['palette'])}
+            size=data['frameSize']; baseline=data['anchor'][1]
             image = Image.open(ART / (actor + '.png')).convert('RGBA')
-            self.assertEqual(image.size, (288, 240))
+            self.assertEqual(image.size, (size*6, size*5))
             self.assertEqual(set(image.getchannel('A').get_flattened_data()), {0, 255})
             colors = {pixel[:3] for pixel in image.get_flattened_data() if pixel[3]}
             self.assertTrue(colors.issubset(palette))
             for row in range(5):
                 frames = []
                 for col in range(6):
-                    frame = image.crop((col * 48, row * 48, col * 48 + 48, row * 48 + 48))
+                    frame = image.crop((col * size, row * size, col * size + size, row * size + size))
                     bbox = frame.getbbox()
                     self.assertIsNotNone(bbox, f'{actor} row={row} col={col}')
-                    self.assertLessEqual(bbox[2] - bbox[0], 44)
-                    self.assertEqual(bbox[3], 45, f'{actor} baseline row={row} col={col}')
+                    self.assertLessEqual(bbox[2] - bbox[0], size-4)
+                    self.assertEqual(bbox[3], baseline, f'{actor} baseline row={row} col={col}')
                     frames.append(frame.tobytes())
                 self.assertGreater(len(set(frames)), 1, f'{actor} animation row={row} is static')
 
     @unittest.skipIf(Image is None, 'Offline pixel checks: install design/lumen-pixel/requirements.txt')
     def test_tile_prop_and_ui_cells(self):
-        for name, size in [('tiles.png', (128, 32)), ('garden.png', (256, 64)), ('ui.png', (256, 16))]:
+        for name, size in [('tiles.png', (128, 32)), ('garden.png', (256, 64)), ('ui.png', (256, 16)), ('weapons.png',(384,48)), ('arsenal.png',(384,192))]:
             with Image.open(ART / name) as image:
                 self.assertEqual(image.size, size)
         manifest = json.loads((ART / 'manifest.json').read_text(encoding='utf-8'))

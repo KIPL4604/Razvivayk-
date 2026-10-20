@@ -4,15 +4,15 @@
  * Local results are entertainment data and never award campaign/server XP.
  */
 import {waveAt,xpForLevel,crystalLoot,crystalTier,creatureStats} from './progression.mjs';
+import {CHARACTERS,WEAPONS,WEAPON_IDS,MAX_WEAPONS,ENEMIES} from './catalog.mjs';
+import {updateWeapons,flameImpact} from './combat.mjs';
 
 export const DURATION = 480;
-export const LIMITS = Object.freeze({ enemies: 240, projectiles: 100, gems: 220, effects: 80 });
+export const LIMITS = Object.freeze({ enemies: 240, projectiles: 100, gems: 220, effects: 80, zones:24, chests:12 });
 export const UPGRADES = Object.freeze([
-  { id: 'spark', title: 'Световой разряд', description: 'Разряды сильнее; на 2-м и 4-м рангах появляется дополнительный луч.', max: 5, kind: 'weapon' },
-  { id: 'orbit', title: 'Орбитальные огни', description: 'Вокруг разведчика движутся огни, повреждающие близких существ.', max: 4, kind: 'weapon' },
-  { id: 'pulse', title: 'Кольцо рассвета', description: 'Периодическая волна света повреждает и отталкивает существ.', max: 4, kind: 'weapon' },
-  { id: 'focus', title: 'Чистая линза', description: 'Урон всех световых устройств +20%.', max: 5, kind: 'power' },
-  { id: 'haste', title: 'Быстрый конденсатор', description: 'Световые разряды и кольца срабатывают на 15% чаще.', max: 4, kind: 'power' },
+  ...WEAPON_IDS.map(id=>({id,title:WEAPONS[id].title,description:WEAPONS[id].verb+'; на стадиях III и V усиливается число атак.',max:5,kind:'weapon'})),
+  { id: 'focus', title: 'Чистая линза', description: 'Урон всего оружия +20%.', max: 5, kind: 'power' },
+  { id: 'haste', title: 'Быстрый конденсатор', description: 'Всё оружие срабатывает на 15% чаще.', max: 4, kind: 'power' },
   { id: 'stride', title: 'Лёгкий привод', description: 'Скорость движения +10%.', max: 3, kind: 'utility' },
   { id: 'magnet', title: 'Сборщик искр', description: 'Радиус притяжения опыта становится больше.', max: 3, kind: 'utility' },
   { id: 'vitality', title: 'Запас света', description: 'Максимум здоровья +20; восстановление 30 здоровья.', max: 3, kind: 'recovery' },
@@ -22,15 +22,12 @@ export const UPGRADES = Object.freeze([
 const H = 1 / 60;
 const TAU = Math.PI * 2;
 const GUARDIAN_TIMES = [120, 240, 420];
-const TYPES = ['mote', 'beetle', 'wasp', 'guardian'];
+const TYPES = [...ENEMIES, 'guardian'];
 const CATALOG = new Map(UPGRADES.map((upgrade) => [upgrade.id, upgrade]));
-const CHARACTERS = Object.freeze({ scout: { hp: 110, speed: 160 }, keeper: { hp: 145, speed: 142 } });
 const own = (object, key) => Object.prototype.hasOwnProperty.call(object, key);
 const clamp = (value, low, high) => Math.max(low, Math.min(high, value));
 const distanceSquared = (a, b) => (a.x - b.x) ** 2 + (a.y - b.y) ** 2;
 const rank = (state, id) => state.upgrades[id] || 0;
-const damageScale = (state) => 1 + rank(state, 'focus') * 0.2;
-const attackScale = (state) => 1 + rank(state, 'haste') * 0.15;
 
 function random(state) {
   let value = state.rngState;
@@ -48,16 +45,19 @@ function derived(state) {
   state.pickupRadius = 58 + rank(state, 'magnet') * 42;
 }
 
-export function createRun({ seed = 0x1a71be, character = 'scout' } = {}) {
+export function createRun({ seed = 0x1a71be, character = 'scout',runId } = {}) {
   const normalizedSeed = Number.isInteger(seed) ? seed >>> 0 : 0x1a71be;
   const selected = own(CHARACTERS, character) ? character : 'scout';
   const state = {
-    version: 1, seed: normalizedSeed, rngState: normalizedSeed || 0x9e3779b9,
+    version: 2, seed: normalizedSeed, rngState: normalizedSeed || 0x9e3779b9,
+    runId:typeof runId==='string'&&/^[a-zA-Z0-9-]{1,90}$/.test(runId)?runId:`run-${normalizedSeed.toString(16)}-${selected}`,
     character: selected, time: 0, status: 'playing', endReason: '',
     player: { x: 0, y: 0, hp: CHARACTERS[selected].hp, maxHp: CHARACTERS[selected].hp,
       speed: CHARACTERS[selected].speed, radius: 13, invulnerable: 0, facingX: 0, facingY: -1 },
     enemies: [], projectiles: [], gems: [], effects: [],
-    level: 1, xp: 0, xpNext: xpForLevel(1), kills: 0, choices: [], upgrades: {},
+    level: 1, xp: 0, xpNext: xpForLevel(1), kills: 0, choices: [], upgrades: {[CHARACTERS[selected].weapon]:1},
+    zones:[],chests:[],coinsEarned:0,openedChests:0,lootLog:[],spawnedElites:0,attackSerial:0,
+    weaponTimers:Object.fromEntries(WEAPON_IDS.map(id=>[id,0])),
     bossesDefeated: 0, spawnedGuardians: 0, finalGuardianDefeated: false,
     nextId: 1, remainder: 0, spawnTimer: 0.65, boltTimer: 0,
     pulseTimer: 0, orbitTimer: 0, orbitAngle: 0, pickupRadius: 58,
@@ -108,6 +108,12 @@ function hit(state, enemy, amount, push = 0) {
       effect(state, 'guardian', enemy.x, enemy.y, 85, 0.8);
       state.player.hp = Math.min(state.player.maxHp, state.player.hp + 18);
     } else effect(state, 'dissolve', enemy.x, enemy.y, enemy.radius + 8, 0.25);
+    if(enemy.kind==='guardian'||enemy.elite){
+      const chest={id:state.nextId++,x:enemy.x,y:enemy.y,coins:enemy.kind==='guardian'?40+enemy.guardianStage*20:18+waveAt(state.time).stage*6,
+        upgrade:enemy.kind==='guardian'||random(state)<.65,boss:enemy.kind==='guardian'};
+      if(state.chests.length<LIMITS.chests)state.chests.push(chest);
+      else{state.chests[0].coins+=chest.coins;state.chests[0].upgrade ||= chest.upgrade;}
+    }
     gem(state, enemy.x, enemy.y, enemy.value, crystalLoot(enemy.maxHp,enemy.guardianStage).tier);
   }
 }
@@ -120,14 +126,14 @@ function hurt(state, damage) {
   if (!state.player.hp) { state.status = 'lost'; state.endReason = 'health'; }
 }
 
-function spawn(state, guardianStage = 0, wave = waveAt(state.time)) {
+function spawn(state, guardianStage = 0, wave = waveAt(state.time),elite=false) {
   if (state.enemies.length >= LIMITS.enemies) {
-    if (!guardianStage) return;
+    if (!guardianStage&&!elite) return;
     let index = -1;
     let farthest = -1;
     for (let i = 0; i < state.enemies.length; i += 1) {
       const candidate = state.enemies[i];
-      if (candidate.kind === 'guardian') continue;
+      if (candidate.kind === 'guardian'||candidate.elite) continue;
       const d = distanceSquared(candidate, state.player);
       if (d > farthest) { farthest = d; index = i; }
     }
@@ -139,92 +145,50 @@ function spawn(state, guardianStage = 0, wave = waveAt(state.time)) {
   const range = guardianStage ? 470 : wave.kind==='harvest'?380+random(state)*100:500+random(state)*160;
   let kind = 'mote';
   if (guardianStage) kind = 'guardian';
-  else if (wave.kind==='pressure' && roll < 0.35) kind = 'beetle';
-  else if (wave.kind==='pressure' && roll > 0.69) kind = 'wasp';
+  else if(elite)kind='beetle';
+  else if(wave.kind==='pressure'){
+    kind=roll<.2?'beetle':roll<.35?'wasp':roll<.5?'crawler':roll<.64&&wave.stage>=2?'spitter':roll<.76&&wave.stage>=3?'wisp':'mote';
+  }
   const base = kind === 'guardian'
     ? { hp: [0, 1800, 3600, 7800][guardianStage], radius: 31, speed: 38 + guardianStage * 3, damage: 22 }
     : creatureStats(kind,wave);
+  if(elite){base.hp=700+wave.stage*150;base.radius=22;base.speed=48;base.damage=16;}
   const value=crystalLoot(base.hp,guardianStage).value;
   state.enemies.push({ id: state.nextId++, kind, x: state.player.x + Math.cos(angle) * range,
     y: state.player.y + Math.sin(angle) * range, ...base, value, maxHp: base.hp,
-    phase: random(state) * TAU, hitFlash: 0, guardianStage, fireTimer: 2.8 });
+    phase: random(state) * TAU, hitFlash: 0, guardianStage, fireTimer: 2.8,elite,slowTime:0,actionTimer:0 });
   if (guardianStage) effect(state, 'warning', state.player.x, state.player.y, 160, 1.5);
-}
-
-function fireBolts(state) {
-  let target = null;
-  let nearest = 640 ** 2;
-  for (const enemy of state.enemies) {
-    if (enemy.hp <= 0) continue;
-    const d = distanceSquared(enemy, state.player);
-    if (d < nearest) { target = enemy; nearest = d; }
-  }
-  if (!target) return;
-  const upgrade = rank(state, 'spark');
-  const count = 1 + (upgrade >= 2 ? 1 : 0) + (upgrade >= 4 ? 1 : 0);
-  const aim = Math.atan2(target.y - state.player.y, target.x - state.player.x);
-  for (let i = 0; i < count && state.projectiles.length < LIMITS.projectiles; i += 1) {
-    const angle = aim + (i - (count - 1) / 2) * 0.13;
-    state.projectiles.push({ id: state.nextId++, x: state.player.x, y: state.player.y,
-      vx: Math.cos(angle) * 490, vy: Math.sin(angle) * 490, radius: 4,
-      damage: (24 + upgrade * 7) * damageScale(state), life: 1.8, hostile: false });
-  }
-  state.boltTimer = 0.7 / attackScale(state);
-}
-
-function weapons(state, dt) {
-  state.boltTimer = Math.max(0, state.boltTimer - dt);
-  if (state.boltTimer <= 0) fireBolts(state);
-  state.orbitAngle = (state.orbitAngle + dt * 1.9) % TAU;
-  state.orbitTimer = Math.max(0, state.orbitTimer - dt);
-  const orbit = rank(state, 'orbit');
-  if (orbit && state.orbitTimer <= 0) {
-    const count = 1 + orbit;
-    const radius = 76 + orbit * 6;
-    for (let i = 0; i < count; i += 1) {
-      const angle = state.orbitAngle + i / count * TAU;
-      const light = { x: state.player.x + Math.cos(angle) * radius, y: state.player.y + Math.sin(angle) * radius };
-      for (const enemy of state.enemies) {
-        if (distanceSquared(enemy, light) < (enemy.radius + 15) ** 2) hit(state, enemy, (17 + orbit * 5) * damageScale(state));
-      }
-    }
-    state.orbitTimer = 0.23;
-  }
-  state.pulseTimer = Math.max(0, state.pulseTimer - dt);
-  const pulse = rank(state, 'pulse');
-  if (pulse && state.pulseTimer <= 0) {
-    const radius = 110 + pulse * 25;
-    effect(state, 'pulse', state.player.x, state.player.y, radius, 0.55);
-    for (const enemy of state.enemies) {
-      if (distanceSquared(enemy, state.player) < (radius + enemy.radius) ** 2) hit(state, enemy, (30 + pulse * 14) * damageScale(state), enemy.kind === 'guardian' ? 8 : 45);
-    }
-    state.pulseTimer = (5.5 - pulse * 0.3) / attackScale(state);
-  }
 }
 
 function creatures(state, dt) {
   for (const enemy of state.enemies) {
     if (enemy.hp <= 0) continue;
     enemy.hitFlash = Math.max(0, enemy.hitFlash - dt);
+    enemy.slowTime=Math.max(0,(enemy.slowTime||0)-dt);enemy.actionTimer=Math.max(0,(enemy.actionTimer||0)-dt);
     const dx = state.player.x - enemy.x;
     const dy = state.player.y - enemy.y;
     const distance = Math.hypot(dx, dy) || 1;
-    const sway = enemy.kind === 'wasp' ? Math.sin(state.time * 3.4 + enemy.phase) * 0.65 : 0;
-    const speed = enemy.speed * dt;
+    const sway = ['wasp','wisp'].includes(enemy.kind) ? Math.sin(state.time * 3.4 + enemy.phase) * 0.65 : 0;
+    const charging=enemy.kind==='crawler'&&distance<240&&Math.sin(state.time*2+enemy.phase)>.87;
+    const raging=enemy.kind==='guardian'&&enemy.guardianStage===3&&enemy.hp<enemy.maxHp*.5;
+    if(charging)enemy.actionTimer=.2;
+    const spacing=enemy.kind==='spitter'?(distance<140?-.6:distance<260?0:1):1;
+    const speed = enemy.speed * dt*(enemy.slowTime>0?.58:1)*(charging?2.2:raging?1.5:1)*spacing;
     enemy.x += (dx - dy * sway) / distance * speed;
     enemy.y += (dy + dx * sway) / distance * speed;
     if (distance < enemy.radius + state.player.radius) hurt(state, enemy.damage);
-    if (enemy.kind === 'guardian') {
+    if (enemy.kind === 'guardian'||enemy.kind==='spitter') {
       enemy.fireTimer -= dt;
       if (enemy.fireTimer <= 0) {
-        const count = 5 + enemy.guardianStage;
+        const stage=enemy.guardianStage,count=enemy.kind==='spitter'?1:stage===1?6:stage===2?8:10;
+        const aim=Math.atan2(dy,dx);enemy.actionTimer=.4;
         for (let i = 0; i < count && state.projectiles.length < LIMITS.projectiles; i += 1) {
-          const angle = i / count * TAU + enemy.phase;
+          const angle=stage===2?i/count*TAU+enemy.phase:aim+(i-(count-1)/2)*(stage===3?.21:.17);
           state.projectiles.push({ id: state.nextId++, x: enemy.x, y: enemy.y,
-            vx: Math.cos(angle) * 102, vy: Math.sin(angle) * 102, radius: 6,
-            damage: 10 + enemy.guardianStage * 2, life: 4, hostile: true });
+            vx: Math.cos(angle) * (raging?135:102), vy: Math.sin(angle) * (raging?135:102), radius: 6,
+            damage: stage?10+stage*2:7, life: 4, hostile: true,weapon:'hostile',pierce:0,hits:[],returning:false });
         }
-        enemy.fireTimer = 3.6;
+        enemy.fireTimer = raging?2.7:3.6;
         enemy.phase = (enemy.phase + 0.3) % TAU;
       }
     }
@@ -234,6 +198,11 @@ function creatures(state, dt) {
 
 function projectiles(state, dt) {
   for (const projectile of state.projectiles) {
+    if(projectile.weapon==='cleaver'&&projectile.life<=.8){
+      if(!projectile.returning){projectile.returning=true;projectile.hits=[];}
+      const dx=state.player.x-projectile.x,dy=state.player.y-projectile.y,d=Math.hypot(dx,dy)||1;
+      projectile.vx=dx/d*330;projectile.vy=dy/d*330;
+    }
     projectile.life -= dt;
     projectile.x += projectile.vx * dt;
     projectile.y += projectile.vy * dt;
@@ -244,10 +213,16 @@ function projectiles(state, dt) {
       }
       continue;
     }
+    if(projectile.weapon==='flame'&&projectile.life<=0){flameImpact(state,projectile,LIMITS);continue;}
     for (const enemy of state.enemies) {
-      if (enemy.hp > 0 && distanceSquared(projectile, enemy) < (projectile.radius + enemy.radius) ** 2) {
+      if (enemy.hp > 0 && !projectile.hits.includes(enemy.id)&&distanceSquared(projectile, enemy) < (projectile.radius + enemy.radius) ** 2) {
         hit(state, enemy, projectile.damage);
-        projectile.life = 0;
+        projectile.hits.push(enemy.id);
+        if(projectile.weapon==='ice')enemy.slowTime=1.4;
+        if(projectile.weapon==='flame')flameImpact(state,projectile,LIMITS);
+        if(projectile.weapon!=='cleaver'&&(projectile.pierce--<=0))projectile.life=0;
+        projectile.pierce=Math.max(0,projectile.pierce);
+        if(projectile.hits.length>=16)projectile.life=0;
         break;
       }
     }
@@ -261,7 +236,9 @@ function offerUpgrade(state) {
   state.xp -= state.xpNext;
   state.level += 1;
   state.xpNext = xpForLevel(state.level);
+  const owned=WEAPON_IDS.filter(id=>rank(state,id)>0).length;
   const candidates = UPGRADES.filter((upgrade) => rank(state, upgrade.id) < upgrade.max &&
+    (upgrade.kind!=='weapon'||rank(state,upgrade.id)>0||owned<MAX_WEAPONS)&&
     (upgrade.id !== 'repair' || state.player.hp < state.player.maxHp || state.level > 35)).map((upgrade) => upgrade.id);
   for (let i = candidates.length - 1; i > 0; i -= 1) {
     const other = Math.floor(random(state) * (i + 1));
@@ -289,6 +266,16 @@ function collect(state, dt) {
     remaining.push(crystal);
   }
   state.gems = remaining;
+  state.chests=state.chests.filter(chest=>{
+    if(distanceSquared(chest,state.player)>(state.player.radius+24)**2)return true;
+    const candidates=WEAPON_IDS.filter(id=>rank(state,id)>0&&rank(state,id)<5);
+    const weapon=chest.upgrade&&candidates.length?candidates[Math.floor(random(state)*candidates.length)]:'';
+    if(weapon)state.upgrades[weapon]++;
+    const coins=chest.coins+(chest.upgrade&&!candidates.length?25:0);
+    state.coinsEarned+=coins;state.openedChests++;
+    state.lootLog.push({id:chest.id,coins,weapon,stage:weapon?state.upgrades[weapon]:0,time:state.time});state.lootLog=state.lootLog.slice(-4);
+    effect(state,'chest',chest.x,chest.y,40,.6);return false;
+  });
   offerUpgrade(state);
 }
 
@@ -305,13 +292,17 @@ function tick(state, input, dt) {
     state.spawnedGuardians += 1;
     spawn(state, state.spawnedGuardians);
   }
+  const eliteTimes=[90,180,300,360];
+  while(state.spawnedElites<eliteTimes.length&&state.time+1e-7>=eliteTimes[state.spawnedElites]){
+    state.spawnedElites++;spawn(state,0,waveAt(state.time),true);
+  }
   state.spawnTimer -= dt;
   if (state.spawnTimer <= 0) {
     const wave=waveAt(state.time);
     for (let i = 0; i < wave.count; i += 1) spawn(state,0,wave);
     state.spawnTimer += wave.interval;
   }
-  weapons(state, dt);
+  updateWeapons(state, dt, {hit,effect,limits:LIMITS});
   creatures(state, dt);
   if (state.status === 'lost') return;
   projectiles(state, dt);
@@ -368,9 +359,26 @@ const number = (value, low, high) => Number.isFinite(value) && value >= low && v
 const integer = (value, low, high) => Number.isInteger(value) && value >= low && value <= high;
 const position = (value) => object(value) && number(value.x, -1e7, 1e7) && number(value.y, -1e7, 1e7);
 
+function migrateLegacy(snapshot){
+  const old=serialize(snapshot);old.version=2;
+  old.runId=`legacy-${old.seed}-${old.character}`;old.coinsEarned=0;old.openedChests=0;
+  old.chests=[];old.zones=[];old.lootLog=[];old.attackSerial=0;
+  old.spawnedElites=[90,180,300,360].filter(t=>t<=old.time).length;
+  old.weaponTimers=Object.fromEntries(WEAPON_IDS.map(id=>[id,0]));
+  if(!object(old.upgrades))return old;
+  old.upgrades.spark=Math.min(5,(old.upgrades.spark||0)+1);
+  for(const id of ['orbit','pulse'])if(old.upgrades[id])old.upgrades[id]=Math.min(5,old.upgrades[id]+1);
+  if(Array.isArray(old.choices)){
+    old.choices=old.choices.filter(id=>CATALOG.has(id)&&(old.upgrades[id]||0)<CATALOG.get(id).max);
+    if(old.status==='upgrade'&&!old.choices.length)old.choices=['repair'];
+  }
+  return old;
+}
+
 export function restore(snapshot) {
   try {
-    if (!object(snapshot) || snapshot.version !== 1 || !own(CHARACTERS, snapshot.character) ||
+    if(object(snapshot)&&snapshot.version===1)snapshot=migrateLegacy(snapshot);
+    if (!object(snapshot) || snapshot.version !== 2 || !own(CHARACTERS, snapshot.character) ||
       !integer(snapshot.seed, 0, 0xffffffff) || !integer(snapshot.rngState, 1, 0xffffffff) ||
       !number(snapshot.time, 0, DURATION) || !['playing', 'upgrade', 'won', 'lost'].includes(snapshot.status) ||
       !['', 'health', 'beacon', 'dawn'].includes(snapshot.endReason) ||
@@ -380,15 +388,21 @@ export function restore(snapshot) {
       !integer(snapshot.nextId, 1, 0x7fffffff) || !number(snapshot.remainder, 0, H + 1e-7) ||
       !number(snapshot.spawnTimer, -H, 3) || !number(snapshot.boltTimer, 0, 3) ||
       !number(snapshot.pulseTimer, 0, 6) || !number(snapshot.orbitTimer, 0, 1) ||
-      !number(snapshot.orbitAngle, 0, TAU) || !object(snapshot.upgrades)) return null;
+      !number(snapshot.orbitAngle, 0, TAU) || !object(snapshot.upgrades) ||
+      typeof snapshot.runId!=='string'||!/^[a-zA-Z0-9-]{1,90}$/.test(snapshot.runId)||
+      !integer(snapshot.coinsEarned,0,1e6)||!integer(snapshot.openedChests,0,1000)||
+      !integer(snapshot.spawnedElites,0,4)||!integer(snapshot.attackSerial,0,1e7)||!object(snapshot.weaponTimers)) return null;
     for (const [collection, limit] of Object.entries(LIMITS)) {
       if (!Array.isArray(snapshot[collection]) || snapshot[collection].length > limit) return null;
     }
-    const state = createRun({ seed: snapshot.seed, character: snapshot.character });
+    const state = createRun({ seed: snapshot.seed, character: snapshot.character,runId:snapshot.runId });state.upgrades={};
     for (const [id, value] of Object.entries(snapshot.upgrades)) {
       if (!CATALOG.has(id) || !integer(value, 1, CATALOG.get(id).max)) return null;
       state.upgrades[id] = value;
     }
+    if(WEAPON_IDS.filter(id=>rank(state,id)>0).length>MAX_WEAPONS)return null;
+    for(const [id,value] of Object.entries(snapshot.weaponTimers))if(!own(WEAPONS,id)||!number(value,0,6))return null;
+    state.weaponTimers={...state.weaponTimers,...snapshot.weaponTimers};
     derived(state);
     const player = snapshot.player;
     if (!position(player) || !number(player.hp, 0, state.player.maxHp) || player.maxHp !== state.player.maxHp ||
@@ -409,20 +423,27 @@ export function restore(snapshot) {
         !number(enemy.radius, 1, 100) || !number(enemy.speed, 0, 1000) || !number(enemy.damage, 0, 1000) ||
         !integer(enemy.value, 1, 1e5) || !number(enemy.phase, 0, TAU) || !number(enemy.hitFlash, 0, 1) ||
         !integer(enemy.guardianStage, 0, 3) || (enemy.kind === 'guardian') !== (enemy.guardianStage > 0) ||
-        !number(enemy.fireTimer, -H, 4)) return null;
+        !number(enemy.fireTimer, -H, 4) ||(own(enemy,'elite')&&typeof enemy.elite!=='boolean')||
+        !number(enemy.slowTime??0,0,2)||!number(enemy.actionTimer??0,0,2)) return null;
       ids.add(enemy.id);
       state.enemies.push({ id: enemy.id, kind: enemy.kind, x: enemy.x, y: enemy.y, hp: enemy.hp, maxHp: enemy.maxHp,
         radius: enemy.radius, speed: enemy.speed, damage: enemy.damage, value: enemy.value,
-        phase: enemy.phase, hitFlash: enemy.hitFlash, guardianStage: enemy.guardianStage, fireTimer: enemy.fireTimer });
+        phase: enemy.phase, hitFlash: enemy.hitFlash, guardianStage: enemy.guardianStage, fireTimer: enemy.fireTimer,
+        elite:enemy.elite===true,slowTime:enemy.slowTime||0,actionTimer:enemy.actionTimer||0 });
     }
     for (const projectile of snapshot.projectiles) {
       if (!position(projectile) || !integer(projectile.id, 1, 0x7fffffff) || ids.has(projectile.id) ||
         !number(projectile.vx, -2000, 2000) || !number(projectile.vy, -2000, 2000) ||
         !number(projectile.radius, 1, 30) || !number(projectile.damage, 0, 1e5) ||
-        !number(projectile.life, 0, 5) || projectile.life <= 0 || typeof projectile.hostile !== 'boolean') return null;
+        !number(projectile.life, 0, 5) || projectile.life <= 0 || typeof projectile.hostile !== 'boolean' ||
+        (own(projectile,'weapon')&&!own(WEAPONS,projectile.weapon)&&projectile.weapon!=='hostile')||
+        !integer(projectile.pierce??0,0,10)||(own(projectile,'returning')&&typeof projectile.returning!=='boolean')) return null;
+      const hits=projectile.hits||[];
+      if(!Array.isArray(hits)||hits.length>16||hits.some(id=>!integer(id,1,0x7fffffff))||new Set(hits).size!==hits.length)return null;
       ids.add(projectile.id);
       state.projectiles.push({ id: projectile.id, x: projectile.x, y: projectile.y, vx: projectile.vx, vy: projectile.vy,
-        radius: projectile.radius, damage: projectile.damage, life: projectile.life, hostile: projectile.hostile });
+        radius: projectile.radius, damage: projectile.damage, life: projectile.life, hostile: projectile.hostile,
+        weapon:projectile.weapon||(projectile.hostile?'hostile':'spark'),pierce:projectile.pierce||0,hits:hits.slice(),returning:projectile.returning===true });
     }
     if (ids.size && Math.max(...ids) >= snapshot.nextId) return null;
     for (const crystal of snapshot.gems) {
@@ -433,12 +454,33 @@ export function restore(snapshot) {
         ...(own(crystal,'tier')?{tier:crystal.tier}:{}) });
     }
     for (const event of snapshot.effects) {
-      if (!position(event) || !['pulse', 'hurt', 'dissolve', 'guardian', 'warning'].includes(event.kind) ||
+      if (!position(event) || !['pulse', 'hurt', 'dissolve', 'guardian', 'warning','arc','chest'].includes(event.kind) ||
         !number(event.radius, 1, 1000) || !number(event.maxLife, 0.001, 3) || !number(event.life, 0, event.maxLife) || event.life <= 0) return null;
       state.effects.push({ x: event.x, y: event.y, kind: event.kind, radius: event.radius, life: event.life, maxLife: event.maxLife });
+      if(event.kind==='arc'){
+        if(!number(event.toX,-1e7,1e7)||!number(event.toY,-1e7,1e7))return null;
+        Object.assign(state.effects.at(-1),{toX:event.toX,toY:event.toY});
+      }
+    }
+    for(const zone of snapshot.zones){
+      if(!position(zone)||!integer(zone.id,1,0x7fffffff)||ids.has(zone.id)||!['flame','thorn'].includes(zone.kind)||
+        !number(zone.radius,1,1000)||!number(zone.damage,0,1e5)||!number(zone.maxLife,.01,5)||!number(zone.life,.001,zone.maxLife)||!number(zone.tick,-H,.6))return null;
+      ids.add(zone.id);state.zones.push({id:zone.id,kind:zone.kind,x:zone.x,y:zone.y,radius:zone.radius,damage:zone.damage,life:zone.life,maxLife:zone.maxLife,tick:zone.tick});
+    }
+    for(const chest of snapshot.chests){
+      if(!position(chest)||!integer(chest.id,1,0x7fffffff)||ids.has(chest.id)||!integer(chest.coins,1,1e6)||typeof chest.upgrade!=='boolean'||typeof chest.boss!=='boolean')return null;
+      ids.add(chest.id);state.chests.push({id:chest.id,x:chest.x,y:chest.y,coins:chest.coins,upgrade:chest.upgrade,boss:chest.boss});
+    }
+    if(ids.size&&Math.max(...ids)>=snapshot.nextId)return null;
+    if(!Array.isArray(snapshot.lootLog)||snapshot.lootLog.length>4)return null;
+    for(const item of snapshot.lootLog){
+      if(!object(item)||!integer(item.id,1,0x7fffffff)||!integer(item.coins,0,1e6)||
+        (item.weapon!==''&&!own(WEAPONS,item.weapon))||!integer(item.stage,0,5)||!number(item.time,0,DURATION))return null;
+      state.lootLog.push({id:item.id,coins:item.coins,weapon:item.weapon,stage:item.stage,time:item.time});
     }
     for (const key of ['rngState', 'time', 'status', 'endReason', 'level', 'xp', 'xpNext', 'kills', 'bossesDefeated',
-      'spawnedGuardians', 'finalGuardianDefeated', 'nextId', 'remainder', 'spawnTimer', 'boltTimer', 'pulseTimer', 'orbitTimer', 'orbitAngle']) state[key] = snapshot[key];
+      'spawnedGuardians', 'finalGuardianDefeated', 'nextId', 'remainder', 'spawnTimer', 'boltTimer', 'pulseTimer', 'orbitTimer', 'orbitAngle',
+      'coinsEarned','openedChests','spawnedElites','attackSerial']) state[key] = snapshot[key];
     state.choices = snapshot.choices.slice();
     return state;
   } catch { return null; }

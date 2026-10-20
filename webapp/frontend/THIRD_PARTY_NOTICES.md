@@ -89,3 +89,12 @@ a new runtime library. `openai/plugins` game-studio skills were consulted as
 workflow instructions; their code/assets are not bundled into the game.
 Provenance and staging scope: `design/lumen-provenance.md` and
 `design/lumen-pixel/direction.md` in the repository.
+
+The 20 October arsenal expansion uses original whole-sheet imagegen output for
+five additional hero sheets (including the replacement Keeper), three common
+creatures, three bosses and one weapon/effect/treasure atlas. Sources, full
+prompts, the corrected Spitter source and normalization code are retained in
+`design/lumen-arsenal/`. Runtime uses hard-alpha PNGs and per-actor palettes.
+No third-party character, weapon, icon or sound pack was added. This records
+provenance; it does not claim exclusive copyright in generated images. The
+existing Tektur/OFL attribution above remains applicable.

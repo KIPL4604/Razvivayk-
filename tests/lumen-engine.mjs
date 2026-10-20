@@ -148,7 +148,7 @@ test('snapshot restoration preserves seeded random state and every combat timer'
 
 test('corrupt, oversized, and non-finite saves are rejected without throwing', () => {
   const valid = serialize(createRun({ seed: 0 }));
-  for (const malformed of [null, [], '', {}, { ...valid, version: 2 }, { ...valid, time: Infinity },
+  for (const malformed of [null, [], '', {}, { ...valid, version: 99 }, { ...valid, time: Infinity },
     { ...valid, rngState: -2 }, { ...valid, choices: ['unknown'] },
     { ...valid, enemies: Array(LIMITS.enemies + 1).fill(enemy()) },
     { ...valid, player: { ...valid.player, x: NaN } },
@@ -208,13 +208,13 @@ test('exhausted upgrade ranks never produce an impossible choice', () => {
   assert.equal(run.status, 'playing');
 });
 
-test('a complete normal run can win through movement, pickups, and legal upgrades', () => {
-  const run = createRun({ seed: 1 });
-  const preference = ['orbit', 'pulse', 'spark', 'focus', 'haste', 'magnet', 'vitality', 'stride', 'repair'];
+for(const character of ['scout','keeper','alchemist','ranger','duelist','stormcaller'])test(`a complete normal ${character} run wins through movement, pickups, and legal upgrades`, () => {
+  const run = createRun({ seed: 1,character });
+  const preference = ['orbit', 'pulse', 'spark', 'focus', 'haste', 'storm','ice','flame','cleaver','thorn','magnet', 'vitality', 'stride', 'repair'];
   for (let frame = 0; frame < DURATION * 60 && !['lost', 'won'].includes(run.status); frame += 1) {
     const player = run.player;
     let target = null;
-    for (const crystal of run.gems) {
+    for (const crystal of [...run.chests,...run.gems]) {
       if (!target || Math.hypot(crystal.x - player.x, crystal.y - player.y) < Math.hypot(target.x - player.x, target.y - player.y)) target = crystal;
     }
     const distance = target ? Math.hypot(target.x - player.x, target.y - player.y) || 1 : 1;
@@ -226,10 +226,14 @@ test('a complete normal run can win through movement, pickups, and legal upgrade
       const near = Math.hypot(dx, dy) || 1;
       if (near < 85) { const force = (85 - near) / 45; x += dx / near * force; y += dy / near * force; }
     }
+    for (const shot of run.projectiles.filter(s=>s.hostile)) {
+      const dx=player.x-shot.x,dy=player.y-shot.y,near=Math.hypot(dx,dy)||1;
+      if(near<65){x+=dx/near*(65-near)/30;y+=dy/near*(65-near)/30;}
+    }
     step(run, { x, y }, 1 / 60);
     while (run.status === 'upgrade') {
-      const id = run.player.hp < run.player.maxHp * 0.5 && run.choices.includes('repair')
-        ? 'repair' : preference.find((candidate) => run.choices.includes(candidate));
+      const recovery=run.player.hp<run.player.maxHp*.65&&['vitality','repair'].find(id=>run.choices.includes(id));
+      const id = recovery || preference.find((candidate) => run.choices.includes(candidate));
       assert.equal(chooseUpgrade(run, id), true);
     }
   }

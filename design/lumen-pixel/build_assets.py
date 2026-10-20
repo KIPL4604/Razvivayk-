@@ -271,6 +271,13 @@ def main():
     preview = Image.new('RGBA', (288 * 2, 240), '#17262e')
     preview.alpha_composite(scout, (0, 0)); preview.alpha_composite(mote, (288, 0))
     preview.resize((1152, 480), Image.Resampling.NEAREST).save(Path(__file__).parent / 'animation-preview.png')
+    # Optional expansion lives beside this historical first-slice builder.
+    import importlib.util
+    expansion_path=Path(__file__).parent.parent/'lumen-arsenal/build_assets.py'
+    expansion={}
+    if expansion_path.exists():
+        spec=importlib.util.spec_from_file_location('lumen_arsenal_build',expansion_path)
+        module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module);expansion=module.build()
     manifest = {
         'version': 1, 'frameSize': 48, 'columns': 6, 'anchor': [24, 45],
         'animations': {name: {'row': i, 'frames': 6, 'fps': [6, 10, 16, 16, 10][i], 'loop': i < 2} for i, name in enumerate(STATES)},
@@ -284,6 +291,9 @@ def main():
         'files': {path.name: {'bytes': path.stat().st_size, 'sha256': hashlib.sha256(path.read_bytes()).hexdigest()}
                   for path in sorted(DEST.glob('*.png')) if path.name != 'cover.png'},
     }
+    manifest['actors']={name:{'frameSize':48,'anchor':[24,45],'columns':6,'rows':5} for name in ['scout','mote','beetle','wasp']}
+    manifest['actors'].update(expansion.get('actors',{}));manifest['palettes']=expansion.get('palettes',{})
+    manifest['sources'].update(expansion.get('sources',{}))
     (DEST / 'manifest.json').write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
     print(json.dumps({name: item['bytes'] for name, item in manifest['files'].items()}))
 
