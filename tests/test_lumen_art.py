@@ -49,7 +49,8 @@ class LumenArtTests(unittest.TestCase):
         for name, size in [('tiles.png', (128, 32)), ('garden.png', (256, 64)), ('ui.png', (256, 16))]:
             with Image.open(ART / name) as image:
                 self.assertEqual(image.size, size)
-        self.assertIn('SIL OPEN FONT LICENSE', (ART / 'fonts/OFL.txt').read_text(encoding='utf-8'))
+        manifest = json.loads((ART / 'manifest.json').read_text(encoding='utf-8'))
+        self.assertIn('SIL OPEN FONT LICENSE', (ART / manifest['font']['license']).read_text(encoding='utf-8'))
 
 
 if __name__ == '__main__':

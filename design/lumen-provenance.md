@@ -18,7 +18,7 @@ Survivors не использовались и не исследовались �
 | Миниатюра каталога | PNG-композиция из собственных атласов, `assets/lumen/cover.png` |
 | Звуки | Синтез Web Audio: короткие синусоидальные сигналы, `js/lumen/game.mjs`; аудиофайлы не поставляются |
 | Названия, описание, правила, интерфейс | Написаны для этого режима; интерфейс DOM/CSS в существующем Teramont |
-| Шрифт игрового HUD | Tiny5, локальный статический Latin/Cyrillic subset; оригинал сохранён, SIL OFL 1.1 в `assets/lumen/fonts/OFL.txt` |
+| Шрифт игрового HUD | Tektur, локальный статический Latin/Cyrillic subset; source сохранён, SIL OFL1.1 в `assets/lumen/fonts/OFL-Tektur.txt`. Tiny5 первого среза сохранён для истории |
 | Runtime | Стандартные Canvas 2D, Web Audio, Pointer Events и Fullscreen API; новых сторонних пакетов нет |
 | Telegram SDK | Уже существующий SDK всей платформы; API fullscreen/swipes сверены с официальной документацией |
 

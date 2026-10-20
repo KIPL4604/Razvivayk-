@@ -1,4 +1,4 @@
-@font-face{font-family:LumenPixel;src:url('../assets/lumen/fonts/Tiny5-game.ttf') format('truetype');font-style:normal;font-weight:400;font-display:swap}
+@font-face{font-family:LumenSquare;src:url('../assets/lumen/fonts/Tektur-game.ttf') format('truetype');font-style:normal;font-weight:400;font-display:swap}
 /* The light Teramont library surrounds an original night-garden game world. */
 .lumen-catalog{grid-column:1/-1;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:center;padding:0;overflow:hidden;background:#E8F0ED;border-color:#CDDFD6}
 .lumen-catalog .game-art{height:100%;min-height:160px;object-fit:cover;border-radius:0}
@@ -43,7 +43,7 @@ html.lumen-active,html.lumen-active body{overflow:hidden;overscroll-behavior:non
 .lumen-game.active{
   --lumen-paper:#f1dfaf;--lumen-ink:#111b25;--lumen-mint:#83cda4;
   --lumen-stone:#17262e;--lumen-border:#876a4e;--lumen-muted:#b6b8b0;
-  font-family:LumenPixel,monospace;font-size:20px;font-weight:400;
+  font-family:LumenSquare,monospace;font-size:20px;font-weight:400;font-synthesis:none;
   color:var(--lumen-paper);background:var(--lumen-stone);line-height:1.2
 }
 .lumen-game button{font:inherit;cursor:pointer;transition:background-color .12s,border-color .12s;letter-spacing:0}
@@ -93,7 +93,7 @@ html.lumen-active,html.lumen-active body{overflow:hidden;overscroll-behavior:non
   width:min(100%,540px);padding:28px;border:12px solid transparent;
   border-image:url('../assets/lumen/panel.png') 3 fill / 12px / 0 stretch;
   border-radius:0;background:#17262e;box-shadow:0 12px 0 #111b2580;color:#f1dfaf;
-  font-family:LumenPixel,monospace
+  font-family:LumenSquare,monospace;font-synthesis:none
 }
 .lumen-dialog-kicker{font-size:16px;letter-spacing:1px;font-weight:400;color:#83cda4}
 .lumen-dialog h2{font-size:40px;line-height:1.05;font-weight:400;letter-spacing:0;color:#f1dfaf;margin:14px 0}
@@ -146,6 +146,8 @@ html.lumen-active,html.lumen-active body{overflow:hidden;overscroll-behavior:non
 }
 @media(prefers-reduced-motion:reduce){.lumen-game button,.lumen-health-track i,.lumen-xp-track i{transition:none}}
 
+/* Square outline glyphs retain detail at native device resolution. */
+.lumen-timer strong,.lumen-health b,.lumen-xp,.lumen-slot small,.lumen-tally strong,.lumen-result-stats b{font-variant-numeric:tabular-nums lining-nums}
 /* Native-resolution movement, a readable weapon dock and a compact field choice. */
 .lumen-xp{background:#14232ed9;padding:4px 0 6px}
 .lumen-wave[data-phase="harvest"]{color:#ffd36f}

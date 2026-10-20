@@ -242,12 +242,13 @@ def main():
     from fontTools.ttLib import TTFont
     from fontTools import subset
     from fontTools.varLib.instancer import instantiateVariableFont
-    font = TTFont(SOURCE / 'Tiny5.ttf', recalcTimestamp=False)
-    font = instantiateVariableFont(font, {axis.axisTag: axis.defaultValue for axis in font['fvar'].axes}, inplace=True)
+    # Higher-detail square outlines, without Tiny5's coarse five-pixel glyph grid.
+    font = TTFont(SOURCE / 'Tektur.ttf', recalcTimestamp=False)
+    font = instantiateVariableFont(font, {'wdth': 90, 'wght': 600}, inplace=True)
     subsetter = subset.Subsetter()
-    subsetter.populate(unicodes=list(range(32, 127)) + list(range(0x400, 0x500)) + [0x2014, 0x2013, 0x2192, 0x221e])
+    subsetter.populate(unicodes=list(range(32, 127)) + list(range(0x400, 0x500)) + [0xb7, 0x2014, 0x2013, 0x2192, 0x221e])
     subsetter.subset(font)
-    font.save(DEST / 'fonts/Tiny5-game.ttf')
+    font.save(DEST / 'fonts/Tektur-game.ttf')
     scout = actor('scout', 42)
     mote = actor('mote', 34)
     beetle=actor('beetle',36);wasp=actor('wasp',32)
@@ -276,8 +277,9 @@ def main():
         'palette': ['#' + color for color in PALETTE],
         'sources': {path.name: {'bytes': path.stat().st_size, 'sha256': hashlib.sha256(path.read_bytes()).hexdigest()}
                     for path in sorted(SOURCE.iterdir()) if path.suffix in {'.png', '.ttf'}},
-        'font': {'file': 'fonts/Tiny5-game.ttf', 'license': 'fonts/OFL.txt',
-                 'sha256': hashlib.sha256((DEST / 'fonts/Tiny5-game.ttf').read_bytes()).hexdigest()},
+        'font': {'file': 'fonts/Tektur-game.ttf', 'family': 'LumenSquare', 'license': 'fonts/OFL-Tektur.txt',
+                 'source': 'Tektur.ttf', 'axes': {'wdth': 90, 'wght': 600},
+                 'sha256': hashlib.sha256((DEST / 'fonts/Tektur-game.ttf').read_bytes()).hexdigest()},
         'cover': {'file': 'cover.png', 'sha256': hashlib.sha256((DEST / 'cover.png').read_bytes()).hexdigest()},
         'files': {path.name: {'bytes': path.stat().st_size, 'sha256': hashlib.sha256(path.read_bytes()).hexdigest()}
                   for path in sorted(DEST.glob('*.png')) if path.name != 'cover.png'},

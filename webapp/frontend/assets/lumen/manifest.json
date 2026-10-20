@@ -117,6 +117,10 @@
       "bytes": 720434,
       "sha256": "45e28860f59f7d71dbd01cf757f1478f3a229fc807cb764e5f94d0ca77f4c76f"
     },
+    "Tektur.ttf": {
+      "bytes": 163160,
+      "sha256": "a4c451e5336874811267c2a514efa09bca7bc8cabf32a310f0b44e111eacb933"
+    },
     "Tiny5.ttf": {
       "bytes": 433432,
       "sha256": "588626f2c1b164f55927c0d8123f4bc134651aad7d257da68fc19b0824b0d8fa"
@@ -131,9 +135,15 @@
     }
   },
   "font": {
-    "file": "fonts/Tiny5-game.ttf",
-    "license": "fonts/OFL.txt",
-    "sha256": "44095dd9b4dfe35d55b1d06f30e82fce8a821ec0df7f85b9541ffe55cdd02bd3"
+    "file": "fonts/Tektur-game.ttf",
+    "family": "LumenSquare",
+    "license": "fonts/OFL-Tektur.txt",
+    "source": "Tektur.ttf",
+    "axes": {
+      "wdth": 90,
+      "wght": 600
+    },
+    "sha256": "87e6f24ce10a1b45e388bcf34244b58410d83a95fe2518d6f691c954c58ee95d"
   },
   "cover": {
     "file": "cover.png",

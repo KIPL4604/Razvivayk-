@@ -68,7 +68,16 @@ The flying reference is exported from original project art. Sources and briefs:
 `design/lumen-pixel/motion-sources.md`. Weapon and crystal PNG atlases are original
 editable pixel artwork in the offline asset builder.
 
-The locally bundled Tiny5 font is by The Tiny5 Project Authors / Stefan Schmidt,
+The current Lumen interface uses Tektur by Adam Jagosz / The Tektur Project
+Authors, Copyright 2023, https://www.github.com/hyvyys/Tektur, under SIL Open
+Font License 1.1. Source: https://github.com/google/fonts/tree/main/ofl/tektur.
+The original variable source and its license are retained in
+`design/lumen-pixel/sources/Tektur.ttf` and `OFL-Tektur.txt`. The runtime font is
+an offline static Latin/Cyrillic subset (width90, weight600), served locally as
+`assets/lumen/fonts/Tektur-game.ttf`. The complete license is distributed at
+`assets/lumen/fonts/OFL-Tektur.txt`. This font remains under OFL.
+
+The Tiny5 font from the first art slice is retained for history. It is by The Tiny5 Project Authors / Stefan Schmidt,
 under SIL Open Font License 1.1. Source: https://github.com/Gissio/font_tiny5 and
 https://github.com/google/fonts/tree/main/ofl/tiny5. The complete source font is
 retained in `design/lumen-pixel/sources/Tiny5.ttf`; the runtime font is a static

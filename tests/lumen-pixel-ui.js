@@ -41,7 +41,7 @@ async (page) => {
         return {width:canvas.width,height:canvas.height,dpr:Math.min(3,Math.max(1,devicePixelRatio)),smoothing:canvas.getContext('2d').imageSmoothingEnabled,
           overflow:document.documentElement.scrollWidth>innerWidth,hudInside:hud.x>=0&&hud.right<=innerWidth,
           tools:[...document.querySelectorAll('.lumen-tools button')].filter(e=>getComputedStyle(e).display!=='none').map(e=>{const r=e.getBoundingClientRect();return [r.width,r.height];}),
-          pixelFont:document.fonts.check('20px LumenPixel'),icons:document.querySelectorAll('#lumenGameMount svg').length};
+          pixelFont:[...document.fonts].some(f=>f.family==='LumenSquare'&&f.status==='loaded')&&getComputedStyle(document.querySelector('#lumenGameMount')).fontFamily.includes('LumenSquare'),icons:document.querySelectorAll('#lumenGameMount svg').length};
       });
       assert(check.width===Math.round(width*check.dpr)&&check.height===Math.round(height*check.dpr),'Native framebuffer at '+width);
       assert(!check.smoothing&&!check.overflow&&check.hudInside&&check.pixelFont&&check.icons===0,'Rendering/HUD invariant at '+width);
