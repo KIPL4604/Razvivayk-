@@ -3,8 +3,10 @@
  * Survive 480 seconds AND dismantle the final guardian before the deadline to win.
  * Local results are entertainment data and never award campaign/server XP.
  */
+import {waveAt,xpForLevel,crystalLoot,crystalTier,creatureStats} from './progression.mjs';
+
 export const DURATION = 480;
-export const LIMITS = Object.freeze({ enemies: 190, projectiles: 100, gems: 220, effects: 80 });
+export const LIMITS = Object.freeze({ enemies: 240, projectiles: 100, gems: 220, effects: 80 });
 export const UPGRADES = Object.freeze([
   { id: 'spark', title: 'Световой разряд', description: 'Разряды сильнее; на 2-м и 4-м рангах появляется дополнительный луч.', max: 5, kind: 'weapon' },
   { id: 'orbit', title: 'Орбитальные огни', description: 'Вокруг разведчика движутся огни, повреждающие близких существ.', max: 4, kind: 'weapon' },
@@ -55,7 +57,7 @@ export function createRun({ seed = 0x1a71be, character = 'scout' } = {}) {
     player: { x: 0, y: 0, hp: CHARACTERS[selected].hp, maxHp: CHARACTERS[selected].hp,
       speed: CHARACTERS[selected].speed, radius: 13, invulnerable: 0, facingX: 0, facingY: -1 },
     enemies: [], projectiles: [], gems: [], effects: [],
-    level: 1, xp: 0, xpNext: 10, kills: 0, choices: [], upgrades: {},
+    level: 1, xp: 0, xpNext: xpForLevel(1), kills: 0, choices: [], upgrades: {},
     bossesDefeated: 0, spawnedGuardians: 0, finalGuardianDefeated: false,
     nextId: 1, remainder: 0, spawnTimer: 0.65, boltTimer: 0,
     pulseTimer: 0, orbitTimer: 0, orbitAngle: 0, pickupRadius: 58,
@@ -68,17 +70,21 @@ function effect(state, kind, x, y, radius, life = 0.35) {
   state.effects.push({ kind, x, y, radius, life, maxLife: life });
 }
 
-function gem(state, x, y, value) {
+function gem(state, x, y, value, tier) {
   if (state.gems.length < LIMITS.gems) {
-    state.gems.push({ x, y, value });
+    state.gems.push({ x, y, value, tier });
   } else {
     // Merge overflow into an existing nearby crystal: no unbounded arrays or lost XP.
     let closest = state.gems[0];
     let nearest = Infinity;
-    for (const candidate of state.gems) {
+    // Prefer the same tier, preserving a small crystal's identity even when its
+    // value accumulates. If none exists, merge nearest and show the higher tier.
+    const sameTier=state.gems.filter(c=>crystalTier(c)===tier);
+    for (const candidate of sameTier.length?sameTier:state.gems) {
       const d = (candidate.x - x) ** 2 + (candidate.y - y) ** 2;
       if (d < nearest) { nearest = d; closest = candidate; }
     }
+    closest.tier=Math.max(crystalTier(closest),tier);
     closest.value += value;
   }
 }
@@ -102,7 +108,7 @@ function hit(state, enemy, amount, push = 0) {
       effect(state, 'guardian', enemy.x, enemy.y, 85, 0.8);
       state.player.hp = Math.min(state.player.maxHp, state.player.hp + 18);
     } else effect(state, 'dissolve', enemy.x, enemy.y, enemy.radius + 8, 0.25);
-    gem(state, enemy.x, enemy.y, enemy.value);
+    gem(state, enemy.x, enemy.y, enemy.value, crystalLoot(enemy.maxHp,enemy.guardianStage).tier);
   }
 }
 
@@ -114,7 +120,7 @@ function hurt(state, damage) {
   if (!state.player.hp) { state.status = 'lost'; state.endReason = 'health'; }
 }
 
-function spawn(state, guardianStage = 0) {
+function spawn(state, guardianStage = 0, wave = waveAt(state.time)) {
   if (state.enemies.length >= LIMITS.enemies) {
     if (!guardianStage) return;
     let index = -1;
@@ -130,21 +136,17 @@ function spawn(state, guardianStage = 0) {
   }
   const roll = random(state);
   const angle = random(state) * TAU;
-  const range = guardianStage ? 470 : 560 + random(state) * 170;
-  const t = state.time;
+  const range = guardianStage ? 470 : wave.kind==='harvest'?380+random(state)*100:500+random(state)*160;
   let kind = 'mote';
   if (guardianStage) kind = 'guardian';
-  else if (t > 55 && roll < 0.29) kind = 'beetle';
-  else if (t > 100 && roll > 0.69) kind = 'wasp';
+  else if (wave.kind==='pressure' && roll < 0.35) kind = 'beetle';
+  else if (wave.kind==='pressure' && roll > 0.69) kind = 'wasp';
   const base = kind === 'guardian'
-    ? { hp: [0, 1800, 3600, 7800][guardianStage], radius: 31, speed: 38 + guardianStage * 3, damage: 22, value: 28 + guardianStage * 8 }
-    : kind === 'beetle'
-      ? { hp: 42 + t * 0.22, radius: 16, speed: 35 + t * 0.026, damage: 13, value: 4 }
-      : kind === 'wasp'
-        ? { hp: 25 + t * 0.16, radius: 9, speed: 72 + t * 0.03, damage: 9, value: 3 }
-        : { hp: 18 + t * 0.11, radius: 10, speed: 47 + t * 0.033, damage: 7, value: 2 };
+    ? { hp: [0, 1800, 3600, 7800][guardianStage], radius: 31, speed: 38 + guardianStage * 3, damage: 22 }
+    : creatureStats(kind,wave);
+  const value=crystalLoot(base.hp,guardianStage).value;
   state.enemies.push({ id: state.nextId++, kind, x: state.player.x + Math.cos(angle) * range,
-    y: state.player.y + Math.sin(angle) * range, ...base, maxHp: base.hp,
+    y: state.player.y + Math.sin(angle) * range, ...base, value, maxHp: base.hp,
     phase: random(state) * TAU, hitFlash: 0, guardianStage, fireTimer: 2.8 });
   if (guardianStage) effect(state, 'warning', state.player.x, state.player.y, 160, 1.5);
 }
@@ -258,7 +260,7 @@ function offerUpgrade(state) {
   if (state.status !== 'playing' || state.xp < state.xpNext) return;
   state.xp -= state.xpNext;
   state.level += 1;
-  state.xpNext = Math.round(10 + (state.level - 1) * 4 + (state.level - 1) ** 1.4);
+  state.xpNext = xpForLevel(state.level);
   const candidates = UPGRADES.filter((upgrade) => rank(state, upgrade.id) < upgrade.max &&
     (upgrade.id !== 'repair' || state.player.hp < state.player.maxHp || state.level > 35)).map((upgrade) => upgrade.id);
   for (let i = candidates.length - 1; i > 0; i -= 1) {
@@ -305,9 +307,9 @@ function tick(state, input, dt) {
   }
   state.spawnTimer -= dt;
   if (state.spawnTimer <= 0) {
-    const count = state.time > 300 ? 3 : state.time > 130 ? 2 : 1;
-    for (let i = 0; i < count; i += 1) spawn(state);
-    state.spawnTimer += Math.max(0.23, 0.92 - state.time * 0.0015);
+    const wave=waveAt(state.time);
+    for (let i = 0; i < wave.count; i += 1) spawn(state,0,wave);
+    state.spawnTimer += wave.interval;
   }
   weapons(state, dt);
   creatures(state, dt);
@@ -424,8 +426,11 @@ export function restore(snapshot) {
     }
     if (ids.size && Math.max(...ids) >= snapshot.nextId) return null;
     for (const crystal of snapshot.gems) {
-      if (!position(crystal) || !integer(crystal.value, 1, 1e7)) return null;
-      state.gems.push({ x: crystal.x, y: crystal.y, value: crystal.value });
+      if (!position(crystal) || !integer(crystal.value, 1, 1e7) ||
+        (own(crystal,'tier') && !integer(crystal.tier,1,3))) return null;
+      // Version1 snapshots without tiers retain their exact record/value.
+      state.gems.push({ x: crystal.x, y: crystal.y, value: crystal.value,
+        ...(own(crystal,'tier')?{tier:crystal.tier}:{}) });
     }
     for (const event of snapshot.effects) {
       if (!position(event) || !['pulse', 'hurt', 'dissolve', 'guardian', 'warning'].includes(event.kind) ||

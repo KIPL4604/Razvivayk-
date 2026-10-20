@@ -169,7 +169,7 @@ export class Renderer {
     const props = this.ground(p);
     for (const gem of state.gems || []) {
       const tier=crystalTier(gem),point=this.pose(gem,'gems');
-      this.blit('combat', (3+tier)*32, 0, 32, 32, point.x, point.y, 26+(tier-1)*7, undefined, .5);
+      this.blit('combat', (3+tier)*32, 0, 32, 32, point.x, point.y, 32+(tier-1)*8, undefined, .5);
     }
     if (state.upgrades?.orbit) {
       const count = 1 + state.upgrades.orbit, radius = 76 + state.upgrades.orbit * 6;

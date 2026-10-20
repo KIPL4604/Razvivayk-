@@ -25,7 +25,7 @@ async (page) => {
       const elapsed=run.time+run.remainder;
       run.time=180;run.spawnedGuardians=1;run.upgrades={spark:4,orbit:4,pulse:4,focus:3};
       run.gems=Array.from({length:100},(_,i)=>({x:run.player.x+Math.cos(i*2.4)*(80+i*4),y:Math.sin(i*2.4)*(80+i*4),value:[2,12,40][i%3],tier:i%3+1}));
-      run.enemies=Array.from({length:190},(_,i)=>({id:i+1,x:run.player.x+Math.cos(i*2.4)*(150+i*2),y:Math.sin(i*2.4)*(150+i*2),kind:['mote','beetle','wasp'][i%3],hp:300,maxHp:300,radius:12,speed:0,damage:7,value:2,phase:i%6,hitFlash:0,guardianStage:0,fireTimer:2.8}));
+      run.enemies=Array.from({length:core.LIMITS.enemies},(_,i)=>({id:i+1,x:run.player.x+Math.cos(i*2.4)*(150+i*2),y:Math.sin(i*2.4)*(150+i*2),kind:['mote','beetle','wasp'][i%3],hp:300,maxHp:300,radius:12,speed:0,damage:7,value:2,phase:i%6,hitFlash:0,guardianStage:0,fireTimer:2.8}));
       run.nextId=300;run.effects=[{kind:'pulse',x:run.player.x,y:0,radius:185,life:.35,maxLife:.55}];
       const costs=[],intervals=[];let previous=0,start=0;
       await new Promise(resolve=>{

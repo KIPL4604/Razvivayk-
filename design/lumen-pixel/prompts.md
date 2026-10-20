@@ -3,7 +3,8 @@
 Built-in `image_gen.imagegen`, no API/CLI fallback. The raw PNG outputs are kept
 in `sources/`, SHA-256 recorded in `webapp/frontend/assets/lumen/manifest.json`.
 The seed was inspected before the full-sheet edits. No frame was generated
-independently. User approval of the final in-game style is still pending.
+independently. At this historical stage approval was pending. On20Oct the user accepted the
+style; later source briefs are in motion-sources.md.
 
 ## seed.png · transparent=true · no references
 

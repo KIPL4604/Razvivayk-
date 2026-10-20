@@ -2,6 +2,7 @@ import {createRun,step,chooseUpgrade,serialize,restore,UPGRADES,DURATION} from '
 import {Renderer} from './renderer.mjs';
 import {loadArt} from './assets.mjs';
 import {WEAPONS,upgradeSummary} from './presentation.mjs';
+import {waveAt} from './progression.mjs';
 
 const art = await loadArt();
 
@@ -102,7 +103,9 @@ export function createGame(context) {
     const weapons=['spark','orbit','pulse'],dock=$('#lumenWeapons'),dockKey=weapons.map(id=>state.upgrades[id]||0).join(':');
     if(dock.dataset.key!==dockKey){dock.dataset.key=dockKey;dock.innerHTML=weapons.map(id=>{const rank=state.upgrades[id]||0,available=id==='spark'||rank>0,tier=id==='spark'?rank+1:rank;return `<span class="lumen-slot ${WEAPONS[id].className} ${available?'':'locked'}" title="${UPGRADES.find(u=>u.id===id)?.title}: ${WEAPONS[id].verb}">${pixelIcon(id)}<small>${available?tier:'—'}</small><span class="lumen-slot-caption">${WEAPONS[id].short}</span><span class="sr-only">${UPGRADES.find(u=>u.id===id)?.title}: ${available?`ступень ${tier}`:'не открыто'}</span></span>`;}).join('');}
     const wave=state.enemies.find(e=>e.kind==='guardian');
-    const text=wave?'СТРАЖ В БИОСАДУ':state.time<8?'СОБИРАЙ ОСКОЛКИ СВЕТА':state.time>=420?'ПОСЛЕДНИЙ РУБЕЖ':state.time>=240?'РОЙ УСИЛИВАЕТСЯ':'';
+    const phase=waveAt(state.time);
+    const text=wave?'СТРАЖ В БИОСАДУ':state.time<8?'СОБИРАЙ ОСКОЛКИ СВЕТА':phase.kind==='harvest'?'СЛАБЫЙ РОЙ · СОБИРАЙ ОПЫТ':phase.kind==='pressure'&&phase.age<5?`НОВАЯ ВОЛНА · ЭТАП ${phase.stage}`:'';
+    $('#lumenWave').dataset.phase=wave?'guardian':phase.kind;
     if($('#lumenWave').textContent!==text)$('#lumenWave').textContent=text;
     $('#lumenMoveHint').hidden=state.time>12||pointer!==null||keys.size>0;
     const sb=$('[data-lumen-action="sound"]',gameMount);if(sb){sb.setAttribute('aria-pressed',String(record().settings.sound));sb.setAttribute('aria-label',record().settings.sound?'Выключить звук':'Включить звук');sb.innerHTML=pixelIcon(record().settings.sound?'sound':'mute');}

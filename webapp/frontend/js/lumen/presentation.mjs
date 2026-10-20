@@ -15,7 +15,7 @@ export function sceneryOpacity(prop, player) {
   const near = smooth((130 - Math.hypot(prop.x - player.x, prop.y - player.y)) / 85);
   return 1 - .55 * front * near;
 }
-export const crystalTier = crystal => crystal.tier || (crystal.value >= 40 ? 3 : crystal.value >= 12 ? 2 : 1);
+export {crystalTier} from './progression.mjs';
 export function upgradeSummary(id, rank = 0) {
   const summaries = {
     spark: `${WEAPONS.spark.verb} · +7 урона${[1, 3].includes(rank) ? ' · +1 луч' : ''}`,
