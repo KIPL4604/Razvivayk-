@@ -1,6 +1,6 @@
 // Pure presentation rules: no simulation writes or device assumptions.
 export const FIXED_STEP = 1 / 60;
-import {WEAPONS,weaponSummary} from './catalog.mjs';
+import {WEAPONS,weaponSummary,ARTIFACTS} from './catalog.mjs';
 export {WEAPONS};
 export const lerp = (a, b, alpha) => a + (b - a) * alpha;
 const clamp = value => Math.max(0, Math.min(1, value));
@@ -36,6 +36,7 @@ export function sceneryOpacity(prop, player) {
 }
 export {crystalTier} from './progression.mjs';
 export function upgradeSummary(id, rank = 0) {
+  if(ARTIFACTS[id])return ARTIFACTS[id].description;
   if(WEAPONS[id])return weaponSummary(id,rank);
   const summaries = {
     focus: 'Всему оружию +20% урона',

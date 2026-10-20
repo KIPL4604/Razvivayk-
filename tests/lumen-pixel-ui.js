@@ -50,7 +50,7 @@ async (page) => {
     results.push('Four responsive widths, hard pixels, local Cyrillic font, 44px tools, PNG device glyphs');
     await p.setViewportSize({width:375,height:812});await p.keyboard.press('Escape');
     await p.screenshot({path:out+'lumen-pixel-pause-375-final.png'});
-    const buttons=p.locator('#lumenOverlay button');await buttons.last().focus();await p.keyboard.press('Tab');
+    const buttons=p.locator('#lumenOverlay button,#lumenOverlay summary');await buttons.last().focus();await p.keyboard.press('Tab');
     assert(await buttons.first().evaluate(e=>e===document.activeElement),'Pause focus trap');
     const frozen=await p.locator('#lumenTimer').innerText();await p.waitForTimeout(150);assert(await p.locator('#lumenTimer').innerText()===frozen,'Pause clock');
     await p.setViewportSize({width:812,height:375});await p.screenshot({path:out+'lumen-pixel-pause-landscape-final.png'});

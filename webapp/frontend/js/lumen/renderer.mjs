@@ -6,7 +6,7 @@ const round = Math.round;
 const hash = (x, y) => ((Math.imul(x, 374761393) ^ Math.imul(y, 668265263)) >>> 0);
 const distance = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 const spriteKey=e=>e.kind==='guardian'?BOSSES[e.guardianStage||1].sprite:e.kind;
-const actorSize=e=>e.kind==='guardian'?220:e.elite?128:({beetle:90,wasp:76,crawler:92,spitter:90,wisp:76}[e.kind]||80);
+const actorSize=e=>e.kind==='guardian'?220:e.elite?128:({beetle:90,wasp:76,crawler:92,spitter:90,wisp:76,quartzling:86,shardback:110,moonmoth:86}[e.kind]||80);
 
 /** Presentation only. Simulation coordinates, collisions and save records are untouched. */
 export class Renderer {
@@ -208,18 +208,26 @@ export class Renderer {
     const heroSince=heroAnimation==='death'?t-(this.terminalElapsed??.6)
       :heroAnimation==='hurt'?this.health.hitSince:heroAnimation==='attack'?this.attackUntil-.375:0;
     const props = this.ground(p);
+    if(state.upgrades?.collector&&!preview){
+      const scan=this.media.matches?0:(t%3)/.9;
+      if(scan<1){
+        c.save();const [x,y]=this.at(p.x,p.y);c.strokeStyle='#8be6d4';c.globalAlpha=.12*(1-scan);c.lineWidth=Math.max(1,this.dpr);c.setLineDash([4*this.dpr,9*this.dpr]);
+        c.beginPath();c.arc(x,y,state.pickupRadius*z*(.65+scan*.35),0,TAU);c.stroke();c.restore();
+      }
+    }
     for(const zone of state.zones||[]){
       c.globalAlpha=Math.min(.85,zone.life/.4);
       const frame=this.media.matches?0:Math.floor(t*8)%4;
       this.blit('arsenal',(frame+(zone.kind==='thorn'?4:0))*48,96,48,48,zone.x,zone.y,zone.radius*2.4,zone.radius*1.8,.5);
+      if(zone.kind==='briar'){c.globalAlpha*=.75;this.blit('arsenal',(frame+4)*48,96,48,48,zone.x,zone.y,zone.radius*2,zone.radius*1.5,.5);}
       c.globalAlpha=1;
     }
     for (const gem of state.gems || []) {
       const tier=crystalTier(gem),point=this.pose(gem,'gems');
       this.blit('combat', (3+tier)*32, 0, 32, 32, point.x, point.y, 32+(tier-1)*8, undefined, .5);
     }
-    if (state.upgrades?.orbit) {
-      const {count,radius}=weaponStats('orbit',state.upgrades.orbit);
+    for(const orbitId of ['orbit','cyclone'])if (state.upgrades?.[orbitId]) {
+      const stats=weaponStats(orbitId,state.upgrades[orbitId]),count=stats.count,radius=stats.radius*(1+(state.upgrades.amplifier||0)*.12);
       for (let i = 0; i < count; i++) {
         const angle = state.orbitAngle-(1-this.alpha)*FIXED_STEP*1.9+i/count*TAU;
         this.blit('arsenal', 48, 48, 48, 48, p.x + Math.cos(angle) * radius,
@@ -261,13 +269,31 @@ export class Renderer {
     for (const shot of state.projectiles || []) {
       const point=this.pose(shot,'shots'),[x, y] = this.at(point.x, point.y);
       c.save(); c.translate(x, y);
-      c.rotate(Math.round((shot.weapon==='cleaver'?t*9:Math.atan2(shot.vy, shot.vx)) / (TAU / 8)) * TAU / 8);
-      const size=round((shot.hostile?26:48)*z),frame=shot.hostile?32:48;
-      c.drawImage(shot.hostile?this.art.images.combat:this.art.images.arsenal,shot.hostile?96:(WEAPONS[shot.weapon]?.index||0)*48,shot.hostile?0:48,frame,frame,-size/2,-size/2,size,size);c.restore();
+      c.rotate(Math.round((['cleaver','chakram','sunrise'].includes(shot.weapon)?t*9:Math.atan2(shot.vy, shot.vx)) / (TAU / 8)) * TAU / 8);
+      const size=round((shot.hostile?26:48*(1+(state.upgrades.amplifier||0)*.12))*z),frame=shot.hostile?32:48;
+      const index=WEAPONS[shot.weapon]?.index;
+      if(['shard','moon_shard'].includes(shot.weapon)){
+        c.fillStyle='#111b25';c.beginPath();c.moveTo(size*.7,0);c.lineTo(0,size*.32);c.lineTo(-size*.6,0);c.lineTo(0,-size*.32);c.closePath();c.fill();
+        c.fillStyle=shot.weapon==='shard'?'#c19bec':'#82ddf3';c.beginPath();c.moveTo(size*.55,0);c.lineTo(0,size*.2);c.lineTo(-size*.4,0);c.lineTo(0,-size*.2);c.closePath();c.fill();
+        c.fillStyle='#f3edff';c.fillRect(-size*.1,-this.dpr,size*.45,2*this.dpr);
+      }else if(shot.weapon==='prism'){
+        c.fillStyle='#40939e';c.fillRect(-size*.8,-size*.14,size*1.8,size*.28);c.fillStyle='#8de8ee';c.fillRect(-size*.6,-size*.08,size*1.6,size*.16);c.fillStyle='#fff1c9';c.fillRect(-size*.2,-this.dpr,size*1.2,2*this.dpr);
+      }else if(index>=8){
+        const item=index-8;if(shot.weapon==='spear')c.rotate(Math.PI*.75);
+        c.drawImage(this.art.images.expedition,item%5*48,Math.floor(item/5)*48,48,48,-size/2,-size/2,size,size);
+      }else c.drawImage(shot.hostile?this.art.images.combat:this.art.images.arsenal,shot.hostile?96:(index||0)*48,shot.hostile?0:48,frame,frame,-size/2,-size/2,size,size);
+      c.restore();
     }
     for (const effect of state.effects || []) {
       const fraction = effect.life / (effect.maxLife || .5);
-      if(effect.kind==='arc'){
+      if(effect.kind==='charge'){
+        const [x,y]=this.at(effect.x,effect.y),[tx,ty]=this.at(effect.toX,effect.toY);
+        c.save();c.strokeStyle='#f2b9b5';c.globalAlpha=.7;c.lineWidth=2*this.dpr;c.setLineDash([7*this.dpr,6*this.dpr]);c.beginPath();c.moveTo(x,y);c.lineTo(tx,ty);c.stroke();c.setLineDash([]);c.strokeRect(tx-5*this.dpr,ty-5*this.dpr,10*this.dpr,10*this.dpr);c.restore();
+      }else if(effect.kind==='shards'||effect.kind==='fusion'){
+        const radius=effect.radius*(effect.kind==='shards'||this.media.matches?1:1-.65*fraction),color=effect.kind==='shards'?'#d3a8ed':'#ffe09a';
+        c.save();c.globalAlpha=Math.min(.8,fraction+.2);c.fillStyle=color;
+        for(let i=0;i<24;i++){const a=i/24*TAU,[x,y]=this.at(effect.x+Math.cos(a)*radius,effect.y+Math.sin(a)*radius);c.fillRect(x-2*this.dpr,y-2*this.dpr,4*this.dpr,4*this.dpr);}c.restore();
+      }else if(effect.kind==='arc'){
         c.save();c.globalAlpha=Math.min(1,fraction*2);
         const dx=effect.toX-effect.x,dy=effect.toY-effect.y,steps=Math.min(16,Math.max(1,Math.ceil(Math.hypot(dx,dy)/35)));
         for(let i=0;i<=steps;i++)this.blit('arsenal',240,48,48,48,effect.x+dx*i/steps,effect.y+dy*i/steps,45,45,.5);

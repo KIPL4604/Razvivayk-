@@ -27,6 +27,9 @@ export const crystalTier = crystal => crystal.tier || (crystal.value>=40?3:cryst
 export function creatureStats(kind,wave) {
   const s=wave.stage;
   if(wave.kind==='harvest')return {hp:12,radius:10,speed:40,damage:3};
+  if(kind==='quartzling')return {hp:52+s*14,radius:13,speed:64+s*2,damage:9};
+  if(kind==='shardback')return {hp:150+s*32,radius:21,speed:29+s,damage:14};
+  if(kind==='moonmoth')return {hp:40+s*12,radius:11,speed:69+s*2,damage:7};
   if(kind==='crawler')return {hp:24+s*22,radius:12,speed:62+s*3,damage:10};
   if(kind==='spitter')return {hp:70+s*24,radius:15,speed:32,damage:8};
   if(kind==='wisp')return {hp:20+s*8,radius:9,speed:88+s*2,damage:7};

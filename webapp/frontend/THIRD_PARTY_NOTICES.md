@@ -104,3 +104,10 @@ second whole-atlas edit to reduce floor noise. Both raw sources, exact prompts
 and offline normalization code are in `design/lumen-campaign/`. Runtime tiles
 and props are separate hard-alpha PNGs. No external asset pack or new font was
 added; the existing Tektur/OFL attribution continues to apply.
+
+The quarry equipment expansion adds five original whole-sheet imagegen actors
+(Artificer, Sentinel, Quartzling, Shardback, Moonmoth) and ten item icons.
+Sources, prompts, whole-sheet corrections and the offline normalizer are in
+`design/lumen-quarry/`. Runtime actors use 48px frames, binary alpha and their
+own palettes. No third-party equipment/character pack or runtime dependency
+was added. The existing Tektur/OFL attribution continues to apply.

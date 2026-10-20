@@ -17,7 +17,7 @@ const LumenMode = (() => {
     const mount = document.querySelector("#lumenSetupMount");
     mount.innerHTML = '<div class="lumen-loading" role="status">Зажигаем маяк…<span>Загружаем игру</span></div>';
     try {
-      loading ||= import("/static/js/lumen/game.mjs?v=campaign-3").catch(error => {loading=null;throw error;});
+      loading ||= import("/static/js/lumen/game.mjs?v=quarry-4").catch(error => {loading=null;throw error;});
       const module = await loading;
       controller ||= module.createGame({getSaved:()=>saved, persist:saveState, navigate:showScreen, telegram:tg, toast:showToast});
       if(ticket !== generation || activeScreen !== "lumen") return;

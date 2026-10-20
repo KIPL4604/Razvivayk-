@@ -64,7 +64,7 @@ async(page)=>{
       const layout=await p.evaluate(()=>{const hud=document.querySelector('.lumen-hud').getBoundingClientRect(),xp=document.querySelector('.lumen-xp').getBoundingClientRect();return {inside:hud.x>=0&&hud.right<=innerWidth,clear:hud.bottom<=xp.y,smoothing:lumenCanvas.getContext('2d').imageSmoothingEnabled};});
       assert(layout.inside&&layout.clear&&!layout.smoothing,'Quarry HUD '+width+JSON.stringify(layout));
     }
-    await p.keyboard.press('Escape');const buttons=p.locator('#lumenOverlay button');await buttons.last().focus();await p.keyboard.press('Tab');assert(await buttons.first().evaluate(e=>e===document.activeElement),'Pause focus escape');
+    await p.keyboard.press('Escape');const buttons=p.locator('#lumenOverlay button,#lumenOverlay summary');await buttons.last().focus();await p.keyboard.press('Tab');assert(await buttons.first().evaluate(e=>e===document.activeElement),'Pause focus escape');
     await p.emulateMedia({reducedMotion:'reduce'});await p.locator('[data-lumen-action="continue"]').click();await p.waitForTimeout(80);await p.keyboard.press('Escape');
     assert(await p.evaluate(()=>matchMedia('(prefers-reduced-motion:reduce)').matches),'Reduced motion');
     await seed('quarry-finish');await p.locator('#lumenDialogTitle').waitFor();assert((await p.locator('#lumenDialogTitle').innerText()).includes('Лунный карьер пройден'),'Final map result');assert(await p.locator('[data-lumen-action="next"]').count()===0,'Nonexistent third map');assert(await p.evaluate(()=>saved.lumen.meta.clearedMaps.includes('quarry')),'Final map clear not saved');

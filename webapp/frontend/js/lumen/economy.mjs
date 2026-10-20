@@ -27,7 +27,7 @@ export function buyCharacter(meta,id){
 export function recordProgress(meta,run){
   for(const id of run.foundWeapons||[]){
     if(!WEAPON_IDS.includes(id)||id===CHARACTERS[run.character]?.weapon)continue;
-    const rank=run.upgrades?.[id];
+    const rank=run.masteredWeapons?.includes(id)?MAX_WEAPON_STAGE:run.upgrades?.[id];
     if(Number.isInteger(rank)&&rank>0&&rank<=MAX_WEAPON_STAGE)meta.weaponBest[id]=Math.max(meta.weaponBest[id]||0,rank);
   }
   if(run.status==='won'&&Object.hasOwn(MAPS,run.map)&&run.level>=MAPS[run.map].goal&&mapAvailable(meta,run.map)&&!meta.clearedMaps.includes(run.map))meta.clearedMaps.push(run.map);

@@ -32,7 +32,7 @@ async (page) => {
   }
   try{
     await p.goto(base);await p.locator('[data-lumen-action="open"]').click();await p.locator('.lumen-roster').waitFor();
-    assert(await p.locator('.lumen-roster button').count()===6,'Roster size');
+    assert(await p.locator('.lumen-roster button').count()===8,'Roster size');
     await p.locator('[data-lumen-action="character"][data-lumen-value="duelist"]').click();
     assert(await p.locator('[data-lumen-action="buy"]').isDisabled(),'Unaffordable purchase enabled');
     assert(await p.locator('[data-lumen-action="start"]').isDisabled(),'Locked hero starts');
@@ -44,7 +44,7 @@ async (page) => {
       await p.screenshot({path:out+`lumen-arsenal-setup-${width}-v2.png`,fullPage:true});
       assert(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth&&document.querySelector('.lumen-brief').getBoundingClientRect().right<=innerWidth),'Setup overflow '+width);
       if(width===375)assert((await p.locator('[data-lumen-action="start"]').boundingBox()).y<812,'Launch below fold');
-      await p.locator('.lumen-armory summary').click();assert(await p.locator('.lumen-armory article').count()===8,'Armory count');
+      await p.locator('.lumen-armory summary').click();assert(await p.locator('.lumen-armory article').count()===18,'Armory count');
       await p.locator('.lumen-roster').scrollIntoViewIfNeeded();await p.screenshot({path:out+`lumen-arsenal-roster-${width}-v2.png`});
     }
     await p.evaluate(()=>{saved.lumen.meta={coins:400,weaponBest:{orbit:8},unlocked:['scout','keeper']};saveState();});
@@ -53,7 +53,7 @@ async (page) => {
     await p.locator('[data-lumen-action="start"]').click();await p.keyboard.press('Escape');
     assert(await p.evaluate(()=>saved.lumen.meta.coins===80&&saved.lumen.run.character==='duelist'&&saved.lumen.run.upgrades.orbit===1&&!saved.lumen.run.upgrades.spark),'Native weapon or wallet');
     await p.reload();await p.locator('[data-resume="lumen"]').click();assert(await p.evaluate(()=>saved.lumen.meta.unlocked.includes('duelist')),'Unlock not durable');
-    results.push('Six heroes, paid unlock with exact deduction and durable native kit; eight-icon armory; setup four widths');
+    results.push('Eight heroes, paid unlock with exact deduction and durable native kit; fourteen-weapon armory and four artifacts; setup four widths');
 
     await seed('loot');await p.waitForTimeout(100);await p.keyboard.press('Escape');
     assert(await p.evaluate(()=>saved.lumen.meta.coins===140&&saved.lumen.run.coinsEarned===60&&saved.lumen.run.upgrades.orbit===2),'Chest reward not saved');
@@ -72,7 +72,7 @@ async (page) => {
     assert((await p.locator('.lumen-upgrade-dialog').boundingBox()).height<812*.58,'Choice obscures field');
     await p.locator('[data-lumen-action="upgrade"][data-lumen-value="orbit"]').click();await p.keyboard.press('Escape');
     assert(await p.evaluate(()=>saved.lumen.run.upgrades.orbit===3),'Second upgrade did not give stage III');
-    const buttons=p.locator('#lumenOverlay button');await buttons.last().focus();await p.keyboard.press('Tab');assert(await buttons.first().evaluate(e=>e===document.activeElement),'Focus trap');
+    const buttons=p.locator('#lumenOverlay button,#lumenOverlay summary');await buttons.last().focus();await p.keyboard.press('Tab');assert(await buttons.first().evaluate(e=>e===document.activeElement),'Focus trap');
     results.push('Six weapon dock on all four widths; compact stage III choice and pause keyboard focus');
 
     const animation=await p.evaluate(async()=>{
@@ -87,11 +87,11 @@ async (page) => {
       }
       const pure=before===JSON.stringify(serialize(r));renderer.destroy();canvas.remove();return {pure,clips};
     });
-    assert(animation.pure&&Object.keys(animation.clips).length===75&&Object.values(animation.clips).every(n=>n>1),'Actor clips/renderer purity '+JSON.stringify(animation));
+    assert(animation.pure&&Object.keys(animation.clips).length===100&&Object.values(animation.clips).every(n=>n>1),'Actor clips/renderer purity '+JSON.stringify(animation));
     await p.emulateMedia({reducedMotion:'reduce'});await seed('showcase');await p.waitForTimeout(80);await p.keyboard.press('Escape');
     assert(await p.locator('#lumenDialogTitle').isVisible(),'Reduced motion pause');
     assert(!errors.length&&!badAssets.length,JSON.stringify({errors,badAssets}));
-    results.push('75 nonstatic actor clips (15 actors × 5 states), renderer purity, reduced motion, no page/asset errors');
+    results.push('100 nonstatic actor clips (20 actors × 5 states), renderer purity, reduced motion, no page/asset errors');
     return {results,errors,badAssets,screenshots:out};
   }finally{await context.close();}
 }

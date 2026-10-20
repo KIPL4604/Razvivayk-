@@ -60,9 +60,9 @@ test('automatic bolts kill, gems award local XP, choices pause the simulation', 
     assert.ok(definition);
     assert.ok((run.upgrades[id] || 0) < definition.max);
   }
-  const chosen = run.choices[0];
+  const chosen = run.choices[0], previousRank=run.upgrades[chosen]||0;
   assert.equal(chooseUpgrade(run, chosen), true);
-  assert.equal(run.upgrades[chosen], 1);
+  assert.equal(run.upgrades[chosen], previousRank+1);
   assert.equal(run.status, 'playing');
   assert.equal(chooseUpgrade(run, chosen), false);
   assert.equal(restore(snapshot)?.status, 'upgrade');
@@ -190,9 +190,13 @@ test('exhausted upgrade ranks never produce an impossible choice', () => {
   assert.equal(run.status, 'playing');
 });
 
-for(const map of ['garden','quarry'])for(const character of ['scout','keeper','alchemist','ranger','duelist','stormcaller'])test(`a complete normal ${map}/${character} run wins through movement, pickups, and legal upgrades`, () => {
-  const run = createRun({ seed: 1,character,map });
-  const preference = ['orbit', 'pulse', 'spark', 'focus', 'haste', 'storm','ice','flame','cleaver','thorn','magnet', 'vitality', 'stride', 'repair'];
+for(const map of ['garden','quarry'])for(const character of ['scout','keeper','alchemist','ranger','duelist','stormcaller','artificer','sentinel'])test(`a complete normal ${map}/${character} run wins through movement, pickups, and legal upgrades`, (t) => {
+  const attempts=[];
+  // A survival game allows losing a seed. Prove each fighter can complete both
+  // maps across three fixed seeds, always through legal choices and real HP.
+  for(const seed of [1,17,61]){
+  const run = createRun({ seed,character,map });
+  const preference = ['orbit', 'pulse', 'spark', 'focus', 'haste', 'storm','ice','flame','cleaver','thorn','aegis','chronogear','amplifier','collector','chakram','spear','prism','cyclone','briar','sunrise','magnet', 'vitality', 'stride', 'repair'];
   for (let frame = 0; frame < 900 * 60 && !['lost', 'won'].includes(run.status); frame += 1) {
     const player = run.player;
     let target = null;
@@ -212,15 +216,28 @@ for(const map of ['garden','quarry'])for(const character of ['scout','keeper','a
       const dx=player.x-shot.x,dy=player.y-shot.y,near=Math.hypot(dx,dy)||1;
       if(near<65){x+=dx/near*(65-near)/30;y+=dy/near*(65-near)/30;}
     }
+    // The quarry dash is telegraphed: move out of its marked corridor.
+    for(const warning of run.effects.filter(e=>e.kind==='charge')){
+      const dx=warning.toX-warning.x,dy=warning.toY-warning.y,len=dx*dx+dy*dy;
+      const along=Math.max(0,Math.min(1,((player.x-warning.x)*dx+(player.y-warning.y)*dy)/len));
+      const awayX=player.x-warning.x-dx*along,awayY=player.y-warning.y-dy*along,near=Math.hypot(awayX,awayY)||1;
+      if(near<65){x+=awayX/near*(65-near)/22;y+=awayY/near*(65-near)/22;}
+    }
     step(run, { x, y }, 1 / 60);
     while (run.status === 'upgrade') {
       const recovery=run.player.hp<run.player.maxHp*.65&&['vitality','repair'].find(id=>run.choices.includes(id));
-      const id = recovery || preference.find((candidate) => run.choices.includes(candidate));
+      const defense=run.player.hp<run.player.maxHp*.8&&['aegis','stride'].find(id=>run.choices.includes(id));
+      const id = recovery || defense || preference.find((candidate) => run.choices.includes(candidate));
       assert.equal(chooseUpgrade(run, id), true);
     }
   }
-  assert.equal(run.status, 'won');
-  assert.equal(run.level,map==='garden'?30:35);
-  assert.ok(run.kills > 100 && run.player.hp > 0);
+  attempts.push({seed,status:run.status,time:run.time,level:run.level,kills:run.kills,upgrades:run.upgrades});
   assert.ok(restore(serialize(run)));
+  if(run.status==='won'){
+    assert.equal(run.level,map==='garden'?30:35);
+    assert.ok(run.kills>100&&run.player.hp>0);
+    t.diagnostic('Winning seed '+seed+'; attempts '+attempts.length);return;
+  }
+  }
+  assert.fail(JSON.stringify({map,character,attempts}));
 });

@@ -36,8 +36,8 @@ async (page) => {
     assert(new Set(contact.events.filter(e=>e.hurt).map(e=>e.hit)).size===1,'Invulnerability restarted hit cue');
     const frozen=await p.locator('#lumenHealth').textContent();await p.waitForTimeout(100);
     assert(await p.locator('#lumenHealth').textContent()===frozen,'Pause did not freeze health');
-    await p.locator('#lumenOverlay button').first().focus();await p.keyboard.press('Shift+Tab');
-    assert(await p.locator('#lumenOverlay button').last().evaluate(e=>e===document.activeElement),'Pause focus trap');
+    await p.locator('#lumenOverlay button,#lumenOverlay summary').first().focus();await p.keyboard.press('Shift+Tab');
+    assert(await p.locator('#lumenOverlay button,#lumenOverlay summary').last().evaluate(e=>e===document.activeElement),'Pause focus trap');
 
     await p.evaluate(async()=>{
       const core=await import('/static/js/lumen/engine.mjs'),{Renderer}=await import('/static/js/lumen/renderer.mjs');
@@ -104,7 +104,7 @@ async (page) => {
         await p.screenshot({path:out+`lumen-health-hit-${map}-${width}-review2.png`});
       }
     }
-    for(const character of ['scout','keeper','alchemist','ranger','duelist','stormcaller']){
+    for(const character of ['scout','keeper','alchemist','ranger','duelist','stormcaller','artificer','sentinel']){
       const check=await draw({character,hp:20});
       assert(check.pixel==='241,116,120'&&check.tintPixels>10,'Low-health/hit silhouette '+character);
     }
@@ -136,6 +136,6 @@ async (page) => {
       }finally{await dense.close();}
     }
     assert(errors.length===0,'Browser errors '+errors.join(';'));
-    return {contact:{health:contact.health,hits:1},checks,heroes:6,reduced,density,errors};
+    return {contact:{health:contact.health,hits:1},checks,heroes:8,reduced,density,errors};
   }finally{await context.close();}
 }

@@ -52,7 +52,7 @@ async (page) => {
     await p.keyboard.down('KeyD');await p.waitForTimeout(700);await p.keyboard.up('KeyD');await p.keyboard.press('Escape');
     const first=await saveRecord();assert(first.run.character==='keeper'&&first.run.player.maxHp===145,'Character choice ignored');assert(first.run.player.x>40,'Keyboard movement');
     const pausedClock=await p.locator('#lumenTimer').innerText();await p.waitForTimeout(250);assert(await p.locator('#lumenTimer').innerText()===pausedClock,'Pause did not freeze');
-    const modalButtons=p.locator('#lumenOverlay button');await modalButtons.last().focus();await p.keyboard.press('Tab');assert(await modalButtons.first().evaluate(e=>e===document.activeElement),'Focus escaped dialog');
+    const modalButtons=p.locator('#lumenOverlay button,#lumenOverlay summary');await modalButtons.last().focus();await p.keyboard.press('Tab');assert(await modalButtons.first().evaluate(e=>e===document.activeElement),'Focus escaped dialog');
     await p.locator('#lumenOverlay [data-lumen-action="sound"]').click();assert((await saveRecord()).settings.sound,'Mobile sound inaccessible');
     await p.locator('[data-lumen-action="continue"]').click();
     const cdp=await context.newCDPSession(p);

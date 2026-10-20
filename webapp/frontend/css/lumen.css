@@ -266,3 +266,41 @@ html.lumen-active,html.lumen-active body{overflow:hidden;overscroll-behavior:non
 .lumen-timer span{max-width:160px;font-size:12px;line-height:1.2}
 .lumen-timer{min-width:0}
 @media(max-width:540px){.lumen-maps button{padding:10px 8px}.lumen-maps b{font-size:16px}.lumen-maps span{font-size:9px}.lumen-timer span{font-size:10px}.lumen-facts{margin-top:16px}}
+.lumen-new-icon{display:inline-block;width:32px;height:32px;flex-shrink:0;background:url('../assets/lumen/expedition.png') calc(var(--item-x) * -32px) calc(var(--item-y) * -32px)/160px 64px no-repeat;image-rendering:pixelated;vertical-align:middle}
+.lumen-native-icon .lumen-new-icon,.lumen-armory article>.lumen-new-icon{width:48px;height:48px;background-size:240px 96px;background-position:calc(var(--item-x) * -48px) calc(var(--item-y) * -48px)}
+.lumen-armory article>.lumen-new-icon{background-color:#253442;border-bottom:2px solid var(--weapon-color)}
+.lumen-book-heading{margin:24px 16px 8px!important;color:#26374a;font-size:20px}
+.lumen-armory .lumen-book-note{margin:0 16px 14px;color:#56677b;font-size:14px;max-width:70ch}
+.lumen-recipes-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.lumen-recipes-list article{display:flex;align-items:center;gap:12px;padding:12px;border-left:2px solid var(--weapon-color);background:#1e2935}
+.lumen-recipes-list article>div{display:flex;flex-direction:column;gap:4px;min-width:0}
+.lumen-recipes-list b{font-size:18px;color:#f1dfaf;font-weight:500}
+.lumen-recipes-list span{color:#c7d4df;font-size:16px}
+.lumen-recipes-list small{color:#aebdca;font-size:14px}
+.lumen-equipment{display:flex;flex-direction:column;gap:9px;min-width:0}
+.lumen-artifacts{display:flex;align-items:center;gap:6px;min-height:30px;width:fit-content;padding:2px 7px;background:#17212de8;border-left:2px solid #a2b4c3}
+.lumen-artifacts[hidden]{display:none}
+.lumen-relic-label{font-size:11px;letter-spacing:.5px;color:#b8c7d2;margin-right:4px}
+.lumen-relic-slot{display:flex;align-items:center;gap:1px;color:var(--weapon-color)}
+.lumen-relic-slot small{font-size:11px;align-self:flex-end;margin-bottom:3px}
+.lumen-slot-caption{max-width:68px;overflow:hidden;text-overflow:ellipsis}
+.lumen-slot.prism,.lumen-slot.cyclone,.lumen-slot.briar,.lumen-slot.sunrise{box-shadow:inset 0 0 0 1px var(--weapon-color),0 3px #111b2580}
+.lumen-upgrade-dialog .lumen-upgrades .lumen-fusion-choice{background:#302c3b;border-color:var(--weapon-color);border-top:3px solid var(--weapon-color)}
+.lumen-upgrade-dialog .lumen-upgrades .lumen-fusion-choice small{color:#f9dfb0}
+.lumen-upgrade-dialog .lumen-upgrades .lumen-recipe-hint{font-size:12px;color:#c8bbd1;line-height:1.25}
+.lumen-recipes{margin-top:16px;border-top:1px solid #4b5a69;padding-top:12px}
+.lumen-recipes summary{color:#cbd7e1;cursor:pointer;min-height:44px;padding:10px 0}
+.lumen-recipes-list{font-family:LumenSquare,monospace}
+.lumen-recipes .lumen-recipes-list{grid-template-columns:1fr}
+.lumen-pause-artifacts{border-top:1px solid #4b5a69;margin-top:12px;padding-top:12px}
+.lumen-pause-artifacts p{display:flex;align-items:center;gap:8px;color:#f1dfaf;margin:0 0 10px;font-size:16px}
+.lumen-pause-artifacts small{display:block;color:#b9c5d0;font-size:14px;margin-top:3px}
+@media(max-width:540px){
+  .lumen-recipes-list{grid-template-columns:1fr}
+  .lumen-relic-label{font-size:9px;margin-right:0}
+  .lumen-artifacts{gap:3px;padding:1px 4px}
+  .lumen-relic-slot .lumen-new-icon{width:24px;height:24px;background-size:120px 48px;background-position:calc(var(--item-x) * -24px) calc(var(--item-y) * -24px)}
+  .lumen-relic-slot small{font-size:9px}
+  .lumen-slot-caption{max-width:46px}
+  .lumen-upgrade-dialog .lumen-upgrades .lumen-fusion-choice{border-top-width:1px;border-left:3px solid var(--weapon-color)}
+}

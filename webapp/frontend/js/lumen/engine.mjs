@@ -4,13 +4,14 @@
  * Local results are entertainment data and never award campaign/server XP.
  */
 import {waveAt,xpForLevel,crystalLoot,crystalTier,creatureStats} from './progression.mjs';
-import {CHARACTERS,WEAPONS,WEAPON_IDS,MAX_WEAPONS,MAX_WEAPON_STAGE,ENEMIES,MAPS} from './catalog.mjs';
+import {CHARACTERS,WEAPONS,WEAPON_IDS,BASE_WEAPON_IDS,HYBRIDS,ARTIFACTS,MAX_WEAPONS,MAX_WEAPON_STAGE,ENEMIES,MAPS} from './catalog.mjs';
 import {updateWeapons,flameImpact} from './combat.mjs';
 
 export const DURATION = 480; // Historical benchmark for older harnesses; no time limit.
 export const LIMITS = Object.freeze({ enemies: 240, projectiles: 100, gems: 220, effects: 80, zones:24, chests:12 });
 export const UPGRADES = Object.freeze([
-  ...WEAPON_IDS.map(id=>({id,title:WEAPONS[id].title,description:WEAPONS[id].verb+'; на стадиях III, V и VII усиливается число атак.',max:MAX_WEAPON_STAGE,kind:'weapon'})),
+  ...WEAPON_IDS.map(id=>({id,title:WEAPONS[id].title,description:WEAPONS[id].verb,max:WEAPONS[id].max,kind:'weapon'})),
+  ...Object.entries(ARTIFACTS).map(([id,a])=>({id,title:a.title,description:a.description,max:a.max,kind:'artifact'})),
   { id: 'focus', title: 'Чистая линза', description: 'Урон всего оружия +20%.', max: 5, kind: 'power' },
   { id: 'haste', title: 'Быстрый конденсатор', description: 'Всё оружие срабатывает на 15% чаще.', max: 4, kind: 'power' },
   { id: 'stride', title: 'Лёгкий привод', description: 'Скорость движения +10%.', max: 3, kind: 'utility' },
@@ -42,14 +43,26 @@ function derived(state) {
   const base = CHARACTERS[state.character];
   state.player.maxHp = base.hp + rank(state, 'vitality') * 20;
   state.player.speed = base.speed * (1 + rank(state, 'stride') * 0.1);
-  state.pickupRadius = 58 + rank(state, 'magnet') * 42;
+  state.pickupRadius = 58 + rank(state, 'magnet') * 42 + rank(state,'collector')*90;
+}
+
+export const fusionReady=(state,id)=>Boolean(own(HYBRIDS,id)&&!rank(state,id)&&HYBRIDS[id].requires.every(part=>rank(state,part)===MAX_WEAPON_STAGE));
+const consumed=(state,id)=>Object.entries(HYBRIDS).some(([hybrid,recipe])=>rank(state,hybrid)&&recipe.requires.includes(id));
+function rememberMastery(state){
+  for(const id of state.foundWeapons)if(rank(state,id)===MAX_WEAPON_STAGE&&!state.masteredWeapons.includes(id))state.masteredWeapons.push(id);
+}
+function availableUpgrade(state,id){
+  const u=CATALOG.get(id);if(!u||rank(state,id)>=u.max)return false;
+  if(u.kind!=='weapon')return id!=='repair'||state.player.hp<state.player.maxHp||state.level>35;
+  if(HYBRIDS[id])return rank(state,id)>0||fusionReady(state,id);
+  return !consumed(state,id)&&(rank(state,id)>0||WEAPON_IDS.filter(w=>rank(state,w)>0).length<MAX_WEAPONS);
 }
 
 export function createRun({ seed = 0x1a71be, character = 'scout',runId,map='garden' } = {}) {
   const normalizedSeed = Number.isInteger(seed) ? seed >>> 0 : 0x1a71be;
   const selected = own(CHARACTERS, character) ? character : 'scout';
   const state = {
-    version: 3, map:own(MAPS,map)?map:'garden',foundWeapons:[], seed: normalizedSeed, rngState: normalizedSeed || 0x9e3779b9,
+    version: 4, map:own(MAPS,map)?map:'garden',foundWeapons:[],masteredWeapons:[], seed: normalizedSeed, rngState: normalizedSeed || 0x9e3779b9,
     runId:typeof runId==='string'&&/^[a-zA-Z0-9-]{1,90}$/.test(runId)?runId:`run-${normalizedSeed.toString(16)}-${selected}`,
     character: selected, time: 0, status: 'playing', endReason: '',
     player: { x: 0, y: 0, hp: CHARACTERS[selected].hp, maxHp: CHARACTERS[selected].hp,
@@ -120,7 +133,7 @@ function hit(state, enemy, amount, push = 0) {
 
 function hurt(state, damage) {
   if (state.player.invulnerable > 0 || state.status !== 'playing') return;
-  state.player.hp = Math.max(0, state.player.hp - damage);
+  state.player.hp = Math.max(0, state.player.hp - Math.max(1,damage-rank(state,'aegis')*2));
   state.player.invulnerable = 0.8;
   effect(state, 'hurt', state.player.x, state.player.y, 30, 0.3);
   if (!state.player.hp) { state.status = 'lost'; state.endReason = 'health'; }
@@ -147,7 +160,9 @@ function spawn(state, guardianStage = 0, wave = waveAt(state.time),elite=false) 
   if (guardianStage) kind = 'guardian';
   else if(elite)kind='beetle';
   else if(wave.kind==='pressure'){
-    kind=roll<.2?'beetle':roll<.35?'wasp':roll<.5?'crawler':roll<.64&&wave.stage>=2?'spitter':roll<.76&&wave.stage>=3?'wisp':'mote';
+    kind=state.map==='quarry'
+      ? roll<.12?'quartzling':roll<.20&&wave.stage>=2?'shardback':roll<.32?'moonmoth':roll<.5?'beetle':roll<.65?'wasp':roll<.8?'crawler':roll<.9?'spitter':'mote'
+      : roll<.2?'beetle':roll<.35?'wasp':roll<.5?'crawler':roll<.64&&wave.stage>=2?'spitter':roll<.76&&wave.stage>=3?'wisp':'mote';
   }
   const base = kind === 'guardian'
     ? { hp: [0, 1800, 3600, 7800][guardianStage], radius: 31, speed: 38 + guardianStage * 3, damage: 22 }
@@ -169,25 +184,46 @@ function creatures(state, dt) {
     const dx = state.player.x - enemy.x;
     const dy = state.player.y - enemy.y;
     const distance = Math.hypot(dx, dy) || 1;
-    const sway = ['wasp','wisp'].includes(enemy.kind) ? Math.sin(state.time * 3.4 + enemy.phase) * 0.65 : 0;
+    const sway = enemy.kind==='moonmoth'?1.05:['wasp','wisp'].includes(enemy.kind) ? Math.sin(state.time * 3.4 + enemy.phase) * 0.65 : 0;
     const charging=enemy.kind==='crawler'&&distance<240&&Math.sin(state.time*2+enemy.phase)>.87;
     const raging=enemy.kind==='guardian'&&enemy.guardianStage===3&&enemy.hp<enemy.maxHp*.5;
     if(charging)enemy.actionTimer=.2;
-    const spacing=enemy.kind==='spitter'?(distance<140?-.6:distance<260?0:1):1;
-    const speed = enemy.speed * dt*(enemy.slowTime>0?.58:1)*(charging?2.2:raging?1.5:1)*spacing;
-    enemy.x += (dx - dy * sway) / distance * speed;
-    enemy.y += (dy + dx * sway) / distance * speed;
+    const spacing=['spitter','moonmoth'].includes(enemy.kind)?(distance<140?-.6:distance<260?.18:1):1;
+    const windup=enemy.kind==='quartzling'&&enemy.actionTimer>.35;
+    const dash=enemy.kind==='quartzling'&&enemy.actionTimer>0&&!windup;
+    const speed = enemy.speed * dt*(enemy.slowTime>0?.58:1)*(windup?0:dash?4.5:charging?2.2:raging?1.5:1)*spacing;
+    enemy.x += dash?Math.cos(enemy.phase)*speed:(dx - dy * sway) / distance * speed;
+    enemy.y += dash?Math.sin(enemy.phase)*speed:(dy + dx * sway) / distance * speed;
     if (distance < enemy.radius + state.player.radius) hurt(state, enemy.damage);
-    if (enemy.kind === 'guardian'||enemy.kind==='spitter') {
+    if(['quartzling','shardback'].includes(enemy.kind)){
+      enemy.fireTimer=Math.max(0,enemy.fireTimer-dt);
+      if(enemy.fireTimer<=0&&distance<330){
+        if(enemy.kind==='quartzling'){
+          enemy.phase=(Math.atan2(dy,dx)+TAU)%TAU;enemy.actionTimer=1;enemy.fireTimer=3.6;
+          effect(state,'charge',enemy.x,enemy.y,26,.65);
+          Object.assign(state.effects.at(-1),{toX:enemy.x+Math.cos(enemy.phase)*190,toY:enemy.y+Math.sin(enemy.phase)*190});
+        }else{
+          enemy.actionTimer=.85;enemy.fireTimer=4;
+          effect(state,'shards',enemy.x,enemy.y,90,.8);
+        }
+      }
+      if(enemy.kind==='shardback'&&enemy.actionTimer>0&&enemy.actionTimer<=dt){
+        for(let i=0;i<8&&state.projectiles.length<LIMITS.projectiles;i++){
+          const a=i/8*TAU+enemy.phase;
+          state.projectiles.push({id:state.nextId++,x:enemy.x,y:enemy.y,vx:Math.cos(a)*125,vy:Math.sin(a)*125,radius:6,damage:9,life:3,hostile:true,weapon:'shard',pierce:0,hits:[],returning:false});
+        }
+      }
+    }
+    if (enemy.kind === 'guardian'||enemy.kind==='spitter'||enemy.kind==='moonmoth') {
       enemy.fireTimer -= dt;
       if (enemy.fireTimer <= 0) {
-        const stage=enemy.guardianStage,count=enemy.kind==='spitter'?1:stage===1?6:stage===2?8:10;
+        const stage=enemy.guardianStage,count=enemy.kind==='spitter'?1:enemy.kind==='moonmoth'?3:stage===1?6:stage===2?8:10;
         const aim=Math.atan2(dy,dx);enemy.actionTimer=.4;
         for (let i = 0; i < count && state.projectiles.length < LIMITS.projectiles; i += 1) {
           const angle=stage===2?i/count*TAU+enemy.phase:aim+(i-(count-1)/2)*(stage===3?.21:.17);
           state.projectiles.push({ id: state.nextId++, x: enemy.x, y: enemy.y,
             vx: Math.cos(angle) * (raging?135:102), vy: Math.sin(angle) * (raging?135:102), radius: 6,
-            damage: stage?10+stage*2:7, life: 4, hostile: true,weapon:'hostile',pierce:0,hits:[],returning:false });
+            damage: stage?10+stage*2:7, life: 4, hostile: true,weapon:enemy.kind==='moonmoth'?'moon_shard':'hostile',pierce:0,hits:[],returning:false });
         }
         enemy.fireTimer = raging?2.7:3.6;
         enemy.phase = (enemy.phase + 0.3) % TAU;
@@ -199,7 +235,7 @@ function creatures(state, dt) {
 
 function projectiles(state, dt) {
   for (const projectile of state.projectiles) {
-    if(projectile.weapon==='cleaver'&&projectile.life<=.8){
+    if(['cleaver','sunrise'].includes(projectile.weapon)&&projectile.life<=.8){
       if(!projectile.returning){projectile.returning=true;projectile.hits=[];}
       const dx=state.player.x-projectile.x,dy=state.player.y-projectile.y,d=Math.hypot(dx,dy)||1;
       projectile.vx=dx/d*330;projectile.vy=dy/d*330;
@@ -219,9 +255,14 @@ function projectiles(state, dt) {
       if (enemy.hp > 0 && !projectile.hits.includes(enemy.id)&&distanceSquared(projectile, enemy) < (projectile.radius + enemy.radius) ** 2) {
         hit(state, enemy, projectile.damage);
         projectile.hits.push(enemy.id);
-        if(projectile.weapon==='ice')enemy.slowTime=1.4;
+        if(['ice','prism'].includes(projectile.weapon))enemy.slowTime=projectile.weapon==='prism'?2:1.4;
         if(projectile.weapon==='flame')flameImpact(state,projectile,LIMITS);
-        if(projectile.weapon!=='cleaver'&&(projectile.pierce--<=0))projectile.life=0;
+        if(!['cleaver','sunrise'].includes(projectile.weapon)&&(projectile.pierce--<=0))projectile.life=0;
+        if(projectile.weapon==='chakram'&&projectile.life>0){
+          const next=state.enemies.filter(e=>e.hp>0&&!projectile.hits.includes(e.id)&&distanceSquared(e,projectile)<300**2)
+            .sort((a,b)=>distanceSquared(a,projectile)-distanceSquared(b,projectile))[0];
+          if(next){const a=Math.atan2(next.y-projectile.y,next.x-projectile.x);projectile.vx=Math.cos(a)*380;projectile.vy=Math.sin(a)*380;}
+        }
         projectile.pierce=Math.max(0,projectile.pierce);
         if(projectile.hits.length>=16)projectile.life=0;
         break;
@@ -238,15 +279,18 @@ function offerUpgrade(state) {
   state.level += 1;
   state.xpNext = xpForLevel(state.level);
   if(state.level>=MAPS[state.map].goal){state.status='won';state.endReason='level';state.choices=[];state.remainder=0;return;}
-  const owned=WEAPON_IDS.filter(id=>rank(state,id)>0).length;
-  const candidates = UPGRADES.filter((upgrade) => rank(state, upgrade.id) < upgrade.max &&
-    (upgrade.kind!=='weapon'||rank(state,upgrade.id)>0||owned<MAX_WEAPONS)&&
-    (upgrade.id !== 'repair' || state.player.hp < state.player.maxHp || state.level > 35)).map((upgrade) => upgrade.id);
+  const candidates = UPGRADES.filter(u=>availableUpgrade(state,u.id)).map(u=>u.id);
   for (let i = candidates.length - 1; i > 0; i -= 1) {
     const other = Math.floor(random(state) * (i + 1));
     [candidates[i], candidates[other]] = [candidates[other], candidates[i]];
   }
-  state.choices = candidates.slice(0, 3);
+  const existing=candidates.find(id=>WEAPONS[id]&&rank(state,id));
+  const discovery=WEAPON_IDS.filter(id=>rank(state,id)).length<3?candidates.find(id=>BASE_WEAPON_IDS.includes(id)&&!rank(state,id)):null;
+  const recovery=state.player.hp<state.player.maxHp*.35?candidates.find(id=>['repair','vitality'].includes(id)):null;
+  const fusion=candidates.find(id=>fusionReady(state,id));
+  // Reserve distinct choices by priority; inserting into numbered slots could
+  // overwrite another promised category when it happened to be there already.
+  state.choices=[...new Set([fusion,recovery,existing,discovery,...candidates].filter(Boolean))].slice(0,3);
   if (!state.choices.length && rank(state, 'repair') < CATALOG.get('repair').max) state.choices = ['repair'];
   if (!state.choices.length) return;
   state.status = 'upgrade';
@@ -270,9 +314,10 @@ function collect(state, dt) {
   state.gems = remaining;
   state.chests=state.chests.filter(chest=>{
     if(distanceSquared(chest,state.player)>(state.player.radius+24)**2)return true;
-    const candidates=WEAPON_IDS.filter(id=>rank(state,id)>0&&rank(state,id)<MAX_WEAPON_STAGE);
+    const candidates=WEAPON_IDS.filter(id=>rank(state,id)>0&&rank(state,id)<WEAPONS[id].max);
     const weapon=chest.upgrade&&candidates.length?candidates[Math.floor(random(state)*candidates.length)]:'';
     if(weapon)state.upgrades[weapon]++;
+    rememberMastery(state);
     const coins=chest.coins+(chest.upgrade&&!candidates.length?25:0);
     state.coinsEarned+=coins;state.openedChests++;
     state.lootLog.push({id:chest.id,coins,weapon,stage:weapon?state.upgrades[weapon]:0,time:state.time});state.lootLog=state.lootLog.slice(-4);
@@ -334,9 +379,15 @@ export function step(state, input = {}, dt = 0, beforeTick) {
 export function chooseUpgrade(state, id) {
   if (!state || state.status !== 'upgrade' || !state.choices.includes(id)) return false;
   const definition = CATALOG.get(id);
-  if (!definition || rank(state, id) >= definition.max) return false;
-  if(definition.kind==='weapon'&&!rank(state,id)&&id!==CHARACTERS[state.character].weapon&&!state.foundWeapons.includes(id))state.foundWeapons.push(id);
+  if (!definition || !availableUpgrade(state,id)) return false;
+  if(HYBRIDS[id]&&!rank(state,id)){
+    rememberMastery(state);
+    for(const part of HYBRIDS[id].requires){delete state.upgrades[part];state.weaponTimers[part]=0;}
+    state.projectiles=state.projectiles.filter(p=>!HYBRIDS[id].requires.includes(p.weapon));
+    effect(state,'fusion',state.player.x,state.player.y,140,.8);
+  }else if(definition.kind==='weapon'&&!rank(state,id)&&id!==CHARACTERS[state.character].weapon&&!state.foundWeapons.includes(id))state.foundWeapons.push(id);
   state.upgrades[id] = rank(state, id) + 1;
+  rememberMastery(state);
   derived(state);
   if (id === 'vitality') state.player.hp = Math.min(state.player.maxHp, state.player.hp + 30);
   if (id === 'repair') state.player.hp = Math.min(state.player.maxHp, state.player.hp + 45);
@@ -381,11 +432,18 @@ function migrateCampaign(snapshot){
   return old;
 }
 
+function migrateArsenal(snapshot){
+  const old=serialize(snapshot);old.version=4;
+  old.masteredWeapons=(old.foundWeapons||[]).filter(id=>old.upgrades?.[id]===MAX_WEAPON_STAGE);
+  return old;
+}
+
 export function restore(snapshot) {
   try {
     if(object(snapshot)&&snapshot.version===1)snapshot=migrateLegacy(snapshot);
     if(object(snapshot)&&snapshot.version===2)snapshot=migrateCampaign(snapshot);
-    if (!object(snapshot) || snapshot.version !== 3 || !own(MAPS,snapshot.map)||!own(CHARACTERS, snapshot.character) ||
+    if(object(snapshot)&&snapshot.version===3)snapshot=migrateArsenal(snapshot);
+    if (!object(snapshot) || snapshot.version !== 4 || !own(MAPS,snapshot.map)||!own(CHARACTERS, snapshot.character) ||
       !integer(snapshot.seed, 0, 0xffffffff) || !integer(snapshot.rngState, 1, 0xffffffff) ||
       !number(snapshot.time, 0, 1e7) || !['playing', 'upgrade', 'won', 'lost'].includes(snapshot.status) ||
       !['', 'health', 'beacon', 'dawn','level'].includes(snapshot.endReason) ||
@@ -408,7 +466,10 @@ export function restore(snapshot) {
       state.upgrades[id] = value;
     }
     if(WEAPON_IDS.filter(id=>rank(state,id)>0).length>MAX_WEAPONS)return null;
-    if(!Array.isArray(snapshot.foundWeapons)||snapshot.foundWeapons.length>MAX_WEAPONS||new Set(snapshot.foundWeapons).size!==snapshot.foundWeapons.length||snapshot.foundWeapons.some(id=>!WEAPON_IDS.includes(id)||!rank(state,id)||id===CHARACTERS[state.character].weapon))return null;
+    if(!Array.isArray(snapshot.masteredWeapons)||snapshot.masteredWeapons.length>BASE_WEAPON_IDS.length||new Set(snapshot.masteredWeapons).size!==snapshot.masteredWeapons.length||snapshot.masteredWeapons.some(id=>!BASE_WEAPON_IDS.includes(id)||!snapshot.foundWeapons?.includes(id)))return null;
+    state.masteredWeapons=snapshot.masteredWeapons.slice();
+    if(!Array.isArray(snapshot.foundWeapons)||snapshot.foundWeapons.length>BASE_WEAPON_IDS.length||new Set(snapshot.foundWeapons).size!==snapshot.foundWeapons.length||snapshot.foundWeapons.some(id=>!BASE_WEAPON_IDS.includes(id)||(!rank(state,id)&&!consumed(state,id))||id===CHARACTERS[state.character].weapon))return null;
+    if(Object.entries(HYBRIDS).some(([id,r])=>rank(state,id)&&r.requires.some(part=>rank(state,part))))return null;
     state.foundWeapons=snapshot.foundWeapons.slice();
     for(const [id,value] of Object.entries(snapshot.weaponTimers))if(!own(WEAPONS,id)||!number(value,0,6))return null;
     state.weaponTimers={...state.weaponTimers,...snapshot.weaponTimers};
@@ -420,7 +481,7 @@ export function restore(snapshot) {
     state.player = { x: player.x, y: player.y, hp: player.hp, maxHp: player.maxHp, speed: player.speed,
       radius: 13, invulnerable: player.invulnerable, facingX: player.facingX, facingY: player.facingY };
     if (!Array.isArray(snapshot.choices) || snapshot.choices.length > 3 || new Set(snapshot.choices).size !== snapshot.choices.length ||
-      snapshot.choices.some((id) => !CATALOG.has(id) || rank(state, id) >= CATALOG.get(id).max)) return null;
+      snapshot.choices.some((id) => !CATALOG.has(id) || rank(state, id) >= CATALOG.get(id).max || (HYBRIDS[id]&&!rank(state,id)&&!fusionReady(state,id)))) return null;
     if ((snapshot.status === 'upgrade') !== (snapshot.choices.length > 0) ||
       (snapshot.status !== 'lost' && player.hp <= 0) ||
       (snapshot.status === 'won' && (snapshot.level<MAPS[state.map].goal||snapshot.endReason!=='level'))) return null;
@@ -444,7 +505,7 @@ export function restore(snapshot) {
         !number(projectile.vx, -2000, 2000) || !number(projectile.vy, -2000, 2000) ||
         !number(projectile.radius, 1, 30) || !number(projectile.damage, 0, 1e5) ||
         !number(projectile.life, 0, 5) || projectile.life <= 0 || typeof projectile.hostile !== 'boolean' ||
-        (own(projectile,'weapon')&&!own(WEAPONS,projectile.weapon)&&projectile.weapon!=='hostile')||
+        (own(projectile,'weapon')&&!own(WEAPONS,projectile.weapon)&&!['hostile','shard','moon_shard'].includes(projectile.weapon))||
         !integer(projectile.pierce??0,0,10)||(own(projectile,'returning')&&typeof projectile.returning!=='boolean')) return null;
       const hits=projectile.hits||[];
       if(!Array.isArray(hits)||hits.length>16||hits.some(id=>!integer(id,1,0x7fffffff))||new Set(hits).size!==hits.length)return null;
@@ -462,16 +523,16 @@ export function restore(snapshot) {
         ...(own(crystal,'tier')?{tier:crystal.tier}:{}) });
     }
     for (const event of snapshot.effects) {
-      if (!position(event) || !['pulse', 'hurt', 'dissolve', 'guardian', 'warning','arc','chest'].includes(event.kind) ||
+      if (!position(event) || !['pulse', 'hurt', 'dissolve', 'guardian', 'warning','arc','chest','charge','shards','fusion'].includes(event.kind) ||
         !number(event.radius, 1, 1000) || !number(event.maxLife, 0.001, 3) || !number(event.life, 0, event.maxLife) || event.life <= 0) return null;
       state.effects.push({ x: event.x, y: event.y, kind: event.kind, radius: event.radius, life: event.life, maxLife: event.maxLife });
-      if(event.kind==='arc'){
+      if(['arc','charge'].includes(event.kind)){
         if(!number(event.toX,-1e7,1e7)||!number(event.toY,-1e7,1e7))return null;
         Object.assign(state.effects.at(-1),{toX:event.toX,toY:event.toY});
       }
     }
     for(const zone of snapshot.zones){
-      if(!position(zone)||!integer(zone.id,1,0x7fffffff)||ids.has(zone.id)||!['flame','thorn'].includes(zone.kind)||
+      if(!position(zone)||!integer(zone.id,1,0x7fffffff)||ids.has(zone.id)||!['flame','thorn','briar'].includes(zone.kind)||
         !number(zone.radius,1,1000)||!number(zone.damage,0,1e5)||!number(zone.maxLife,.01,5)||!number(zone.life,.001,zone.maxLife)||!number(zone.tick,-H,.6))return null;
       ids.add(zone.id);state.zones.push({id:zone.id,kind:zone.kind,x:zone.x,y:zone.y,radius:zone.radius,damage:zone.damage,life:zone.life,maxLife:zone.maxLife,tick:zone.tick});
     }

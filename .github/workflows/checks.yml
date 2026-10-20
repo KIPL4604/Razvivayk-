@@ -32,7 +32,7 @@ jobs:
           TERAMONT_TEST_POSTGRES_URL: postgresql://teramont_test:local-test-only@127.0.0.1:25432/teramont_test
           PLATFORM_TEST_REDIS_URL: redis://127.0.0.1:26379/0
       - run: node tests/puzzles.cjs
-      - run: node --test tests/lumen-engine.mjs
+      - run: node --test tests/lumen-*.mjs
       - run: for script in webapp/frontend/js/lumen/*.mjs; do node --check "$script"; done
       - run: for script in webapp/frontend/js/*.js; do node --check "$script"; done
       - run: docker build -t teramont-check .
