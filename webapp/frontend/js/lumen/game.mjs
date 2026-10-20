@@ -1,12 +1,15 @@
 import {createRun,step,chooseUpgrade,serialize,restore,UPGRADES,DURATION} from './engine.mjs';
 import {Renderer} from './renderer.mjs';
 import {loadArt} from './assets.mjs';
+import {WEAPONS,upgradeSummary} from './presentation.mjs';
 
 const art = await loadArt();
 
 const clock = n => `${String(Math.floor(n/60)).padStart(2,'0')}:${String(Math.floor(n%60)).padStart(2,'0')}`;
 const iconIndex={spark:0,orbit:1,pulse:2,focus:3,haste:4,stride:5,magnet:6,vitality:7,repair:8,pause:9,fullscreen:10,sound:11,mute:12,gem:13,light:14,stars:15};
-const pixelIcon = name => `<span class="lumen-pixel-icon" style="--icon:${iconIndex[name] ?? 0}" aria-hidden="true"></span>`;
+const pixelIcon = name => WEAPONS[name]
+  ? `<span class="lumen-weapon-icon ${WEAPONS[name].className}" style="--weapon:${WEAPONS[name].index}" aria-hidden="true"></span>`
+  : `<span class="lumen-pixel-icon" style="--icon:${iconIndex[name] ?? 0}" aria-hidden="true"></span>`;
 
 export function createGame(context) {
   const {getSaved,persist,navigate,telegram:tg,toast}=context;
@@ -96,7 +99,8 @@ export function createGame(context) {
     $('#lumenTimer').textContent=clock(state.time);$('#lumenLevel').textContent=`Уровень ${state.level}`;$('#lumenXpLabel').textContent=`${state.xp} / ${state.xpNext}`;
     const xp=$('#lumenXpMeter');xp.setAttribute('aria-valuemax',state.xpNext);xp.setAttribute('aria-valuenow',state.xp);xp.firstElementChild.style.width=`${Math.min(100,state.xp/state.xpNext*100)}%`;
     $('#lumenKills').textContent=state.kills;
-    const weapons=['spark','orbit','pulse'];$('#lumenWeapons').innerHTML=weapons.map(id=>{const rank=state.upgrades[id]||0,available=id==='spark'||rank>0,tier=id==='spark'?rank+1:rank;return `<span class="lumen-slot ${available?'':'locked'}" title="${UPGRADES.find(u=>u.id===id)?.title||id}">${pixelIcon(id)}<small>${available?tier:'—'}</small><span class="sr-only">${UPGRADES.find(u=>u.id===id)?.title||id}: ${available?`ступень ${tier}`:'не открыто'}</span></span>`;}).join('');
+    const weapons=['spark','orbit','pulse'],dock=$('#lumenWeapons'),dockKey=weapons.map(id=>state.upgrades[id]||0).join(':');
+    if(dock.dataset.key!==dockKey){dock.dataset.key=dockKey;dock.innerHTML=weapons.map(id=>{const rank=state.upgrades[id]||0,available=id==='spark'||rank>0,tier=id==='spark'?rank+1:rank;return `<span class="lumen-slot ${WEAPONS[id].className} ${available?'':'locked'}" title="${UPGRADES.find(u=>u.id===id)?.title}: ${WEAPONS[id].verb}">${pixelIcon(id)}<small>${available?tier:'—'}</small><span class="lumen-slot-caption">${WEAPONS[id].short}</span><span class="sr-only">${UPGRADES.find(u=>u.id===id)?.title}: ${available?`ступень ${tier}`:'не открыто'}</span></span>`;}).join('');}
     const wave=state.enemies.find(e=>e.kind==='guardian');
     const text=wave?'СТРАЖ В БИОСАДУ':state.time<8?'СОБИРАЙ ОСКОЛКИ СВЕТА':state.time>=420?'ПОСЛЕДНИЙ РУБЕЖ':state.time>=240?'РОЙ УСИЛИВАЕТСЯ':'';
     if($('#lumenWave').textContent!==text)$('#lumenWave').textContent=text;
@@ -109,7 +113,7 @@ export function createGame(context) {
     if(!paused&&state.status==='playing'){
       const x=(keys.has('KeyD')||keys.has('ArrowRight')?1:0)-(keys.has('KeyA')||keys.has('ArrowLeft')?1:0),y=(keys.has('KeyS')||keys.has('ArrowDown')?1:0)-(keys.has('KeyW')||keys.has('ArrowUp')?1:0);
       const hp=state.player.hp,kills=state.kills;
-      const direction=pointer===null?{x,y}:input;state.moving=Math.hypot(direction.x,direction.y)>.01;step(state,direction,dt);
+      const direction=pointer===null?{x,y}:input;state.moving=Math.hypot(direction.x,direction.y)>.01;step(state,direction,dt,renderer.captureTick);
       if(state.player.hp<hp)sound('hurt');else if(state.kills>kills)sound('kill');
       if(state.status==='upgrade'){sound('level');save();showUpgrade();}
       if(['won','lost'].includes(state.status)){updateHud();showResult();}
@@ -124,7 +128,7 @@ export function createGame(context) {
   function runLoop(){if(!raf&&screen==='lumen-game'){lastFrame=performance.now();raf=requestAnimationFrame(frame);}}
   function showOverlay(key,html){
     if(overlayKey===key)return;clearInput();overlayKey=key;
-    const overlay=$('#lumenOverlay');overlay.hidden=false;overlay.innerHTML=`<div class="lumen-dialog" role="dialog" aria-modal="true" aria-labelledby="lumenDialogTitle" data-lumen-scroll tabindex="-1">${html}</div>`;
+    const overlay=$('#lumenOverlay'),upgrade=key.startsWith('upgrade-');overlay.hidden=false;overlay.classList.toggle('lumen-upgrade-overlay',upgrade);overlay.innerHTML=`<div class="lumen-dialog ${upgrade?'lumen-upgrade-dialog':''}" role="dialog" aria-modal="true" aria-labelledby="lumenDialogTitle" data-lumen-scroll tabindex="-1">${html}</div>`;
     gameMount.querySelectorAll('.lumen-hud,.lumen-xp,.lumen-bottom,#lumenCanvas').forEach(el=>el.inert=true);
     overlay.querySelector('button')?.focus({preventScroll:true});
   }
@@ -136,7 +140,7 @@ export function createGame(context) {
     soundSuspend();
   }
   function showUpgrade(){
-    showOverlay(`upgrade-${state.level}`,`<span class="lumen-dialog-kicker">УРОВЕНЬ ${state.level} / НОВАЯ ЭНЕРГИЯ</span><h2 id="lumenDialogTitle">Усиль свой свет</h2><p>Выбери одно устройство или улучшение. Рой подождёт.</p><div class="lumen-upgrades">${state.choices.map(id=>{const u=UPGRADES.find(u=>u.id===id);return `<button type="button" data-lumen-action="upgrade" data-lumen-value="${id}"><span class="lumen-upgrade-icon" aria-hidden="true">${pixelIcon(id)}</span><span><small>${state.upgrades[id]?`Улучшение · ${state.upgrades[id]} → ${state.upgrades[id]+1}`:'Новое улучшение'}</small><strong>${u.title}</strong><span>${u.description}</span></span><b aria-hidden="true">→</b></button>`;}).join('')}</div><button class="lumen-menu-button" data-lumen-action="exit" type="button">Сохранить и выйти</button>`);
+    showOverlay(`upgrade-${state.level}`,`<div class="lumen-upgrade-heading"><h2 id="lumenDialogTitle">Усиль свой свет</h2><span class="lumen-dialog-kicker">УРОВЕНЬ ${state.level} · ВЫБЕРИ ОДНО</span></div><div class="lumen-upgrades">${state.choices.map(id=>{const u=UPGRADES.find(u=>u.id===id),rank=state.upgrades[id]||0,theme=WEAPONS[id]?.className||(u.kind==='recovery'?'rose':'neutral');return `<button class="${theme}" type="button" data-lumen-action="upgrade" data-lumen-value="${id}" title="${u.description}"><span class="lumen-upgrade-icon" aria-hidden="true">${pixelIcon(id)}</span><span><small>${rank?`Ранг ${rank} → ${rank+1}`:u.kind==='weapon'?'Новое оружие':'Новое улучшение'}</small><strong>${u.title}</strong><span>${upgradeSummary(id,rank)}</span><span class="sr-only">${u.description}</span></span></button>`;}).join('')}</div><button class="lumen-upgrade-exit" data-lumen-action="exit" type="button">Сохранить и выйти</button>`);
   }
   function showResult(){
     if(!resultRecorded){const r=record();r.stats.runs++;if(state.status==='won')r.stats.wins++;r.stats.bestTime=Math.max(r.stats.bestTime,state.time);r.stats.bestKills=Math.max(r.stats.bestKills,state.kills);resultRecorded=true;save();}

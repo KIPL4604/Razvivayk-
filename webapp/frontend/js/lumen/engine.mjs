@@ -323,7 +323,7 @@ function tick(state, input, dt) {
   collect(state, dt);
 }
 
-export function step(state, input = {}, dt = 0) {
+export function step(state, input = {}, dt = 0, beforeTick) {
   if (!state || state.status !== 'playing' || !Number.isFinite(dt) || dt <= 0) return state;
   let x = Number.isFinite(input?.x) ? clamp(input.x, -1, 1) : 0;
   let y = Number.isFinite(input?.y) ? clamp(input.y, -1, 1) : 0;
@@ -332,6 +332,9 @@ export function step(state, input = {}, dt = 0) {
   state.remainder += Math.min(dt, 0.25);
   while (state.remainder + 1e-10 >= H && state.status === 'playing') {
     state.remainder = Math.max(0, state.remainder - H);
+    // Optional read-only presentation observer, before EACH fixed simulation tick.
+    // This lets 90/120Hz displays interpolate; gameplay still advances at 60Hz.
+    if (typeof beforeTick === 'function') beforeTick(state);
     tick(state, { x, y }, H);
   }
   if (state.status !== 'playing') state.remainder = 0;

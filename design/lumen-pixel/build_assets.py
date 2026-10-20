@@ -16,6 +16,8 @@ PALETTE = [
     '75945b', '98ac76', '83cda4', 'a4dbb1', 'c5e8ba', 'e5f3d1', 'f1dfaf', 'ddc994',
     'c3ac7c', 'a58c60', '876a4e', '6b503c', '533f3d', '392e35', '75463d', '94533f',
     'b66b45', 'cd8050', 'e39b5d', 'efbe7c', '647488', '8b96a4', 'b6b8b0', 'ca7970',
+    '466d9f', '749ed0', '8dc9ee', 'd9f2ff', '6b4c94', '9b8cc4', 'c1a4eb', 'ebd5fa',
+    'a54164', 'db6983', 'f4adc3', 'ffe0cb', 'c58c45', 'ffd36f', 'fff2bd', 'f27358',
 ]
 RGB = [tuple(bytes.fromhex(color)) for color in PALETTE]
 STATES = ['idle', 'walk', 'attack', 'hurt', 'death']
@@ -71,7 +73,17 @@ def slot(image, col, row, cols, rows):
 def actor(name, height):
     raw = Image.open(SOURCE / f'{name}-raw.png').convert('RGBA')
     # Reviewed source gaps; generated atlases are not perfectly even in Y.
-    boundaries = [0, 264, 480, 700, 916, raw.height] if name == 'scout' else [0, 257, 475, 695, 915, raw.height]
+    if name == 'wasp':
+        # Remove the low-alpha generated chroma fringe, retain the source unchanged.
+        pixels = raw.load()
+        for y in range(raw.height):
+            for x in range(raw.width):
+                r,g,b,a = pixels[x,y]
+                if a < 192 or (r > 190 and g < 100 and b > 150) or (r < 80 and g < 100 and b > 170):
+                    pixels[x,y] = (0,0,0,0)
+    rows = {'scout': [264,480,700,916], 'mote': [257,475,695,915],
+            'beetle': [245,470,700,920], 'wasp': [245,475,700,920]}
+    boundaries = [0,*rows[name],raw.height]
     frames = [actor_content(raw.crop((round(col * raw.width / 6), boundaries[row],
                                      round((col + 1) * raw.width / 6), boundaries[row + 1])))
               for row in range(5) for col in range(6)]
@@ -79,7 +91,8 @@ def actor(name, height):
     scale = min(44 / max(f.width for f in frames), height / max(f.height for f in frames))
     atlas = Image.new('RGBA', (48 * 6, 48 * 5))
     for index, frame in enumerate(frames):
-        frame = indexed(frame.resize((max(1, round(frame.width * scale)), max(1, round(frame.height * scale))), Image.Resampling.NEAREST))
+        colors = RGB[:32] if name in ['scout','mote'] else RGB
+        frame = content(indexed(frame.resize((max(1, round(frame.width * scale)), max(1, round(frame.height * scale))), Image.Resampling.NEAREST),colors))
         atlas.alpha_composite(frame, ((index % 6) * 48 + (48 - frame.width) // 2,
                                       (index // 6) * 48 + 45 - frame.height))
     atlas.save(DEST / f'{name}.png', optimize=True)
@@ -87,7 +100,7 @@ def actor(name, height):
 
 
 def environment():
-    raw = Image.open(SOURCE / 'garden-raw.png').convert('RGBA')
+    raw = Image.open(SOURCE / 'garden-color-raw.png').convert('RGBA')
     floor = Image.open(SOURCE / 'floor-raw.png').convert('RGBA')
     tiles = Image.new('RGBA', (128, 32))
     props = Image.new('RGBA', (256, 64))
@@ -156,6 +169,73 @@ def ui():
     fx.save(DEST / 'fx.png')
 
 
+def combat_art():
+    """Editable native pixel source. Distinct weapon shapes and gem silhouettes."""
+    sheet = Image.new('RGBA',(256,32))
+    ink='#111b25'; gold='#ffd36f'; cream='#fff2bd'; blue='#8dc9ee'; ice='#d9f2ff'; purple='#c1a4eb'
+    for i in range(8):
+        cell=Image.new('RGBA',(32,32)); d=ImageDraw.Draw(cell)
+        if i==0:  # Fast directed golden bolt, readable horizontal silhouette.
+            d.polygon([(3,14),(17,14),(17,8),(29,16),(17,24),(17,18),(3,18)],fill=ink)
+            d.polygon([(5,15),(19,15),(19,11),(26,16),(19,21),(19,17),(5,17)],fill=gold)
+            d.line((12,16,23,16),fill=cream,width=2)
+        elif i==1:  # Blue crescent blade for orbit.
+            d.polygon([(7,3),(24,8),(28,18),(19,29),(23,18),(17,11),(7,8)],fill=ink)
+            d.polygon([(8,5),(23,10),(25,18),(20,25),(21,17),(16,11),(8,7)],fill=blue)
+            d.line([(9,5),(22,10),(24,16)],fill=ice,width=2)
+            d.rectangle((13,13,17,17),fill='#466d9f')
+        elif i==2:  # Violet shockwave bead, different from projectiles and blades.
+            d.polygon([(16,4),(19,12),(27,16),(19,20),(16,28),(13,20),(5,16),(13,12)],fill=ink)
+            d.polygon([(16,7),(18,13),(24,16),(18,19),(16,25),(14,19),(8,16),(14,13)],fill=purple)
+            d.rectangle((14,14,17,17),fill='#ebd5fa')
+        elif i==3:
+            d.polygon([(16,4),(23,10),(28,16),(23,22),(16,28),(9,22),(4,16),(9,10)],fill=ink)
+            d.polygon([(16,7),(25,16),(16,25),(7,16)],fill='#f27358')
+            d.polygon([(16,11),(21,16),(16,21),(11,16)],fill='#ffe0cb')
+        elif i in [4,5,6]:
+            color=[blue,gold,'#f4adc3'][i-4]
+            if i==4:
+                points=[(16,3),(23,12),(21,23),(16,29),(11,23),(9,12)]
+                d.polygon(points,fill=ink);d.polygon([(16,6),(21,13),(19,22),(16,26),(13,22),(11,13)],fill=color)
+                d.line([(16,7),(13,13),(14,20)],fill=ice,width=2)
+            elif i==5:
+                d.polygon([(10,3),(22,3),(29,14),(22,27),(10,27),(3,14)],fill=ink)
+                d.polygon([(11,6),(21,6),(26,14),(21,24),(11,24),(6,14)],fill=color)
+                d.line([(11,8),(8,14),(12,22)],fill=cream,width=2)
+                d.line((16,7,16,23),fill='#c58c45')
+            else:
+                d.polygon([(8,8),(16,2),(24,8),(30,16),(24,24),(16,30),(8,24),(2,16)],fill=ink)
+                d.polygon([(9,10),(16,5),(23,10),(27,16),(22,23),(16,27),(10,22),(5,16)],fill=color)
+                d.polygon([(16,8),(22,16),(16,24),(10,16)],fill='#db6983')
+                d.line([(15,9),(11,16),(15,21)],fill='#ebd5fa',width=2)
+        else:
+            for x,y in [(8,8),(23,10),(12,23),(25,24)]:
+                d.line((x-2,y,x+2,y),fill=gold);d.line((x,y-2,x,y+2),fill=cream)
+        sheet.alpha_composite(cell,(i*32,0))
+    sheet.save(DEST/'combat.png',optimize=True)
+    weapons=Image.new('RGBA',(96,32))
+    for i in range(3):
+        cell=Image.new('RGBA',(32,32));d=ImageDraw.Draw(cell)
+        if i==0:
+            d.line([(7,27),(14,12),(15,5)],fill=ink,width=5)
+            d.line([(7,26),(14,12),(15,5)],fill='#b66b45',width=3)
+            d.rectangle((10,5,20,14),fill=ink);d.rectangle((12,6,18,12),fill=gold);d.point((14,7),fill=cream)
+            d.polygon([(24,3),(20,11),(25,10),(21,20),(29,9),(25,10),(28,3)],fill=gold)
+        elif i==1:
+            d.ellipse((5,5,26,26),outline='#466d9f',width=2)
+            for x,y in [(13,0),(0,19),(21,20)]:
+                d.polygon([(x,y),(x+9,y+2),(x+9,y+6),(x+6,y+4),(x,y+3)],fill=ice)
+            d.ellipse((12,12,19,19),fill=ink);d.ellipse((14,14,17,17),fill=blue)
+        else:
+            d.arc((3,3,28,28),10,150,fill=purple,width=3)
+            d.arc((3,3,28,28),190,330,fill=purple,width=3)
+            d.arc((8,8,23,23),10,150,fill='#ebd5fa',width=2)
+            d.arc((8,8,23,23),190,330,fill='#ebd5fa',width=2)
+            d.polygon([(16,9),(18,14),(23,16),(18,18),(16,23),(14,18),(9,16),(14,14)],fill=purple)
+        weapons.alpha_composite(cell,(i*32,0))
+    weapons.save(DEST/'weapons.png',optimize=True)
+
+
 def main():
     DEST.mkdir(parents=True, exist_ok=True)
     # Static Latin/Cyrillic subset: fonttools 4.x, no brotli/network required.
@@ -170,7 +250,10 @@ def main():
     font.save(DEST / 'fonts/Tiny5-game.ttf')
     scout = actor('scout', 42)
     mote = actor('mote', 34)
-    environment(); ui()
+    beetle=actor('beetle',36);wasp=actor('wasp',32)
+    environment(); ui();combat_art()
+    enemies=Image.new('RGBA',(576,240),'#17262e');enemies.alpha_composite(beetle,(0,0));enemies.alpha_composite(wasp,(288,0))
+    enemies.resize((1152,480),Image.Resampling.NEAREST).save(Path(__file__).parent/'new-enemies-preview.png')
     cover = Image.new('RGBA', (384, 240))
     tile = Image.open(DEST / 'tiles.png').crop((0, 0, 32, 32))
     for y in range(0, 240, 32):

@@ -70,12 +70,36 @@
     "#647488",
     "#8b96a4",
     "#b6b8b0",
-    "#ca7970"
+    "#ca7970",
+    "#466d9f",
+    "#749ed0",
+    "#8dc9ee",
+    "#d9f2ff",
+    "#6b4c94",
+    "#9b8cc4",
+    "#c1a4eb",
+    "#ebd5fa",
+    "#a54164",
+    "#db6983",
+    "#f4adc3",
+    "#ffe0cb",
+    "#c58c45",
+    "#ffd36f",
+    "#fff2bd",
+    "#f27358"
   ],
   "sources": {
+    "beetle-raw.png": {
+      "bytes": 1898080,
+      "sha256": "7fe85ae97bb7a01684435fd618708ae553a447b0b3c5889e5baf701a7519b24f"
+    },
     "floor-raw.png": {
       "bytes": 1179331,
       "sha256": "df4d9a2f27afa3a9f784e58cdb720a39e3bfb0dfabb54c868e837306700d70b7"
+    },
+    "garden-color-raw.png": {
+      "bytes": 2079263,
+      "sha256": "e8aea6386bb114e64f236662357c05518aa7d7e5b20c34074eb32f63dfbc684d"
     },
     "garden-raw.png": {
       "bytes": 2003029,
@@ -96,6 +120,14 @@
     "Tiny5.ttf": {
       "bytes": 433432,
       "sha256": "588626f2c1b164f55927c0d8123f4bc134651aad7d257da68fc19b0824b0d8fa"
+    },
+    "wasp-raw.png": {
+      "bytes": 1231520,
+      "sha256": "c3ec7f77c3c1537018e5d3b196336ea16e2d386b8bc8e948df4ed4c6dc35f4de"
+    },
+    "wasp-seed.png": {
+      "bytes": 3776,
+      "sha256": "43d90e96a84fe8d33e87d3fa4a56fd0d6bd25950415d20caabe774dcb9b92d36"
     }
   },
   "font": {
@@ -105,16 +137,24 @@
   },
   "cover": {
     "file": "cover.png",
-    "sha256": "1bddc0b2e77954e3217c74a7c15f32961a442e2dbc3b60bbe701b05b9ef65972"
+    "sha256": "ba43b255c539f22e675006f33bb1d952cfbb1758478d3dba39bae19d66dce0aa"
   },
   "files": {
+    "beetle.png": {
+      "bytes": 32656,
+      "sha256": "1ddc21e45d7bd9cdc9f1012bc65d343a42920f2974df09ff82fab79b6872cbef"
+    },
+    "combat.png": {
+      "bytes": 1537,
+      "sha256": "5738b03e5e4e58bfe244e216da1197d6ce71b02c2d7adfea8e500051f6df4b40"
+    },
     "fx.png": {
       "bytes": 267,
       "sha256": "6a59b5c0afc939b5d4d7bd8fd29d83e95404f18ce7605c5194949609625b2ebf"
     },
     "garden.png": {
-      "bytes": 16251,
-      "sha256": "f9307ce3e6f3556ab741be0b37ed9b77d23ef0c4bd26e0bb92638d97e17a0395"
+      "bytes": 19372,
+      "sha256": "5d5d66493fc7b84fc0c1137e23da85ba0e5300fff058cefd1c5c8d770f0f8fa3"
     },
     "mote.png": {
       "bytes": 35281,
@@ -135,6 +175,14 @@
     "ui.png": {
       "bytes": 718,
       "sha256": "4d48295c667eb50b3df91cd34285f7aaaee052f4b64ff2550cfeb6e59e36eec3"
+    },
+    "wasp.png": {
+      "bytes": 20626,
+      "sha256": "3658ef1fc0846f62751505016439e625fb535fcd30dffc2c08c6e7bc8724c121"
+    },
+    "weapons.png": {
+      "bytes": 826,
+      "sha256": "a86817dc53820b5a236c942b24b2b9e962e913442934ca59c7158fdcb6004b46"
     }
   }
 }

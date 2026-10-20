@@ -1,4 +1,5 @@
 import { hero as legacyHero, enemySprite } from './legacy-art.mjs';
+import { FIXED_STEP, cameraScale, sceneryOpacity, lerp, crystalTier } from './presentation.mjs';
 
 const TAU = Math.PI * 2;
 const round = Math.round;
@@ -16,25 +17,50 @@ export class Renderer {
     this.views = new Map(); this.ghosts = [];
     this.lastTime = -1; this.lastBolt = 0; this.attackUntil = 0;
     this.media = matchMedia('(prefers-reduced-motion: reduce)');
-    this.legacy = Object.fromEntries(['beetle', 'wasp', 'guardian'].map(kind => [kind, enemySprite(kind)]));
+    this.legacy = { guardian: enemySprite('guardian') };
+    this.previous = { player: null, enemies: new Map(), shots: new Map(), gems: new WeakMap() };
+    this.captureTick = this.captureTick.bind(this);
+    const floor = document.createElement('canvas');floor.width=256;floor.height=256;
+    const floorContext=floor.getContext('2d');floorContext.imageSmoothingEnabled=false;
+    for(let y=0;y<8;y++)for(let x=0;x<8;x++){
+      const n=hash(x,y),variant=n%11<7?0:n%4;
+      floorContext.drawImage(art.images.tiles,variant*32,0,32,32,x*32,y*32,32,32);
+    }
+    this.floorPattern=this.ctx.createPattern(floor,'repeat');
   }
 
   resize() {
     const box = this.canvas.getBoundingClientRect();
     if (!box.width || !box.height) return;
     this.width = box.width; this.height = box.height;
-    // Every rendered pixel occupies about two CSS pixels at every DPR. Preserve
-    // the old world/camera scale, so screen size never alters gameplay distances.
-    const width = Math.ceil(box.width / 2), height = Math.ceil(box.height / 2);
+    // Native device pixels prevent the old 2-CSS-pixel camera staircase. Artwork
+    // itself is still sampled nearest-neighbor with a stable destination size.
+    this.dpr=Math.min(3,Math.max(1,devicePixelRatio||1));
+    const width = Math.round(box.width*this.dpr), height = Math.round(box.height*this.dpr);
     if (this.canvas.width !== width || this.canvas.height !== height) {
       this.canvas.width = width; this.canvas.height = height;
     }
-    this.scale = Math.max(.72, Math.min(1.25, Math.min(box.width / 650, box.height / 650)));
-    this.zoom = this.scale / 2;
+    this.scale = cameraScale(box.width,box.height);
+    this.zoom = this.scale*this.dpr;
     this.ctx.imageSmoothingEnabled = false;
   }
 
   at(x, y) { return [round(this.cx + x * this.zoom), round(this.cy + y * this.zoom)]; }
+
+  captureTick(state) {
+    this.previous.time=state.time;
+    this.previous.player={x:state.player.x,y:state.player.y};
+    for(const [key,entities] of [['enemies',state.enemies],['shots',state.projectiles]]){
+      const map=this.previous[key];map.clear();
+      for(const e of entities)map.set(e.id,{x:e.x,y:e.y});
+    }
+    for(const gem of state.gems)this.previous.gems.set(gem,{x:gem.x,y:gem.y});
+  }
+
+  pose(entity, group='player') {
+    const old=group==='player'?this.previous.player:group==='gems'?this.previous.gems.get(entity):this.previous[group].get(entity.id);
+    return old&&this.alpha<1?{x:lerp(old.x,entity.x,this.alpha),y:lerp(old.y,entity.y,this.alpha)}:entity;
+  }
 
   blit(key, sx, sy, sw, sh, x, y, worldWidth, worldHeight = worldWidth, anchor = .94, flip = false) {
     const image = this.art.images[key];
@@ -69,7 +95,7 @@ export class Renderer {
     this.lastBolt = state.boltTimer;
     const next = new Map();
     for (const enemy of state.enemies || []) {
-      if (enemy.kind !== 'mote') continue;
+      if (!['mote','beetle','wasp'].includes(enemy.kind)) continue;
       const old = this.views.get(enemy.id);
       const near = distance(enemy, state.player) < enemy.radius + state.player.radius + 10;
       const hurtUntil = enemy.hitFlash > (old?.flash || 0) ? t + .375 : old?.hurtUntil || 0;
@@ -83,7 +109,7 @@ export class Renderer {
       if (next.has(id)) continue;
       // Far-away despawns are not deaths. Match the simulation's dissolve event.
       if ((state.effects || []).some(e => e.kind === 'dissolve' && distance(e, old) < 45)) {
-        this.ghosts.push({ ...old, since: t });
+        this.ghosts.push({ ...old, species:old.kind, since: t });
       }
     }
     this.ghosts = this.ghosts.filter(e => t - e.since < .6).slice(-30);
@@ -91,18 +117,16 @@ export class Renderer {
   }
 
   ground(player) {
-    const c = this.ctx, z = this.zoom;
+    const c = this.ctx;
     const left = player.x - this.width / this.scale / 2 - 128;
     const top = player.y - this.height / this.scale / 2 - 128;
     const right = left + this.width / this.scale + 256, bottom = top + this.height / this.scale + 256;
-    for (let y = Math.floor(top / 64); y <= Math.ceil(bottom / 64); y++) {
-      for (let x = Math.floor(left / 64); x <= Math.ceil(right / 64); x++) {
-        const n = hash(x, y), variant = n % 11 < 7 ? 0 : n % 4;
-        const [px, py] = this.at(x * 64, y * 64);
-        const [ex, ey] = this.at((x + 1) * 64, (y + 1) * 64);
-        c.drawImage(this.art.images.tiles, variant * 32, 0, 32, 32, px, py, ex - px, ey - py);
-      }
-    }
+    // Cache a world-anchored tile field once; never stretch individual tiles as
+    // the fractional camera moves. Their pixels no longer change width per frame.
+    const unit=this.zoom*2;
+    c.setTransform(unit,0,0,unit,this.cx,this.cy);c.fillStyle=this.floorPattern;
+    c.fillRect(-this.cx/unit,-this.cy/unit,this.canvas.width/unit,this.canvas.height/unit);
+    c.setTransform(1,0,0,1,0,0);
     const props = [];
     // Deterministic garden islands. Pure scenery; never new collision walls.
     for (let y = Math.floor(top / 280); y <= Math.ceil(bottom / 280); y++) {
@@ -121,35 +145,38 @@ export class Renderer {
   }
 
   ring(x, y, radius, warning = false, alpha = 1) {
-    const count = Math.max(20, Math.min(80, Math.round(radius / 3)));
+    const count = Math.max(24, Math.min(64, Math.round(radius / 4)));
     this.ctx.save(); this.ctx.globalAlpha = alpha;
     for (let i = 0; i < count; i++) {
       const angle = i / count * TAU;
-      this.blit('ui', (warning ? 13 : 14) * 16, 0, 16, 16,
-        x + Math.cos(angle) * radius, y + Math.sin(angle) * radius, 12, 12, .5);
+      this.blit('combat', (warning ? 3 : 2) * 32, 0, 32, 32,
+        x + Math.cos(angle) * radius, y + Math.sin(angle) * radius, 25, 25, .5);
     }
     this.ctx.restore();
   }
 
   draw(state, preview = false, terminalElapsed) {
     if (!this.width || !this.height) return;
-    const c = this.ctx, p = state.player, t = state.time || 0, z = this.zoom;
+    this.alpha=state.status==='playing'&&Math.abs(state.time-(this.previous.time+FIXED_STEP))<1e-6
+      ? Math.min(1,state.remainder/FIXED_STEP) : 1;
+    const c = this.ctx, p = {...state.player,...this.pose(state.player)}, t = state.time || 0, z = this.zoom;
     if (terminalElapsed !== undefined) this.terminalElapsed = terminalElapsed;
     c.setTransform(1, 0, 0, 1, 0, 0); c.imageSmoothingEnabled = false;
     c.globalAlpha = 1; c.fillStyle = '#17262e'; c.fillRect(0, 0, this.canvas.width, this.canvas.height);
-    this.cx = round(this.canvas.width / 2 - p.x * z);
-    this.cy = round(this.canvas.height * .49 - p.y * z);
+    this.cx = this.canvas.width / 2 - p.x * z;
+    this.cy = this.canvas.height * .49 - p.y * z;
     this.view(state);
     const props = this.ground(p);
     for (const gem of state.gems || []) {
-      this.blit('fx', 16, 0, 16, 16, gem.x, gem.y, gem.value >= 5 ? 23 : 17, undefined, .5);
+      const tier=crystalTier(gem),point=this.pose(gem,'gems');
+      this.blit('combat', (3+tier)*32, 0, 32, 32, point.x, point.y, 26+(tier-1)*7, undefined, .5);
     }
     if (state.upgrades?.orbit) {
       const count = 1 + state.upgrades.orbit, radius = 76 + state.upgrades.orbit * 6;
       for (let i = 0; i < count; i++) {
-        const angle = state.orbitAngle + i / count * TAU;
-        this.blit('ui', 16, 0, 16, 16, p.x + Math.cos(angle) * radius,
-          p.y + Math.sin(angle) * radius, 32, 32, .5);
+        const angle = state.orbitAngle-(1-this.alpha)*FIXED_STEP*1.9+i/count*TAU;
+        this.blit('combat', 32, 0, 32, 32, p.x + Math.cos(angle) * radius,
+          p.y + Math.sin(angle) * radius, 42, 42, .5);
       }
     }
     const entities = [...props, { kind: 'prop', index: 0, x: 0, y: 0, size: 178 },
@@ -159,7 +186,7 @@ export class Renderer {
       if (Math.abs(entity.x - p.x) > this.width / this.scale * .6 + 180
         || Math.abs(entity.y - p.y) > this.height / this.scale * .6 + 180) continue;
       if (entity.kind === 'prop') {
-        c.globalAlpha = entity.index && entity.y > p.y - 15 && distance(entity, p) < 85 ? .4 : 1;
+        c.globalAlpha = sceneryOpacity(entity,p);
         this.blit('garden', entity.index * 64, 0, 64, 64, entity.x, entity.y, entity.size);
         c.globalAlpha = 1;
       } else if (entity.kind === 'hero') {
@@ -171,19 +198,23 @@ export class Renderer {
             : this.attackUntil > t ? 'attack' : state.moving ? 'walk' : 'idle';
           const since = animation === 'death' ? t - (this.terminalElapsed ?? .6) : animation === 'hurt' ? t - (.8 - p.invulnerable)
             : animation === 'attack' ? this.attackUntil - .375 : 0;
-          this.actor('scout', animation, p.x, p.y, 96, t, since, p.facingX < -.1);
+          this.actor('scout', animation, p.x, p.y, 96, t, since, state.player.facingX < -.1);
         }
-      } else if (entity.kind === 'mote' || entity.kind === 'dead') {
+      } else if (['mote','beetle','wasp','dead'].includes(entity.kind)) {
         const view = entity.kind === 'dead' ? entity : this.views.get(entity.id) || entity;
-        this.actor('mote', entity.kind === 'dead' ? 'death' : view.animation || 'walk',
-          entity.x, entity.y, 80, t, view.since || 0, view.flip);
+        const key=entity.kind==='dead'?entity.species||'mote':entity.kind;
+        const point=entity.kind==='dead'?entity:this.pose(entity,'enemies');
+        this.actor(key, entity.kind === 'dead' ? 'death' : view.animation || 'walk',
+          point.x, point.y, key==='beetle'?90:key==='wasp'?76:80, t, view.since || 0, view.flip);
       } else {
         const image = this.legacy[entity.kind], size = entity.kind === 'guardian' ? entity.radius * 3.4 : entity.radius * 4.6;
-        const [x, y] = this.at(entity.x, entity.y);
+        const point=this.pose(entity,'enemies');
+        const [x, y] = this.at(point.x, point.y);
         c.drawImage(image, x - round(size * z / 2), y - round(size * z / 2), round(size * z), round(size * z));
       }
       if (!['hero', 'prop', 'dead'].includes(entity.kind) && (entity.kind === 'guardian' || entity.hp < entity.maxHp)) {
-        const [x, y] = this.at(entity.x, entity.y - entity.radius - 23);
+        const point=this.pose(entity,'enemies');
+        const [x, y] = this.at(point.x, point.y - entity.radius - 23);
         const width = round(entity.radius * 2 * z);
         c.fillStyle = '#111b25'; c.fillRect(x - round(width / 2) - 1, y, width + 2, 3);
         c.fillStyle = entity.kind === 'guardian' ? '#e39b5d' : '#83cda4';
@@ -191,18 +222,20 @@ export class Renderer {
       }
     }
     for (const shot of state.projectiles || []) {
-      const [x, y] = this.at(shot.x, shot.y);
+      const point=this.pose(shot,'shots'),[x, y] = this.at(point.x, point.y);
       c.save(); c.translate(x, y);
       c.rotate(Math.round(Math.atan2(shot.vy, shot.vx) / (TAU / 8)) * TAU / 8);
-      c.drawImage(this.art.images.fx, shot.hostile ? 16 : 48, 0, 16, 16, -7, -5, 14, 10); c.restore();
+      const size=round((shot.hostile?26:38)*z);
+      c.drawImage(this.art.images.combat, shot.hostile ? 96 : 0, 0, 32, 32, -size/2, -size/2, size, size); c.restore();
     }
     for (const effect of state.effects || []) {
       const fraction = effect.life / (effect.maxLife || .5);
       if (effect.kind === 'pulse' || effect.kind === 'warning') {
-        this.ring(effect.x, effect.y, effect.radius, effect.kind === 'warning', Math.min(.75, fraction));
+        const radius=effect.kind==='pulse'?effect.radius*(1-.65*fraction):effect.radius;
+        this.ring(effect.x, effect.y, radius, effect.kind === 'warning', Math.min(.9, fraction));
       } else if (!this.media.matches) {
         c.save(); c.globalAlpha = Math.min(.8, fraction);
-        this.blit('fx', 32, 0, 16, 16, effect.x, effect.y, 45 * (1.4 - fraction), undefined, .5); c.restore();
+        this.blit('combat', (effect.kind==='hurt'?3:7)*32, 0, 32, 32, effect.x, effect.y, 45 * (1.4 - fraction), undefined, .5); c.restore();
       }
     }
     if (!this.media.matches) {
@@ -221,6 +254,7 @@ export class Renderer {
 
   destroy() {
     this.canvas.width = 1; this.canvas.height = 1;
-    this.views.clear(); this.ghosts = []; this.legacy = {}; this.art = null;
+    this.views.clear(); this.ghosts = []; this.legacy = {}; this.art = null;this.floorPattern=null;
+    this.previous.enemies.clear();this.previous.shots.clear();this.previous.gems=new WeakMap();
   }
 }

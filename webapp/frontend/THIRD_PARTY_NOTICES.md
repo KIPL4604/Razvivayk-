@@ -62,6 +62,12 @@ and panel pixels are original editable project artwork. No Vampire Survivors
 assets, third-party sprite packs, music or game code were copied or distributed.
 This provenance does not assert exclusive copyright in generated outputs.
 
+The 20 Oct 2026 revision adds complete blue armored and lavender flying creature
+animation sheets and a warmer scenery edit via the same built-in imagegen tool.
+The flying reference is exported from original project art. Sources and briefs:
+`design/lumen-pixel/motion-sources.md`. Weapon and crystal PNG atlases are original
+editable pixel artwork in the offline asset builder.
+
 The locally bundled Tiny5 font is by The Tiny5 Project Authors / Stefan Schmidt,
 under SIL Open Font License 1.1. Source: https://github.com/Gissio/font_tiny5 and
 https://github.com/google/fonts/tree/main/ofl/tiny5. The complete source font is

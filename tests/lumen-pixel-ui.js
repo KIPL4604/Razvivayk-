@@ -38,12 +38,12 @@ async (page) => {
       await p.screenshot({path:out+`lumen-pixel-showcase-${width}-final.png`});
       const check=await p.evaluate(()=>{
         const canvas=document.querySelector('#lumenCanvas'),hud=document.querySelector('.lumen-hud').getBoundingClientRect();
-        return {width:canvas.width,height:canvas.height,smoothing:canvas.getContext('2d').imageSmoothingEnabled,
+        return {width:canvas.width,height:canvas.height,dpr:Math.min(3,Math.max(1,devicePixelRatio)),smoothing:canvas.getContext('2d').imageSmoothingEnabled,
           overflow:document.documentElement.scrollWidth>innerWidth,hudInside:hud.x>=0&&hud.right<=innerWidth,
           tools:[...document.querySelectorAll('.lumen-tools button')].filter(e=>getComputedStyle(e).display!=='none').map(e=>{const r=e.getBoundingClientRect();return [r.width,r.height];}),
           pixelFont:document.fonts.check('20px LumenPixel'),icons:document.querySelectorAll('#lumenGameMount svg').length};
       });
-      assert(check.width===Math.ceil(width/2)&&check.height===Math.ceil(height/2),'Pixel framebuffer at '+width);
+      assert(check.width===Math.round(width*check.dpr)&&check.height===Math.round(height*check.dpr),'Native framebuffer at '+width);
       assert(!check.smoothing&&!check.overflow&&check.hudInside&&check.pixelFont&&check.icons===0,'Rendering/HUD invariant at '+width);
       assert(check.tools.every(([w,h])=>w>=44&&h>=44),'Touch target at '+width);
     }
@@ -78,7 +78,7 @@ async (page) => {
       for(let i=0;i<4;i++)core.step(run,{},.2);renderer.draw(run);
       const ghostExpired=renderer.ghosts.length===0;
       const frames={};
-      for(const actor of ['scout','mote'])for(const animation of ['idle','walk','attack','hurt','death']){
+      for(const actor of ['scout','mote','beetle','wasp'])for(const animation of ['idle','walk','attack','hurt','death']){
         const data=renderer.art.manifest.animations[animation],seen=new Set();
         for(let frame=0;frame<6;frame++){
           renderer.ctx.fillStyle='#17262e';renderer.ctx.fillRect(0,0,canvas.width,canvas.height);
@@ -90,7 +90,7 @@ async (page) => {
     });
     assert(presentation.unchanged&&presentation.killed&&presentation.sameAfterDeath&&presentation.ghostExpired,'Renderer changed gameplay/death reward');
     assert(Object.values(presentation.frames).every(count=>count>1),'Animation did not play '+JSON.stringify(presentation.frames));
-    results.push('All 10 animation clips draw distinct frames; renderer never mutates save; death gives reward immediately');
+    results.push('All 20 animation clips draw distinct frames; renderer never mutates save; death gives reward immediately');
 
     await p.emulateMedia({reducedMotion:'reduce'});await seed('death');
     await p.waitForSelector('.lumen-result-mark');await p.waitForTimeout(650);
@@ -99,7 +99,7 @@ async (page) => {
     const dprContext=await browser.newContext({viewport:{width:375,height:812},deviceScaleFactor:2});
     try{
       const q=await dprContext.newPage();await q.goto(base);await q.locator('[data-lumen-action="open"]').click();await q.locator('[data-lumen-action="start"]').click();
-      assert(await q.evaluate(()=>lumenCanvas.width===188&&!lumenCanvas.getContext('2d').imageSmoothingEnabled),'DPR2 changed pixel grid');
+      assert(await q.evaluate(()=>lumenCanvas.width===750&&!lumenCanvas.getContext('2d').imageSmoothingEnabled),'DPR2 native framebuffer');
       await q.screenshot({path:out+'lumen-pixel-dpr2-375-final.png'});
     }finally{await dprContext.close();}
     const failed=await browser.newContext();

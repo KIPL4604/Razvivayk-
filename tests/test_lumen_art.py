@@ -27,7 +27,7 @@ class LumenArtTests(unittest.TestCase):
     def test_actor_frames_have_hard_alpha_shared_palette_and_baseline(self):
         manifest = json.loads((ART / 'manifest.json').read_text(encoding='utf-8'))
         palette = {tuple(bytes.fromhex(color[1:])) for color in manifest['palette']}
-        for actor in ['scout', 'mote']:
+        for actor in ['scout', 'mote', 'beetle', 'wasp']:
             image = Image.open(ART / (actor + '.png')).convert('RGBA')
             self.assertEqual(image.size, (288, 240))
             self.assertEqual(set(image.getchannel('A').get_flattened_data()), {0, 255})
