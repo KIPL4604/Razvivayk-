@@ -7,6 +7,7 @@ import {waveAt,xpForLevel,crystalLoot,crystalTier,creatureStats} from './progres
 import {CHARACTERS,WEAPONS,WEAPON_IDS,BASE_WEAPON_IDS,HYBRIDS,ARTIFACTS,MAX_WEAPONS,MAX_WEAPON_STAGE,ENEMIES,MAPS} from './catalog.mjs';
 import {updateWeapons,flameImpact} from './combat.mjs';
 import {CONTACT_PERIOD,movePlayer,separateCrowd,touchingEnemies,contactDamage} from './physics.mjs';
+import {normalizeTraining,validTraining} from './training.mjs';
 
 export const DURATION = 480; // Historical benchmark for older harnesses; no time limit.
 export const LIMITS = Object.freeze({ enemies: 240, projectiles: 100, gems: 220, effects: 80, zones:24, chests:12 });
@@ -42,9 +43,9 @@ function random(state) {
 
 function derived(state) {
   const base = CHARACTERS[state.character];
-  state.player.maxHp = base.hp + rank(state, 'vitality') * 20;
-  state.player.speed = base.speed * (1 + rank(state, 'stride') * 0.1);
-  state.pickupRadius = 58 + rank(state, 'magnet') * 42 + rank(state,'collector')*90;
+  state.player.maxHp = base.hp + rank(state, 'vitality') * 20 + state.training.vigor*2;
+  state.player.speed = base.speed * (1 + rank(state, 'stride') * 0.1)*(1+state.training.drive*.005);
+  state.pickupRadius = 58 + rank(state, 'magnet') * 42 + rank(state,'collector')*90 + state.training.compass*2;
 }
 
 export const fusionReady=(state,id)=>Boolean(own(HYBRIDS,id)&&!rank(state,id)&&HYBRIDS[id].requires.every(part=>rank(state,part)===MAX_WEAPON_STAGE));
@@ -59,11 +60,11 @@ function availableUpgrade(state,id){
   return !consumed(state,id)&&(rank(state,id)>0||WEAPON_IDS.filter(w=>rank(state,w)>0).length<MAX_WEAPONS);
 }
 
-export function createRun({ seed = 0x1a71be, character = 'scout',runId,map='garden' } = {}) {
+export function createRun({ seed = 0x1a71be, character = 'scout',runId,map='garden',training } = {}) {
   const normalizedSeed = Number.isInteger(seed) ? seed >>> 0 : 0x1a71be;
   const selected = own(CHARACTERS, character) ? character : 'scout';
   const state = {
-    version: 5, map:own(MAPS,map)?map:'garden',foundWeapons:[],masteredWeapons:[], seed: normalizedSeed, rngState: normalizedSeed || 0x9e3779b9,
+    version: 6, training:normalizeTraining(training),map:own(MAPS,map)?map:'garden',foundWeapons:[],masteredWeapons:[], seed: normalizedSeed, rngState: normalizedSeed || 0x9e3779b9,
     runId:typeof runId==='string'&&/^[a-zA-Z0-9-]{1,90}$/.test(runId)?runId:`run-${normalizedSeed.toString(16)}-${selected}`,
     character: selected, time: 0, status: 'playing', endReason: '',
     player: { x: 0, y: 0, hp: CHARACTERS[selected].hp, maxHp: CHARACTERS[selected].hp,
@@ -76,6 +77,7 @@ export function createRun({ seed = 0x1a71be, character = 'scout',runId,map='gard
     nextId: 1, remainder: 0, contactTimer:0, spawnTimer: 0.65, boltTimer: 0,
     pulseTimer: 0, orbitTimer: 0, orbitAngle: 0, pickupRadius: 58,
   };
+  derived(state);state.player.hp=state.player.maxHp;
   return state;
 }
 
@@ -450,7 +452,8 @@ export function restore(snapshot) {
     if(object(snapshot)&&snapshot.version===2)snapshot=migrateCampaign(snapshot);
     if(object(snapshot)&&snapshot.version===3)snapshot=migrateArsenal(snapshot);
     if(object(snapshot)&&snapshot.version===4)snapshot={...snapshot,version:5,contactTimer:0};
-    if (!object(snapshot) || snapshot.version !== 5 || !own(MAPS,snapshot.map)||!own(CHARACTERS, snapshot.character) ||
+    if(object(snapshot)&&snapshot.version===5)snapshot={...snapshot,version:6,training:normalizeTraining()};
+    if (!object(snapshot) || snapshot.version !== 6 || !validTraining(snapshot.training)||!own(MAPS,snapshot.map)||!own(CHARACTERS, snapshot.character) ||
       !integer(snapshot.seed, 0, 0xffffffff) || !integer(snapshot.rngState, 1, 0xffffffff) ||
       !number(snapshot.time, 0, 1e7) || !['playing', 'upgrade', 'won', 'lost'].includes(snapshot.status) ||
       !['', 'health', 'beacon', 'dawn','level'].includes(snapshot.endReason) ||
@@ -467,7 +470,7 @@ export function restore(snapshot) {
     for (const [collection, limit] of Object.entries(LIMITS)) {
       if (!Array.isArray(snapshot[collection]) || snapshot[collection].length > limit) return null;
     }
-    const state = createRun({ seed: snapshot.seed, character: snapshot.character,runId:snapshot.runId,map:snapshot.map });state.upgrades={};
+    const state = createRun({ seed: snapshot.seed, character: snapshot.character,runId:snapshot.runId,map:snapshot.map,training:snapshot.training });state.upgrades={};
     for (const [id, value] of Object.entries(snapshot.upgrades)) {
       if (!CATALOG.has(id) || !integer(value, 1, CATALOG.get(id).max)) return null;
       state.upgrades[id] = value;

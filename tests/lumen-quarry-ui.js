@@ -35,21 +35,20 @@ async (page) => {
     await p.waitForTimeout(250);
   }
   try{
-    await p.goto(base);await p.evaluate(()=>{saved.lumen={meta:{coins:600,clearedMaps:['garden']}};saveState();});await p.reload();
-    await p.locator('[data-lumen-action="open"]').click();await p.locator('.lumen-roster').waitFor();
-    await p.locator('[data-lumen-action="map"][data-lumen-value="quarry"]').click();
-    assert(await p.locator('.lumen-roster button').count()===8,'Eight fighter roster');
+    await p.route('https://telegram.org/**',r=>r.fulfill({body:'',contentType:'text/javascript'}));await p.goto(base);await p.evaluate(()=>{saved.lumen={meta:{coins:600,clearedMaps:['garden']}};saveState();});await p.reload();
+    await p.locator('[data-lumen-action="open"]').click();await p.locator('.lumen-menu-nav [data-lumen-value="characters"]').click();await p.locator('.lumen-roster').waitFor();
+    assert(await p.locator('.lumen-roster button').count()===8,'Eight fighter roster');await p.locator('.lumen-menu-nav [data-lumen-value="play"]').click();await p.locator('[data-lumen-action="map"][data-lumen-value="quarry"]').click();
     for(const [width,height]of [[375,812],[768,1024],[1440,900],[1920,1080]]){
       await p.setViewportSize({width,height});await p.evaluate(()=>showScreen('home'));await p.locator('[data-lumen-action="open"]').click();
-      await p.locator('[data-lumen-action="map"][data-lumen-value="quarry"]').click();await p.evaluate(()=>{document.querySelector('#main').scrollTop=0;});await p.waitForTimeout(150);await shot('setup',width);
+      await p.locator('.lumen-menu-nav [data-lumen-value="play"]').click();await p.locator('[data-lumen-action="map"][data-lumen-value="quarry"]').click();await p.evaluate(()=>{document.querySelector('#main').scrollTop=0;});await p.waitForTimeout(150);await shot('setup',width);
       assert(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'Setup horizontal overflow '+width);
     }
-    await p.setViewportSize({width:1440,height:900});await p.locator('.lumen-armory summary').click();await p.locator('.lumen-book-heading').first().scrollIntoViewIfNeeded();await shot('book',1440);
-    assert(await p.locator('.lumen-armory article').count()===18,'Ten bases, four recipes and four artifacts');
+    await p.setViewportSize({width:1440,height:900});await p.locator('.lumen-menu-nav [data-lumen-value="weapons"]').click();await shot('book',1440);
+    assert(await p.locator('.lumen-library article').count()===10,'Ten base weapons');await p.locator('[data-lumen-action="book"][data-lumen-value="hybrids"]').click();assert(await p.locator('.lumen-recipes-list article').count()===4,'Four recipes');await p.locator('[data-lumen-action="book"][data-lumen-value="artifacts"]').click();assert(await p.locator('.lumen-library article').count()===4,'Four artifacts');
     await p.evaluate(()=>{saved.lumen.meta={coins:600,weaponBest:{chakram:8},clearedMaps:['garden']};saveState();});await p.reload();
-    await p.locator('[data-lumen-action="open"]').click();await p.locator('[data-lumen-action="character"][data-lumen-value="artificer"]').click();
+    await p.locator('[data-lumen-action="open"]').click();await p.locator('.lumen-menu-nav [data-lumen-value="characters"]').click();await p.locator('[data-lumen-action="character"][data-lumen-value="artificer"]').click();
     assert(await p.locator('[data-lumen-action="buy"]').isEnabled(),'Earned mechanic purchase');await p.locator('[data-lumen-action="buy"]').click();
-    assert(await p.locator('#lumenWallet').innerText()==='60','Exact 540-coin purchase');await p.locator('[data-lumen-action="start"]').click();await p.keyboard.press('Escape');
+    assert(await p.locator('#lumenWallet').innerText()==='60','Exact 540-coin purchase');await p.locator('.lumen-menu-nav [data-lumen-value="play"]').click();await p.locator('[data-lumen-action="start"]').click();await p.keyboard.press('Escape');
     assert(await p.evaluate(()=>saved.lumen.run.character==='artificer'&&saved.lumen.run.upgrades.chakram===1),'Native chakram');
     results.push('Eight fighters; exact purchase, native attack; setup four widths; recipe/artifact encyclopedia');
 

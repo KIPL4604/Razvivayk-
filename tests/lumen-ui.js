@@ -30,7 +30,7 @@ async (page) => {
     if(kind!=='upgrade')await p.locator('[data-lumen-action="continue"]').click();
   }
   try{
-    await p.goto(base);await p.locator('#campaignCards [data-lumen-action="open"]').waitFor();
+    await p.route('https://telegram.org/**',r=>r.fulfill({body:'',contentType:'text/javascript'}));await p.goto(base);await p.locator('#campaignCards [data-lumen-action="open"]').waitFor();
     assert(!requests.some(u=>u.includes('/lumen/engine.mjs')||u.includes('/lumen/game.mjs')),'Game downloaded before opening');
     assert(await p.locator('#campaignCards button').count()===13,'Catalogue count');
     await capture('lumen-library-375-iteration2');
@@ -39,13 +39,14 @@ async (page) => {
       await p.setViewportSize({width,height});await settle();
       await capture(`lumen-setup-${width}-iteration2`);
       assert(await p.evaluate(()=>document.querySelector('#main').scrollWidth<=document.querySelector('#main').clientWidth),'Setup overflow '+width);
-      if(width===375){const box=await p.locator('.lumen-brief>.lumen-launch').boundingBox();assert(box.y+box.height<height-65,'Mobile launch below fold');}
+      if(width===375){await p.locator('.lumen-menu-nav [data-lumen-value="play"]').click();const box=await p.locator('[data-lumen-action="start"]').boundingBox();assert(box.y+box.height<738,'Mobile launch below fold');await p.keyboard.press('Escape');}
     }
     results.push('lazy loading, 13 games, setup at four widths, mobile start visible');
     await p.setViewportSize({width:375,height:812});
-    await p.evaluate(()=>document.querySelector('#main').scrollTop=250);await p.setViewportSize({width:375,height:780});
-    assert(await p.evaluate(()=>document.querySelector('#main').scrollTop)>=240,'Resize reset setup scroll');await p.setViewportSize({width:375,height:812});
-    await p.locator('[data-lumen-action="character"][data-lumen-value="keeper"]').click();
+    await p.locator('.lumen-menu-nav [data-lumen-value="weapons"]').click();await p.evaluate(()=>document.querySelector('#lumenMenuContent').scrollTop=250);await p.setViewportSize({width:375,height:780});
+    assert(await p.evaluate(()=>document.querySelector('#lumenMenuContent').scrollTop)>=240,'Resize reset menu scroll');await p.setViewportSize({width:375,height:812});
+    await p.locator('.lumen-menu-nav [data-lumen-value="characters"]').click();
+    await p.locator('[data-lumen-action="character"][data-lumen-value="keeper"]').click();await p.locator('.lumen-menu-nav [data-lumen-value="play"]').click();
     await p.locator('[data-lumen-action="start"]').click();await p.locator('#lumenCanvas').waitFor();
     await p.keyboard.down('KeyD');await p.waitForTimeout(700);await p.keyboard.up('KeyD');await p.keyboard.press('Escape');
     const first=await saveRecord();assert(first.run.character==='keeper'&&first.run.player.maxHp===145,'Character choice ignored');assert(first.run.player.x>40,'Keyboard movement');
@@ -60,8 +61,8 @@ async (page) => {
     await p.mouse.wheel(0,500);await p.keyboard.press('Escape');
     const second=await saveRecord();assert(second.run.player.x>first.run.player.x+40,'Touch joystick did not move');
     assert(await p.evaluate(()=>scrollY===0&&document.querySelector('#main').scrollTop===0&&document.documentElement.classList.contains('lumen-active')),'Arena scrolled');
-    await p.locator('[data-lumen-action="exit"]').click();assert(await p.evaluate(()=>!document.documentElement.classList.contains('lumen-active')),'Scroll lock leaked');
-    await p.mouse.wheel(0,500);await p.waitForTimeout(100);assert(await p.evaluate(()=>document.querySelector('#main').scrollTop)>0,'Setup scroll not restored');
+    await p.locator('[data-lumen-action="exit"]').click();assert(await p.locator('.lumen-shell').isVisible(),'Missing game menu');await p.locator('[data-lumen-action="catalog"]').click();assert(await p.evaluate(()=>!document.documentElement.classList.contains('lumen-active')),'Scroll lock leaked');
+    await p.mouse.move(180,450);await p.mouse.wheel(0,500);await p.waitForTimeout(100);assert(await p.evaluate(()=>document.querySelector('#main').scrollTop)>0,'Catalog scroll not restored');
     results.push('keeper, keyboard and actual CDP touch, pause, focus trap, sound, scroll lock/release');
     await p.reload();await p.locator('[data-resume="lumen"]').click();await p.locator('[data-lumen-action="continue"]').waitFor();
     assert(Math.abs((await saveRecord()).run.player.x-second.run.player.x)<3,'Resume position lost');
@@ -108,7 +109,7 @@ async (page) => {
     await capture('lumen-defeat-375-iteration2');
     assert((await saveRecord()).run===null,'Finished run still resumable');
     results.push('victory/defeat DOM, result counted once, finished save cleared');
-    await p.evaluate(()=>{showScreen('home');saved.lumen.run={version:99,status:'playing'};saveState();});await p.reload();await p.locator('[data-resume="lumen"]').click();await p.locator('[data-lumen-action="start"]').waitFor();
+    await p.evaluate(()=>{showScreen('home');saved.lumen.run={version:99,status:'playing'};saveState();});await p.reload();await p.locator('[data-resume="lumen"]').click();await p.locator('.lumen-shell').waitFor();
     assert((await saveRecord()).run===null,'Corrupt save not cleared');results.push('corrupt save safely reset');
     assert(errors.length===0,'Page errors: '+errors.join('; '));
     return {results,pageErrors:errors,screenshots:out};

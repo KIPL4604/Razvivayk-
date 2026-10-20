@@ -31,26 +31,26 @@ async (page) => {
     await p.waitForTimeout(350);
   }
   try{
-    await p.goto(base);await p.locator('[data-lumen-action="open"]').click();await p.locator('.lumen-roster').waitFor();
+    await p.route('https://telegram.org/**',r=>r.fulfill({body:'',contentType:'text/javascript'}));await p.goto(base);await p.locator('[data-lumen-action="open"]').click();await p.locator('.lumen-menu-nav [data-lumen-value="characters"]').click();await p.locator('.lumen-roster').waitFor();
     assert(await p.locator('.lumen-roster button').count()===8,'Roster size');
     await p.locator('[data-lumen-action="character"][data-lumen-value="duelist"]').click();
     assert(await p.locator('[data-lumen-action="buy"]').isDisabled(),'Unaffordable purchase enabled');
-    assert(await p.locator('[data-lumen-action="start"]').isDisabled(),'Locked hero starts');
+    await p.locator('.lumen-menu-nav [data-lumen-value="play"]').click();assert(await p.locator('[data-lumen-action="start"]').isDisabled(),'Locked hero starts');await p.locator('.lumen-menu-nav [data-lumen-value="characters"]').click();
     await p.locator('[data-lumen-action="character"][data-lumen-value="scout"]').click();
     for(const [width,height] of [[1440,900],[375,812],[768,1024],[1920,1080]]){
       await p.setViewportSize({width,height});
       // Reopen at each width to exercise the mobile launch placement.
-      await p.evaluate(()=>showScreen('home'));await p.locator('[data-lumen-action="open"]').click();await p.locator('.lumen-roster').waitFor();await p.waitForTimeout(350);
+      await p.evaluate(()=>showScreen('home'));await p.locator('[data-lumen-action="open"]').click();await p.locator('.lumen-menu-nav [data-lumen-value="characters"]').click();await p.locator('.lumen-roster').waitFor();await p.waitForTimeout(350);
       await p.screenshot({path:out+`lumen-arsenal-setup-${width}-v2.png`,fullPage:true});
-      assert(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth&&document.querySelector('.lumen-brief').getBoundingClientRect().right<=innerWidth),'Setup overflow '+width);
-      if(width===375)assert((await p.locator('[data-lumen-action="start"]').boundingBox()).y<812,'Launch below fold');
-      await p.locator('.lumen-armory summary').click();assert(await p.locator('.lumen-armory article').count()===18,'Armory count');
+      assert(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth&&document.querySelector('#lumenMenuContent').getBoundingClientRect().right<=innerWidth),'Setup overflow '+width);
+      await p.locator('.lumen-menu-nav [data-lumen-value="play"]').click();if(width===375)assert((await p.locator('[data-lumen-action="start"]').boundingBox()).y<738,'Launch below fold');
+      await p.locator('.lumen-menu-nav [data-lumen-value="weapons"]').click();await p.locator('[data-lumen-action="book"][data-lumen-value="weapons"]').click();assert(await p.locator('.lumen-library article').count()===10,'Base armory count');await p.locator('[data-lumen-action="book"][data-lumen-value="hybrids"]').click();assert(await p.locator('.lumen-recipes-list article').count()===4,'Recipe count');await p.locator('[data-lumen-action="book"][data-lumen-value="artifacts"]').click();assert(await p.locator('.lumen-library article').count()===4,'Artifact count');await p.locator('.lumen-menu-nav [data-lumen-value="characters"]').click();
       await p.locator('.lumen-roster').scrollIntoViewIfNeeded();await p.screenshot({path:out+`lumen-arsenal-roster-${width}-v2.png`});
     }
     await p.evaluate(()=>{saved.lumen.meta={coins:400,weaponBest:{orbit:8},unlocked:['scout','keeper']};saveState();});
-    await p.reload();await p.locator('[data-lumen-action="open"]').click();await p.locator('[data-lumen-action="character"][data-lumen-value="duelist"]').click();
+    await p.reload();await p.locator('[data-lumen-action="open"]').click();await p.locator('.lumen-menu-nav [data-lumen-value="characters"]').click();await p.locator('[data-lumen-action="character"][data-lumen-value="duelist"]').click();
     await p.locator('[data-lumen-action="buy"]').click();assert(await p.locator('#lumenWallet').innerText()==='80','Purchase not deducted');
-    await p.locator('[data-lumen-action="start"]').click();await p.keyboard.press('Escape');
+    await p.locator('.lumen-menu-nav [data-lumen-value="play"]').click();await p.locator('[data-lumen-action="start"]').click();await p.keyboard.press('Escape');
     assert(await p.evaluate(()=>saved.lumen.meta.coins===80&&saved.lumen.run.character==='duelist'&&saved.lumen.run.upgrades.orbit===1&&!saved.lumen.run.upgrades.spark),'Native weapon or wallet');
     await p.reload();await p.locator('[data-resume="lumen"]').click();assert(await p.evaluate(()=>saved.lumen.meta.unlocked.includes('duelist')),'Unlock not durable');
     results.push('Eight heroes, paid unlock with exact deduction and durable native kit; fourteen-weapon armory and four artifacts; setup four widths');

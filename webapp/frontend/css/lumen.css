@@ -1,3 +1,4 @@
+@import url('./lumen-menu.css?v=1');
 @font-face{font-family:LumenSquare;src:url('../assets/lumen/fonts/Tektur-game.ttf') format('truetype');font-style:normal;font-weight:400;font-display:swap}
 /* The light Teramont library surrounds an original night-garden game world. */
 .lumen-catalog{grid-column:1/-1;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:center;padding:0;overflow:hidden;background:#E8F0ED;border-color:#CDDFD6}

@@ -6,7 +6,7 @@ async (page) => {
   const context=await page.context().browser().newContext({viewport:{width:1440,height:900}});
   const p=await context.newPage(),errors=[];p.on('pageerror',e=>errors.push(e.message));
   try{
-    await p.goto(base);
+    await p.route('https://telegram.org/**',r=>r.fulfill({body:'',contentType:'text/javascript'}));await p.goto(base);
     await p.evaluate(async()=>{
       showScreen('home');
       const core=await import('/static/js/lumen/engine.mjs');

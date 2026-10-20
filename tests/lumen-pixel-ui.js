@@ -31,7 +31,7 @@ async (page) => {
     else await p.locator('.lumen-upgrades').waitFor({state:'visible'});
   }
   try{
-    await p.goto(base);await seed();
+    await p.route('https://telegram.org/**',r=>r.fulfill({body:'',contentType:'text/javascript'}));await p.goto(base);await seed();
     await p.waitForTimeout(180);
     for(const [width,height] of [[1440,900],[375,812],[768,1024],[1920,1080]]){
       await p.setViewportSize({width,height});
@@ -99,13 +99,13 @@ async (page) => {
     assert(await p.evaluate(()=>saved.lumen.run===null),'Death save remains active');
     const dprContext=await browser.newContext({viewport:{width:375,height:812},deviceScaleFactor:2});
     try{
-      const q=await dprContext.newPage();await q.goto(base);await q.locator('[data-lumen-action="open"]').click();await q.locator('[data-lumen-action="start"]').click();
+      const q=await dprContext.newPage();await q.route('https://telegram.org/**',r=>r.fulfill({body:'',contentType:'text/javascript'}));await q.goto(base);await q.locator('[data-lumen-action="open"]').click();await q.locator('.lumen-menu-nav [data-lumen-value="play"]').click();await q.locator('[data-lumen-action="start"]').click();
       assert(await q.evaluate(()=>lumenCanvas.width===750&&!lumenCanvas.getContext('2d').imageSmoothingEnabled),'DPR2 native framebuffer');
       await q.screenshot({path:out+'lumen-pixel-dpr2-375-final.png'});
     }finally{await dprContext.close();}
     const failed=await browser.newContext();
     try{
-      const q=await failed.newPage();await q.route('**/assets/lumen/scout.png',route=>route.abort());await q.goto(base);await q.locator('[data-lumen-action="open"]').click();
+      const q=await failed.newPage();await q.route('**/assets/lumen/scout.png',route=>route.abort());await q.route('https://telegram.org/**',r=>r.fulfill({body:'',contentType:'text/javascript'}));await q.goto(base);await q.locator('[data-lumen-action="open"]').click();
       await q.locator('#lumenSetupMount [role="alert"]').waitFor();
       assert(await q.locator('[data-lumen-action="reload"]').isVisible(),'Missing sprite has no recovery action');
     }finally{await failed.close();}

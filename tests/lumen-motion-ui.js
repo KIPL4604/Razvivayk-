@@ -5,7 +5,7 @@ async (page) => {
   const context=await browser.newContext({viewport:{width:375,height:812},deviceScaleFactor:3});
   const p=await context.newPage();p.on('pageerror',e=>errors.push(e.message));
   try{
-    await p.goto('http://127.0.0.1:8081');
+    await p.route('https://telegram.org/**',r=>r.fulfill({body:'',contentType:'text/javascript'}));await p.goto('http://127.0.0.1:8081');
     const motion=await p.evaluate(async()=>{
       const core=await import('/static/js/lumen/engine.mjs');
       const {Renderer}=await import('/static/js/lumen/renderer.mjs');

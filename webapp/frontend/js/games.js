@@ -374,7 +374,7 @@ function configureTelegram(){
   if(tg.isVersionAtLeast?.("7.7"))call(()=>tg.disableVerticalSwipes());
   if(tg.isVersionAtLeast?.("6.2"))call(()=>tg.enableClosingConfirmation());
   const safeArea=()=>{const top=(tg.safeAreaInset?.top||0)+(tg.contentSafeAreaInset?.top||0),bottom=(tg.safeAreaInset?.bottom||0)+(tg.contentSafeAreaInset?.bottom||0);document.documentElement.style.setProperty("--app-safe-top",`${top}px`);document.documentElement.style.setProperty("--app-safe-bottom",`${bottom}px`);};
-  safeArea();call(()=>tg.onEvent("safeAreaChanged",safeArea));call(()=>tg.onEvent("contentSafeAreaChanged",safeArea));call(()=>tg.BackButton.onClick(()=>{if(activeScreen==="lumen-game"){LumenMode.click({dataset:{lumenAction:"pause"}});return;}showScreen(activeScreen==="poker-game"?"poker":activeScreen==="chess-game"?"chess":activeScreen==="game"?"levels":"home");}));
+  safeArea();call(()=>tg.onEvent("safeAreaChanged",safeArea));call(()=>tg.onEvent("contentSafeAreaChanged",safeArea));call(()=>tg.BackButton.onClick(()=>{if(["lumen","lumen-game"].includes(activeScreen)){LumenMode.back();return;}showScreen(activeScreen==="poker-game"?"poker":activeScreen==="chess-game"?"chess":activeScreen==="game"?"levels":"home");}));
 }
 document.addEventListener("click",event=>{
   const target=event.target.closest("button");if(!target||target.disabled)return;

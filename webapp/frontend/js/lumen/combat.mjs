@@ -2,7 +2,7 @@ import {WEAPON_IDS,weaponStats} from './catalog.mjs';
 const TAU=Math.PI*2;
 const squared=(a,b)=>(a.x-b.x)**2+(a.y-b.y)**2;
 export function updateWeapons(state,dt,{hit,effect,limits}){
-  const p=state.player,scale=1+(state.upgrades.focus||0)*.2,haste=1+(state.upgrades.haste||0)*.15+(state.upgrades.chronogear||0)*.12,area=1+(state.upgrades.amplifier||0)*.12;
+  const p=state.player,scale=(1+(state.upgrades.focus||0)*.2)*(1+(state.training?.lens||0)*.01),haste=1+(state.upgrades.haste||0)*.15+(state.upgrades.chronogear||0)*.12,area=1+(state.upgrades.amplifier||0)*.12;
   const nearest=(from,range=640,seen=[])=>{
     let target=null,distance=range*range;
     for(const e of state.enemies){if(e.hp<=0||seen.includes(e.id))continue;const d=squared(e,from);if(d<distance){target=e;distance=d;}}

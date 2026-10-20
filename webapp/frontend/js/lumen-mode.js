@@ -17,7 +17,7 @@ const LumenMode = (() => {
     const mount = document.querySelector("#lumenSetupMount");
     mount.innerHTML = '<div class="lumen-loading" role="status">Зажигаем маяк…<span>Загружаем игру</span></div>';
     try {
-      loading ||= import("/static/js/lumen/game.mjs?v=contact-5").catch(error => {loading=null;throw error;});
+      loading ||= import("/static/js/lumen/game.mjs?v=menu-6").catch(error => {loading=null;throw error;});
       const module = await loading;
       controller ||= module.createGame({getSaved:()=>saved, persist:saveState, navigate:showScreen, telegram:tg, toast:showToast});
       if(ticket !== generation || activeScreen !== "lumen") return;
@@ -38,5 +38,6 @@ const LumenMode = (() => {
     return true;
   }
   function onScreen(name) {if(!["lumen", "lumen-game"].includes(name))generation++;controller?.onScreen(name);}
-  return {art,getResume,click,onScreen,enter:()=>open(),resume:()=>open(true)};
+  function back(){if(!controller?.back())showScreen('home');}
+  return {art,getResume,click,onScreen,back,enter:()=>open(),resume:()=>open(true)};
 })();

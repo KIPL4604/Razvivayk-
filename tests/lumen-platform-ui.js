@@ -4,10 +4,10 @@ async(page)=>{
   const assert=(v,m)=>{if(!v)throw Error(m);};
   const c=await browser.newContext({viewport:{width:375,height:812}}),p=await c.newPage();
   try{
-    await p.route('**/static/js/lumen/game.mjs*',r=>r.abort());await p.goto(base);
+    await p.route('**/static/js/lumen/game.mjs*',r=>r.abort());await p.route('https://telegram.org/**',r=>r.fulfill({body:'',contentType:'text/javascript'}));await p.goto(base);
     await p.locator('[data-lumen-action="open"]').click();await p.getByRole('alert').waitFor();
     await p.unroute('**/static/js/lumen/game.mjs*');await p.locator('[data-lumen-action="reload"]').click();
-    await p.locator('[data-lumen-action="open"]').click();await p.locator('[data-lumen-action="start"]').waitFor();
+    await p.locator('[data-lumen-action="open"]').click();await p.locator('.lumen-menu-nav [data-lumen-value="play"]').click();await p.locator('[data-lumen-action="start"]').waitFor();
     results.push('module fetch failure and explicit reload recovery');
     await p.locator('[data-lumen-action="start"]').click();await p.keyboard.press('Escape');await p.locator('[data-lumen-action="exit"]').click();
     await p.evaluate(()=>showScreen('home'));await p.locator('#campaignCards [data-chess-action="setup"]').click();
@@ -34,12 +34,15 @@ async(page)=>{
         requestFullscreen(){window.__tgCalls.push('fullscreen');},disableVerticalSwipes(){window.__tgCalls.push('swipes-disabled');},
         onEvent(name,fn){(window.__tgEvents[name]||=[]).push(fn);},BackButton:{show(){},hide(){},onClick(fn){window.__tgBack=fn;}}}};
     });
-    const q=await mock.newPage();await q.goto(base);await q.locator('[data-lumen-action="open"]').click();await q.locator('[data-lumen-action="start"]').click();
+    const q=await mock.newPage();await q.goto(base);await q.locator('[data-lumen-action="open"]').click();await q.locator('.lumen-menu-nav [data-lumen-value="play"]').click();await q.locator('[data-lumen-action="start"]').click();
     await q.evaluate(()=>window.__tgBack());await q.getByRole('dialog').waitFor();
     const data=await q.evaluate(()=>({calls:window.__tgCalls,top:getComputedStyle(document.documentElement).getPropertyValue('--lumen-safe-top'),height:document.querySelector('#lumenCanvas').getBoundingClientRect().height}));
     assert(data.calls.filter(s=>s==='fullscreen').length>=2&&data.calls.includes('swipes-disabled'),'Telegram methods not invoked');
     assert(data.top==='48px'&&data.height===812,'Telegram safe area/height');
     await q.locator('[data-lumen-action="continue"]').click();await q.evaluate(()=>window.__tgEvents.deactivated.forEach(fn=>fn()));await q.getByRole('dialog').waitFor();
+    await q.evaluate(()=>window.__tgBack());assert(await q.locator('.lumen-shell').isVisible(),'Telegram back from pause to menu');await q.locator('.lumen-menu-nav [data-lumen-value="characters"]').click();
+    await q.evaluate(()=>window.__tgBack());assert(await q.locator('.lumen-shell').getAttribute('data-page')==='home','Telegram back did not reach game home');
+    await q.evaluate(()=>window.__tgBack());assert(await q.evaluate(()=>activeScreen==='home'&&!document.documentElement.classList.contains('lumen-active')),'Telegram back did not leave game');
     results.push('Telegram SDK mock: fullscreen, swipes, safe areas, BackButton and deactivation pause (not physical WebView acceptance)');
   }finally{await mock.close();}
   return results;

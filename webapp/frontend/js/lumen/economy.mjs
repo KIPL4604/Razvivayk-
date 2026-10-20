@@ -1,4 +1,5 @@
 import {CHARACTERS,WEAPON_IDS,MAX_WEAPON_STAGE,MAPS} from './catalog.mjs';
+import {normalizeTraining} from './training.mjs';
 const amount=n=>Number.isSafeInteger(n)&&n>=0&&n<=1e8?n:0;
 export function normalizeMeta(value){
   const unlocked=new Set(['scout','keeper']);
@@ -11,7 +12,7 @@ export function normalizeMeta(value){
   for(const id of WEAPON_IDS){const rank=value?.weaponBest?.[id];if(Number.isInteger(rank)&&rank>0&&rank<=MAX_WEAPON_STAGE)weaponBest[id]=rank;}
   const clearedMaps=Array.isArray(value?.clearedMaps)?Object.keys(MAPS).filter(id=>value.clearedMaps.includes(id)):[];
   if(!clearedMaps.includes('garden'))clearedMaps.length=0;
-  return {version:2,coins:amount(value?.coins),unlocked:[...unlocked],credited,weaponBest,clearedMaps};
+  return {version:3,coins:amount(value?.coins),unlocked:[...unlocked],credited,weaponBest,clearedMaps,training:normalizeTraining(value?.training)};
 }
 export const mapAvailable=(meta,id)=>Object.hasOwn(MAPS,id)&&(id==='garden'||meta.clearedMaps.includes('garden'));
 export function characterRequirement(meta,id){

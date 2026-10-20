@@ -29,23 +29,23 @@ async(page)=>{
     await p.waitForTimeout(350);
   }
   try{
-    await p.goto('http://127.0.0.1:8081');await p.evaluate(()=>{saved.lumen={meta:{coins:600}};saveState();});await p.reload();
-    await p.locator('[data-lumen-action="open"]').click();await p.locator('.lumen-maps').waitFor();await p.waitForTimeout(350);assert((await p.locator('[data-lumen-action="start"]').boundingBox()).y+(await p.locator('[data-lumen-action="start"]').boundingBox()).height<747,'Mobile primary action below fold');
+    await p.route('https://telegram.org/**',r=>r.fulfill({body:'',contentType:'text/javascript'}));await p.goto('http://127.0.0.1:8081');await p.evaluate(()=>{saved.lumen={meta:{coins:600}};saveState();});await p.reload();
+    await p.locator('[data-lumen-action="open"]').click();await p.locator('.lumen-menu-nav [data-lumen-value="play"]').click();await p.locator('.lumen-maps').waitFor();await p.waitForTimeout(350);assert((await p.locator('[data-lumen-action="start"]').boundingBox()).y+(await p.locator('[data-lumen-action="start"]').boundingBox()).height<747,'Mobile primary action below fold');
     assert(await p.locator('[data-lumen-action="map"][data-lumen-value="quarry"]').isDisabled(),'Quarry open before victory');
-    await p.locator('[data-lumen-action="character"][data-lumen-value="duelist"]').click();assert(await p.locator('[data-lumen-action="buy"]').isDisabled(),'Coins bypass mastery');
+    await p.locator('.lumen-menu-nav [data-lumen-value="characters"]').click();await p.locator('[data-lumen-action="character"][data-lumen-value="duelist"]').click();assert(await p.locator('[data-lumen-action="buy"]').isDisabled(),'Coins bypass mastery');
     assert((await p.locator('.lumen-unlock-rule').innerText()).includes('VIII'),'Unlock explanation absent');
     for(const [width,height] of [[375,812],[768,1024],[1440,900],[1920,1080]]){
-      await p.setViewportSize({width,height});await p.locator('.lumen-maps').scrollIntoViewIfNeeded();await p.waitForTimeout(150);
+      await p.setViewportSize({width,height});await p.locator('.lumen-menu-nav [data-lumen-value="play"]').click();await p.locator('.lumen-maps').scrollIntoViewIfNeeded();await p.waitForTimeout(150);
       await p.screenshot({path:out+`lumen-campaign-map-select-${width}-${iteration}.png`});
-      assert(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth&&document.querySelector('.lumen-brief').getBoundingClientRect().right<=innerWidth),'Setup clipped '+width);
-      await p.locator('.lumen-unlock-rule').scrollIntoViewIfNeeded();await p.screenshot({path:out+`lumen-campaign-locked-hero-${width}-${iteration}.png`});
+      assert(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth&&document.querySelector('#lumenMenuContent').getBoundingClientRect().right<=innerWidth),'Setup clipped '+width);
+      await p.locator('.lumen-menu-nav [data-lumen-value="characters"]').click();await p.locator('.lumen-unlock-rule').scrollIntoViewIfNeeded();await p.screenshot({path:out+`lumen-campaign-locked-hero-${width}-${iteration}.png`});
     }
     results.push('Locked second map and mastery gate despite sufficient coins at four widths');
     await p.setViewportSize({width:375,height:812});await seed('mastery');
     await p.screenshot({path:out+`lumen-campaign-stage-viii-375-${iteration}.png`});
     await p.locator('[data-lumen-action="upgrade"][data-lumen-value="orbit"]').click();await p.keyboard.press('Escape');
     assert(await p.evaluate(()=>saved.lumen.meta.weaponBest.orbit===8),'Stage VIII not recorded');await p.locator('[data-lumen-action="exit"]').click();
-    await p.locator('[data-lumen-action="character"][data-lumen-value="duelist"]').click();assert(await p.locator('[data-lumen-action="buy"]').isEnabled(),'Mastery did not unlock purchase');
+    await p.locator('.lumen-menu-nav [data-lumen-value="characters"]').click();await p.locator('[data-lumen-action="character"][data-lumen-value="duelist"]').click();assert(await p.locator('[data-lumen-action="buy"]').isEnabled(),'Mastery did not unlock purchase');
     await p.locator('[data-lumen-action="buy"]').click();assert(await p.evaluate(()=>saved.lumen.meta.coins===280&&saved.lumen.meta.unlocked.includes('duelist')),'Incorrect purchase');
     await p.reload();assert(await p.evaluate(()=>saved.lumen.meta.weaponBest.orbit===8&&saved.lumen.meta.unlocked.includes('duelist')),'Unlock lost on reload');
     results.push('Actual VII→VIII choice, durable mastery, paid purchase with exact deduction');

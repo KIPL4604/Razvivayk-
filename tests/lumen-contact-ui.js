@@ -28,7 +28,7 @@ async (page) => {
   }
   async function move(seconds){await p.keyboard.down('d');await p.waitForTimeout(seconds*1000);await p.keyboard.up('d');await p.keyboard.press('Escape');return p.evaluate(()=>saved.lumen.run);}
   try{
-    await p.goto('http://127.0.0.1:8081');
+    await p.route('https://telegram.org/**',r=>r.fulfill({body:'',contentType:'text/javascript'}));await p.goto('http://127.0.0.1:8081');
     await p.evaluate(async()=>{
       const {Renderer}=await import('/static/js/lumen/renderer.mjs'),original=Renderer.prototype.view;
       window.__biteViews=[];
