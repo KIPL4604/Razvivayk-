@@ -62,5 +62,17 @@ class SpecimenArtTests(unittest.TestCase):
         pixels=[raw[i:i+3] for i in range(0,len(raw),4) if raw[i+3]>128]
         self.assertGreater(sum(r for r,g,b in pixels),3*sum(g for r,g,b in pixels))
 
+    @unittest.skipIf(Image is None,'Install Pillow for laboratory sprite checks')
+    def test_living_core_and_flamethrower_frames_are_original_visible_sprites(self):
+        nest=Image.open(ART/'nest.png').convert('RGBA')
+        for i in range(4):
+            tile=nest.crop((i%2*128,i//2*128,(i%2+1)*128,(i//2+1)*128))
+            self.assertIsNotNone(tile.getchannel('A').getbbox())
+            data=tile.tobytes();self.assertGreater(sum(1 for j in range(0,len(data),4) if data[j+3]>128 and data[j+1]>data[j]*1.3 and data[j+1]>data[j+2]*1.2),4)
+        flamer=Image.open(ART/'flamer.png').convert('RGBA')
+        for i in range(6):
+            tile=flamer.crop((i*64,0,(i+1)*64,64));box=tile.getchannel('A').getbbox()
+            self.assertIsNotNone(box);self.assertLessEqual(box[3],58);self.assertEqual(tile.getpixel((0,0))[3],0)
+
 if __name__=='__main__':
     unittest.main()

@@ -26,12 +26,12 @@ async(page)=>{
    await p.clock.install();await p.clock.pauseAt(new Date(Date.now()+1000));
    await fixture(0,32,400,270);const start=await snap();await hold(['d'],600);const right=await snap();assert(right.x>start.x+40,'move right');
    await hold(['a'],140);await checkBody('turn');await shot('turn');await hold(['a'],650);assert((await snap()).x<right.x-30,'move left');await checkBody('reverse-settled');await shot('reverse-settled');
-   await fixture(0,54,400,360);await hold(['s'],450);const floor=await snap();await hold(['d'],700);assert((await snap()).x>floor.x+30,'floor crawl');await checkBody('floor');await shot('floor');
+   await fixture(0,54,400,650);await hold(['s'],450);const floor=await snap();await hold(['d'],700);assert((await snap()).x>floor.x+30,'floor crawl');await checkBody('floor');await shot('floor');
    await fixture(0,32,74,325);await hold(['a'],400);const wall=await snap();await hold(['w'],650);assert((await snap()).y<wall.y-30,'wall crawl');await checkBody('wall');await shot('wall');
    await fixture(0,32,400,80);await hold(['w'],450);const ceiling=await snap();await hold(['a'],700);assert((await snap()).x<ceiling.x-30,'ceiling crawl');await checkBody('ceiling');await shot('ceiling');
    await fixture(0,100,80,80);await hold(['a','w'],700);await hold(['d'],700);await checkBody('corner');await shot('corner');
-   await fixture(1,32,346,264);await hold(['d'],800);assert((await snap()).x>410,'narrow channel');await checkBody('channel');await shot('channel');
-   await fixture(1,100,250,332);await p.keyboard.press('e');await p.clock.runFor(200);assert((await snap()).mass===32,'shrink');await checkBody('shrink');await shot('shrink');
+   await fixture(1,32,320,396);for(let i=0;i<15&&(await snap()).x<=470;i++)await hold(['d'],200);assert((await snap()).x>470,'narrow channel');await checkBody('channel');await shot('channel');
+   await fixture(1,100,250,430);await p.keyboard.press('e');await p.clock.runFor(200);assert((await snap()).mass===32,'shrink');await checkBody('shrink');await shot('shrink');
    await p.keyboard.press('e');await p.clock.runFor(250);assert((await snap()).mass===100,'grow');await checkBody('grow');await shot('grow');
    for(const [width,height]of [[375,812],[768,1024],[1440,900],[1920,1080]]){
      await p.setViewportSize({width,height});await p.clock.runFor(50);if(await p.locator('.sp-rotate').isVisible())await p.locator('[data-sp-action="portrait"]').click();

@@ -86,3 +86,6 @@ if __name__=='__main__':
     reference=Path(__file__).with_name('build-reference.py')
     if reference.exists() and all(reference.with_name(name).exists() for name in ('sector-reference-source.png','tissue-reference-source.png')):
         runpy.run_path(str(reference),run_name='__main__')
+    laboratory=Path(__file__).with_name('build-laboratory.py')
+    if laboratory.exists() and all(laboratory.with_name(name).exists() for name in ('nest-source.png','flamer-source.png')):
+        runpy.run_path(str(laboratory),run_name='__main__')

@@ -54,7 +54,7 @@ test('a reversal retains body volume and settles without a folded pile of nodes'
 });
 
 test('mass changes keep surviving roots and ease radii instead of jumping',()=>{
-  const s=fixture(1,100,250,332),r=s.nodes[0].r;
+  const s=fixture(1,100,250,430),r=s.nodes[0].r;
   const roots=s.limbs.slice(0,6).map(l=>l.root);
   step(s,H,{interact:true});assert.equal(s.mass,32);assert.equal(s.nodes.length,6);
   assert.ok(Math.abs(s.nodes[0].r-r)<.3,'radius jumped on shrink');
@@ -131,11 +131,11 @@ test('narrow channel and repeated size changes beside two surfaces survive save 
     const copy=restore(serialize(s));assert.ok(copy);clearBody(copy);
     assert.equal(copy.mass,100);assert.ok(copy.limbs.every(l=>copy.nodes[l.root]));
   }
-  const small=fixture(1,32,346,264);ticks(small,90,{x:1});assert.ok(small.x>410);clearBody(small);
+  const small=fixture(1,32,320,396);ticks(small,110,{x:1});assert.ok(small.x>470);clearBody(small);
 });
 
 test('resting on floor, ceiling and a corner settles without body jitter or contact chatter',()=>{
-  for(const [mass,x,y]of [[32,400,58.08],[54,400,371.68],[100,62.56,62.56]]){
+  for(const [mass,x,y]of [[32,400,58.08],[54,400,659.68],[100,62.56,62.56]]){
     const s=fixture(0,mass,x,y);currentRoom(s).enemies.forEach(e=>e.dead=e.eaten=true);ticks(s,240);
     for(let i=0;i<120;i++){
       const before=s.nodes.map(n=>({x:n.x,y:n.y})),anchors=s.limbs.map(l=>l.anchor);step(s,H);

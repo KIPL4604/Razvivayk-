@@ -1,0 +1,455 @@
+{
+  "version": 2,
+  "room": 1,
+  "x": 250,
+  "y": 332,
+  "mass": 80,
+  "time": 17,
+  "kills": 0,
+  "status": "playing",
+  "visited": [
+    0,
+    1
+  ],
+  "rooms": [
+    {
+      "gateOpen": true,
+      "enemies": [
+        {
+          "id": "0:e0",
+          "x": 396,
+          "y": 358,
+          "dead": true,
+          "eaten": true
+        }
+      ],
+      "objects": [
+        {
+          "id": "0:o0",
+          "x": 184,
+          "y": 358,
+          "bank": 0,
+          "broken": false
+        },
+        {
+          "id": "0:o1",
+          "x": 554,
+          "y": 338,
+          "bank": 0,
+          "broken": false
+        },
+        {
+          "id": "0:o2",
+          "x": 468,
+          "y": 362,
+          "bank": 0,
+          "broken": false
+        },
+        {
+          "id": "0:o3",
+          "x": 104,
+          "y": 358,
+          "bank": 0,
+          "broken": false
+        },
+        {
+          "id": "0:lamp0",
+          "x": 112,
+          "y": 100,
+          "bank": 0,
+          "broken": false
+        },
+        {
+          "id": "0:lamp1",
+          "x": 390,
+          "y": 94,
+          "bank": 0,
+          "broken": false
+        },
+        {
+          "id": "0:lamp2",
+          "x": 620,
+          "y": 96,
+          "bank": 0,
+          "broken": false
+        },
+        {
+          "id": "0:lamp3",
+          "x": 130,
+          "y": 246,
+          "bank": 0,
+          "broken": false
+        },
+        {
+          "id": "0:lamp4",
+          "x": 560,
+          "y": 230,
+          "bank": 0,
+          "broken": false
+        }
+      ]
+    },
+    {
+      "gateOpen": false,
+      "enemies": [],
+      "objects": [
+        {
+          "id": "1:o0",
+          "x": 252,
+          "y": 358,
+          "bank": 32,
+          "broken": false
+        },
+        {
+          "id": "1:o1",
+          "x": 596,
+          "y": 358,
+          "bank": 0,
+          "broken": false
+        },
+        {
+          "id": "1:lamp0",
+          "x": 106,
+          "y": 100,
+          "bank": 0,
+          "broken": false
+        },
+        {
+          "id": "1:lamp1",
+          "x": 270,
+          "y": 225,
+          "bank": 0,
+          "broken": false
+        },
+        {
+          "id": "1:lamp2",
+          "x": 504,
+          "y": 98,
+          "bank": 0,
+          "broken": false
+        },
+        {
+          "id": "1:lamp3",
+          "x": 662,
+          "y": 238,
+          "bank": 0,
+          "broken": false
+        }
+      ]
+    },
+    {
+      "gateOpen": false,
+      "enemies": [
+        {
+          "id": "2:e0",
+          "x": 328,
+          "y": 358,
+          "dead": false,
+          "eaten": false
+        },
+        {
+          "id": "2:e1",
+          "x": 462,
+          "y": 358,
+          "dead": false,
+          "eaten": false
+        },
+        {
+          "id": "2:e2",
+          "x": 560,
+          "y": 358,
+          "dead": false,
+          "eaten": false
+        },
+        {
+          "id": "2:e3",
+          "x": 664,
+          "y": 358,
+          "dead": false,
+          "eaten": false
+        }
+      ],
+      "objects": [
+        {
+          "id": "2:o0",
+          "x": 254,
+          "y": 358,
+          "bank": 0,
+          "broken": false
+        },
+        {
+          "id": "2:o1",
+          "x": 598,
+          "y": 362,
+          "bank": 0,
+          "broken": false
+        },
+        {
+          "id": "2:o2",
+          "x": 126,
+          "y": 358,
+          "bank": 0,
+          "broken": false
+        },
+        {
+          "id": "2:lamp0",
+          "x": 120,
+          "y": 100,
+          "bank": 0,
+          "broken": false
+        },
+        {
+          "id": "2:lamp1",
+          "x": 336,
+          "y": 104,
+          "bank": 0,
+          "broken": false
+        },
+        {
+          "id": "2:lamp2",
+          "x": 616,
+          "y": 94,
+          "bank": 0,
+          "broken": false
+        },
+        {
+          "id": "2:lamp3",
+          "x": 160,
+          "y": 246,
+          "bank": 0,
+          "broken": false
+        },
+        {
+          "id": "2:lamp4",
+          "x": 478,
+          "y": 244,
+          "bank": 0,
+          "broken": false
+        }
+      ]
+    },
+    {
+      "gateOpen": false,
+      "enemies": [
+        {
+          "id": "3:e0",
+          "x": 670,
+          "y": 358,
+          "dead": false,
+          "eaten": false
+        }
+      ],
+      "objects": [
+        {
+          "id": "3:o0",
+          "x": 218,
+          "y": 358,
+          "bank": 0,
+          "broken": false
+        },
+        {
+          "id": "3:o1",
+          "x": 356,
+          "y": 362,
+          "bank": 0,
+          "broken": false
+        },
+        {
+          "id": "3:o2",
+          "x": 408,
+          "y": 362,
+          "bank": 0,
+          "broken": false
+        },
+        {
+          "id": "3:o3",
+          "x": 112,
+          "y": 358,
+          "bank": 0,
+          "broken": false
+        },
+        {
+          "id": "3:lamp0",
+          "x": 108,
+          "y": 98,
+          "bank": 0,
+          "broken": false
+        },
+        {
+          "id": "3:lamp1",
+          "x": 338,
+          "y": 98,
+          "bank": 0,
+          "broken": false
+        },
+        {
+          "id": "3:lamp2",
+          "x": 628,
+          "y": 112,
+          "bank": 0,
+          "broken": false
+        },
+        {
+          "id": "3:lamp3",
+          "x": 285,
+          "y": 234,
+          "bank": 0,
+          "broken": false
+        },
+        {
+          "id": "3:lamp4",
+          "x": 650,
+          "y": 270,
+          "bank": 0,
+          "broken": false
+        }
+      ]
+    },
+    {
+      "gateOpen": false,
+      "enemies": [],
+      "objects": [
+        {
+          "id": "4:o0",
+          "x": 382,
+          "y": 358,
+          "bank": 0,
+          "broken": false
+        },
+        {
+          "id": "4:o1",
+          "x": 182,
+          "y": 358,
+          "bank": 0,
+          "broken": false
+        },
+        {
+          "id": "4:o2",
+          "x": 96,
+          "y": 358,
+          "bank": 0,
+          "broken": false
+        },
+        {
+          "id": "4:lamp0",
+          "x": 110,
+          "y": 94,
+          "bank": 0,
+          "broken": false
+        },
+        {
+          "id": "4:lamp1",
+          "x": 350,
+          "y": 100,
+          "bank": 0,
+          "broken": false
+        },
+        {
+          "id": "4:lamp2",
+          "x": 616,
+          "y": 108,
+          "bank": 0,
+          "broken": false
+        },
+        {
+          "id": "4:lamp3",
+          "x": 208,
+          "y": 238,
+          "bank": 0,
+          "broken": false
+        },
+        {
+          "id": "4:lamp4",
+          "x": 470,
+          "y": 225,
+          "bank": 0,
+          "broken": false
+        }
+      ]
+    },
+    {
+      "gateOpen": false,
+      "enemies": [
+        {
+          "id": "5:e0",
+          "x": 396,
+          "y": 358,
+          "dead": false,
+          "eaten": false
+        },
+        {
+          "id": "5:e1",
+          "x": 582,
+          "y": 358,
+          "dead": false,
+          "eaten": false
+        }
+      ],
+      "objects": [
+        {
+          "id": "5:o0",
+          "x": 306,
+          "y": 362,
+          "bank": 0,
+          "broken": false
+        },
+        {
+          "id": "5:o1",
+          "x": 488,
+          "y": 362,
+          "bank": 0,
+          "broken": false
+        },
+        {
+          "id": "5:o2",
+          "x": 644,
+          "y": 358,
+          "bank": 0,
+          "broken": false
+        },
+        {
+          "id": "5:o3",
+          "x": 100,
+          "y": 358,
+          "bank": 0,
+          "broken": false
+        },
+        {
+          "id": "5:lamp0",
+          "x": 114,
+          "y": 100,
+          "bank": 0,
+          "broken": false
+        },
+        {
+          "id": "5:lamp1",
+          "x": 352,
+          "y": 105,
+          "bank": 0,
+          "broken": false
+        },
+        {
+          "id": "5:lamp2",
+          "x": 604,
+          "y": 104,
+          "bank": 0,
+          "broken": false
+        },
+        {
+          "id": "5:lamp3",
+          "x": 194,
+          "y": 243,
+          "bank": 0,
+          "broken": false
+        },
+        {
+          "id": "5:lamp4",
+          "x": 556,
+          "y": 244,
+          "bank": 0,
+          "broken": false
+        }
+      ]
+    }
+  ]
+}

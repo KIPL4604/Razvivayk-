@@ -7,7 +7,7 @@ const SpecimenMode=(()=>{
     const ticket=++generation;showScreen('specimen');const mount=document.querySelector('#specimenMount');
     if(!controller)mount.innerHTML='<div class="sp-loading" role="status">Устанавливаем связь с образцом…</div>';
     try{
-      loading||=import('/static/js/specimen/game.mjs?v=4').then(m=>m.createGame({getSaved:()=>saved,persist:saveState,navigate:showScreen,telegram:tg,toast:showToast})).catch(e=>{loading=null;throw e;});
+      loading||=import('/static/js/specimen/game.mjs?v=5').then(m=>m.createGame({getSaved:()=>saved,persist:saveState,navigate:showScreen,telegram:tg,toast:showToast})).catch(e=>{loading=null;throw e;});
       controller=await loading;if(ticket!==generation||activeScreen!=='specimen')return;controller.enter();
     }catch{if(ticket!==generation||activeScreen!=='specimen')return;mount.innerHTML='<div class="sp-loading" role="alert">Не удалось загрузить сектор.<span>Проверь соединение и попробуй снова.</span><button type="button" data-sp-action="reload">Повторить загрузку</button><button type="button" data-sp-action="exit">В каталог</button></div>';}
   }

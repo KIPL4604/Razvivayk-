@@ -1,5 +1,5 @@
 {
-  "version": 3,
+  "version": 4,
   "origin": "Original imagegen artwork, normalized from retained source atlases",
   "tileSize": 64,
   "environmentSlots": 16,
@@ -61,10 +61,28 @@
         384,
         192
       ]
+    },
+    "nest.png": {
+      "bytes": 19771,
+      "sha256": "5cf72144f8d60ea76105a4138b495587770d640fdf4f0f057c870d4ef80db512",
+      "size": [
+        256,
+        256
+      ]
+    },
+    "flamer.png": {
+      "bytes": 4902,
+      "sha256": "d63734e553ed89c2a8b5cbf2dec04787980c8cdd9afd0e50235709cf2963facb",
+      "size": [
+        384,
+        64
+      ]
     }
   },
   "sectorSlots": 16,
   "tissueSlots": 8,
   "sectorTileSize": 128,
-  "tissueTileSize": 96
+  "tissueTileSize": 96,
+  "nestFrames": 4,
+  "flamerFrames": 6
 }
