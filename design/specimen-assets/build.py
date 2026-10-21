@@ -8,6 +8,7 @@ from pathlib import Path
 import shutil
 import hashlib
 import json
+import runpy
 from PIL import Image
 
 ROOT=Path(__file__).resolve().parents[2]
@@ -82,3 +83,6 @@ if __name__=='__main__':
     parser.add_argument('--fixtures',default=str(Path(__file__).with_name('fixtures-source.png')))
     args=parser.parse_args()
     build(args.environment,args.actors,args.fixtures)
+    reference=Path(__file__).with_name('build-reference.py')
+    if reference.exists() and all(reference.with_name(name).exists() for name in ('sector-reference-source.png','tissue-reference-source.png')):
+        runpy.run_path(str(reference),run_name='__main__')

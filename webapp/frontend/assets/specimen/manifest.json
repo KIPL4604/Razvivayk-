@@ -1,5 +1,5 @@
 {
-  "version": 2,
+  "version": 3,
   "origin": "Original imagegen artwork, normalized from retained source atlases",
   "tileSize": 64,
   "environmentSlots": 16,
@@ -31,8 +31,8 @@
       ]
     },
     "cover.png": {
-      "bytes": 60853,
-      "sha256": "8e13af7faf0d492c9fe40f4431b991ff491cbe61e34fad1a035f4a9f4034f36c",
+      "bytes": 49831,
+      "sha256": "410bedafb0d644880b94fec2e66a4cb71c8ccc30e0ab11f9c7422b42c9f4ecda",
       "size": [
         384,
         240
@@ -45,6 +45,26 @@
         256,
         192
       ]
+    },
+    "sector.png": {
+      "bytes": 104133,
+      "sha256": "5ef699f0e16f97d5e34c6b765f2d7a7574c6e03505e6a99d3c51ec0fc006eab9",
+      "size": [
+        512,
+        512
+      ]
+    },
+    "tissue.png": {
+      "bytes": 20945,
+      "sha256": "1c9ac11357e7396ae3a69877980c98d437f818b33abb04ee576a9d99473729c9",
+      "size": [
+        384,
+        192
+      ]
     }
-  }
+  },
+  "sectorSlots": 16,
+  "tissueSlots": 8,
+  "sectorTileSize": 128,
+  "tissueTileSize": 96
 }

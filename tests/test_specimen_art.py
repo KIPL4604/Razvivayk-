@@ -16,6 +16,8 @@ class SpecimenArtTests(unittest.TestCase):
         m=json.loads((ART/'manifest.json').read_text(encoding='utf-8'))
         self.assertEqual(m['environmentSlots'],16)
         self.assertEqual(m['fixtureSlots'],12)
+        self.assertEqual(m['sectorSlots'],16)
+        self.assertEqual(m['tissueSlots'],8)
         self.assertEqual(m['people']['frames']*m['people']['rows'],12)
         for name,f in m['files'].items():
             data=(ART/name).read_bytes()
@@ -23,7 +25,7 @@ class SpecimenArtTests(unittest.TestCase):
             self.assertEqual(list(struct.unpack('>II',data[16:24])),f['size'])
             self.assertEqual(len(data),f['bytes'])
             self.assertEqual(hashlib.sha256(data).hexdigest(),f['sha256'])
-        self.assertLess(sum(f['bytes'] for f in m['files'].values()),400_000)
+        self.assertLess(sum(f['bytes'] for f in m['files'].values()),800_000)
 
     @unittest.skipIf(Image is None,'Install Pillow for pixel frame checks')
     def test_every_actor_frame_and_organic_slot_has_visible_alpha(self):
@@ -48,6 +50,17 @@ class SpecimenArtTests(unittest.TestCase):
         for i in range(12):
             x,y=(i%4)*64,(i//4)*64
             self.assertIsNotNone(sheet.crop((x,y,x+64,y+64)).getchannel('A').getbbox())
+
+    @unittest.skipIf(Image is None,'Install Pillow for reference atlas checks')
+    def test_reference_atlases_have_visible_slots_and_crimson_tissue(self):
+        for name,size,count in [('sector.png',128,16),('tissue.png',96,8)]:
+            sheet=Image.open(ART/name).convert('RGBA')
+            for i in range(count):
+                x,y=i%4*size,i//4*size
+                self.assertIsNotNone(sheet.crop((x,y,x+size,y+size)).getchannel('A').getbbox())
+        raw=Image.open(ART/'tissue.png').convert('RGBA').tobytes()
+        pixels=[raw[i:i+3] for i in range(0,len(raw),4) if raw[i+3]>128]
+        self.assertGreater(sum(r for r,g,b in pixels),3*sum(g for r,g,b in pixels))
 
 if __name__=='__main__':
     unittest.main()

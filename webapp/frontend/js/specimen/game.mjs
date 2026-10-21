@@ -1,5 +1,5 @@
 import {createRun,step,serialize,restore,interaction,objective,currentRoom,ROOMS,FORMS,formFor} from './engine.mjs';
-import {createRenderer} from './renderer.mjs';
+import {createRenderer} from './renderer.mjs?v=3';
 
 const icons={pause:'<path d="M8 5v14M16 5v14"/>',full:'<path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5"/>',aim:'<circle cx="12" cy="12" r="6"/><path d="M12 2v5m0 10v5M2 12h5m10 0h5"/>',burst:'<path d="m5 4 8 8-8 8m8-16 8 8-8 8"/>',sound:'<path d="M11 4 5 9H2v6h3l6 5Zm4 4a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14"/>'};
 const icon=id=>`<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">${icons[id]}</svg>`;
