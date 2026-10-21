@@ -1,6 +1,7 @@
 import {TILE,WIDTH,HEIGHT,ROOMS,formFor} from './world.mjs';
 import {currentRoom,blocked,targetFor} from './engine.mjs';
 import {SCENES,VISUAL_LIMITS} from './presentation.mjs';
+import {drawOrganism} from './organism.mjs?v=4';
 
 const path='/static/assets/specimen/';
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
@@ -99,25 +100,7 @@ export async function createRenderer(canvas){
   function fans(s){
     for(const [x,y,size]of SCENES[s.room].fans){ctx.save();ctx.beginPath();ctx.arc(x,y,size*.37,0,Math.PI*2);ctx.clip();ctx.fillStyle='#f6e4cf';ctx.fillRect(x-size/2,y-size/2,size,size);ctx.translate(x,y);ctx.rotate(reduced.matches?0:s.time*.42);steel(ctx,4,-size/2,-size/2,size);ctx.restore();}
   }
-  function tendrils(s){
-    for(let i=0;i<s.limbs.length;i++){
-      const l=s.limbs[i],n=s.nodes[l.root],tip=l.anchor||l.tip,dx=tip.x-n.x,dy=tip.y-n.y,d=Math.hypot(dx,dy);if(d<5)continue;
-      const slack=l.planted?Math.min(14,Math.max(2,(l.reach-d)*.08)):22;ctx.beginPath();ctx.moveTo(Math.round(n.x),Math.round(n.y));
-      for(let j=1;j<=16;j++){
-        const t=j/16,bend=Math.sin(t*Math.PI)*slack*(i%2?1:-1),x=n.x+dx*t-dy/d*bend,y=n.y+dy*t+dx/d*bend;
-        ctx.lineTo(Math.round(x),Math.round(y));
-      }
-      ctx.strokeStyle='#3c0413';ctx.lineWidth=3.2;ctx.stroke();ctx.strokeStyle=i%3?'#ae0c24':'#df2033';ctx.lineWidth=1.2;ctx.stroke();
-    }
-  }
-  function creature(s){
-    tendrils(s);ctx.save();ctx.globalAlpha=s.invulnerable>0&&Math.floor(s.time*18)%2?.64:1;
-    for(let i=s.nodes.length-1;i>0;i--){const n=s.nodes[i],p=s.nodes[n.parent];ctx.strokeStyle='#60091b';ctx.lineWidth=(n.r+p.r)*1.05;ctx.beginPath();ctx.moveTo(n.x,n.y);ctx.lineTo(p.x,p.y);ctx.stroke();ctx.strokeStyle='#bd1126';ctx.lineWidth=(n.r+p.r)*.85;ctx.stroke();}
-    for(let i=s.nodes.length-1;i>=0;i--){const n=s.nodes[i],p=s.nodes[n.parent]||n,size=n.r*3;ctx.save();ctx.translate(Math.round(n.x),Math.round(n.y));ctx.fillStyle=i%3?'#bc0e23':'#9b0a20';ctx.beginPath();ctx.ellipse(0,0,n.r,n.r*.8,0,0,Math.PI*2);ctx.fill();ctx.rotate(Math.atan2(n.y-p.y,n.x-p.x)+(i%2)*.48);if(i%2===0){ctx.globalAlpha*=.72;flesh(ctx,i%4,-size/2,-size/2,size);}ctx.restore();}
-    for(let i=0;i<s.nodes.length;i+=2){const n=s.nodes[i],t=reduced.matches?0:s.time,side=i%4?1:-1;wire(ctx,n.x-9,n.y,n.x+16,n.y+side*11,Math.sin(t*2+i)*6,'#b50720',1);}
-    const h=s.nodes[0],angle=Math.atan2(s.aimY,s.aimX);ctx.save();ctx.translate(Math.round(h.x),Math.round(h.y));ctx.rotate(angle);flesh(ctx,4,-14,s.grab?-12:-7,33,s.grab?25:15);flesh(ctx,5,-14,-12,19,16);ctx.strokeStyle='#ead5bd';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(4,-6);ctx.lineTo(16,-2);ctx.moveTo(5,6);ctx.lineTo(17,2);ctx.stroke();ctx.fillStyle='#f7e3c8';for(let i=0;i<4;i++){ctx.fillRect(6+i*3,-5+i*.6,1,3);ctx.fillRect(7+i*3,3-i*.6,1,3);}ctx.restore();ctx.restore();
-    if(s.grab){const o=(s.grab.type==='enemy'?currentRoom(s).enemies:currentRoom(s).objects).find(o=>o.id===s.grab.id);if(o){wire(ctx,h.x,h.y,o.x,o.y,19,'#620514',5);wire(ctx,h.x,h.y,o.x,o.y,19,'#dc182d',2);}}
-  }
+  function creature(s){drawOrganism(ctx,s,flesh,currentRoom(s),reduced.matches);}
   function props(s){
     for(const o of currentRoom(s).objects){
       if(o.kind==='lamp'){if(!o.broken){ctx.strokeStyle='#7c6068';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(o.x,o.mountY);ctx.lineTo(o.x,o.y-12);ctx.stroke();steel(ctx,11,o.x-9,o.y-16,18,31);}else fixture(ctx,7,o.x-13,o.y-9,26,20);continue;}
