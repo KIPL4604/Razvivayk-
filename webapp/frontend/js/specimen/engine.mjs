@@ -1,5 +1,5 @@
 import {TILE,WIDTH,HEIGHT,ROOMS,FORMS,formFor,freshRoom} from './world.mjs';
-import {updateAnchors,constrainAnchors} from './locomotion.mjs';
+import {updateAnchors,constrainAnchors,validateAnchors,supportTraction} from './locomotion.mjs';
 export {ROOMS,FORMS,formFor};
 export const VERSION=2, LIMITS=Object.freeze({nodes:16,limbs:10,bullets:40,particles:90,decals:36});
 const H=1/60,clamp=(v,a,b)=>Math.max(a,Math.min(b,v)),hyp=Math.hypot;
@@ -8,11 +8,12 @@ export function currentRoom(s){return s.rooms[s.room];}
 export function notice(s,message){s.message=message;s.messageTime=4;s.event++;}
 function makeNode(x,y,r,parent){return{x,y,px:x,py:y,r,parent};}
 function resize(s){
-  const f=FORMS[formFor(s.mass)],nodes=s.nodes;
+  const f=FORMS[formFor(s.mass)],nodes=s.nodes,initial=nodes.length===0;
   if(nodes.length>f.nodes)nodes.length=f.nodes;
-  for(let i=0;i<nodes.length;i++)nodes[i].r=f.r*(i===0?1.12:.8+(i%3)*.1);
-  while(nodes.length<f.nodes){const i=nodes.length;if(i===0){nodes.push(makeNode(s.x,s.y,f.r*1.12,0));continue;}const parent=i<4?Math.max(0,i-1):i-3,p=nodes[parent];
-    nodes.push(makeNode(p.x-6,p.y+(i%2?4:-4),f.r,parent));}
+  while(nodes.length<f.nodes){const i=nodes.length;if(i===0){nodes.push(makeNode(s.x,s.y,f.r*1.12,0));collide(s,nodes[0]);continue;}const parent=i<4?Math.max(0,i-1):i-3,p=nodes[parent],r=initial?f.r*(.8+(i%3)*.1):2.5;
+    const n=makeNode(p.x,p.y,r,parent);moveNode(s,n,-(p.r+r)*.78,(i%2?1:-1)*(p.r+r)*.38);n.px=n.x;n.py=n.y;nodes.push(n);}
+  // Shape transition is transient: mass, form thresholds and v1/v2 saves stay unchanged.
+  if(initial){solveBody(s);for(const n of nodes){n.px=n.x;n.py=n.y;}s.x=nodes[0].x;s.y=nodes[0].y;s.moveSpeed=f.speed;s.bodyAngle=0;}
   if(s.limbs)updateAnchors(s,0,0,blocked,0);
 }
 export function createRun(){
@@ -43,6 +44,41 @@ function collide(s,n){
   n.x=clamp(n.x,n.r,WIDTH-n.r);n.y=clamp(n.y,n.r,HEIGHT-n.r);
 }
 function moveNode(s,n,dx,dy){const count=Math.max(1,Math.ceil(hyp(dx,dy)/5));for(let i=0;i<count;i++){n.x+=dx/count;collide(s,n);n.y+=dy/count;collide(s,n);}}
+function limitVelocity(n,max){const vx=n.x-n.px,vy=n.y-n.py,d=hyp(vx,vy);if(d>max){n.px=n.x-vx/d*max;n.py=n.y-vy/d*max;}}
+function solveBody(s){
+  // Local length / compression / bend bounds retain the existing branched body.
+  function separate(n,p,min,max,weight,stiffness=1){
+    let dx=n.x-p.x,dy=n.y-p.y,d=hyp(dx,dy);if(d>=min&&d<=max)return;
+    if(d<.0001){dx=-1;dy=n.parent%2?.5:-.5;d=hyp(dx,dy);}
+    const correction=clamp((d<min?d-min:d-max)*stiffness,-2.5,2.5)/d;
+    moveNode(s,n,-dx*correction*(1-weight),-dy*correction*(1-weight));
+    if(weight)moveNode(s,p,dx*correction*weight,dy*correction*weight);
+  }
+  for(let pass=0;pass<7;pass++){
+    for(let i=1;i<s.nodes.length;i++){
+      const n=s.nodes[i],p=s.nodes[n.parent],sum=n.r+p.r;
+      separate(n,p,sum*.65,sum*.87,n.parent? .12:0);
+      if(n.parent){const g=s.nodes[p.parent];separate(n,g,(n.r+p.r*2+g.r)*.34,Infinity,p.parent?.1:0,.35);}
+    }
+    if(pass%2===0)for(let i=1;i<s.nodes.length;i++)for(let j=0;j<i;j++){
+      const n=s.nodes[i],p=s.nodes[j];if(n.parent===j)continue;
+      separate(n,p,(n.r+p.r)*.58,Infinity,j?.5:0,.55);
+    }
+  }
+  // The final operation on every node is collision projection, never an unchecked constraint.
+  for(const n of s.nodes)collide(s,n);
+}
+function easeShape(s){
+  const f=FORMS[formFor(s.mass)];s.moveSpeed+=clamp(f.speed-s.moveSpeed,-60*H,60*H);
+  for(let i=0;i<s.nodes.length;i++){
+    const n=s.nodes[i],target=f.r*(i===0?1.12:.8+(i%3)*.1),before=n.r;
+    n.r+=clamp(target-n.r,-6*H,6*H);
+    const x=n.x,y=n.y;collide(s,n);
+    // Radius projection must not inject a launch velocity into the next fixed step.
+    n.px+=n.x-x;n.py+=n.y-y;
+    if(n.r>before&&blocked(s,n.x,n.y)){n.r=before;collide(s,n);}
+  }
+}
 function particles(s,x,y,color,count=8){
   for(let i=0;i<count&&s.particles.length<LIMITS.particles;i++){const a=(s.ticks+i*7)*2.399;s.particles.push({x,y,vx:Math.cos(a)*(20+i*4),vy:Math.sin(a)*(20+i*4),life:.35+i*.035,max:.35+i*.035,color});}
 }
@@ -135,26 +171,43 @@ function tick(s,input){
   if(finite(input.aimX,-1,1)&&finite(input.aimY,-1,1)&&hyp(input.aimX,input.aimY)>.1){const a=hyp(input.aimX,input.aimY);s.aimX=input.aimX/a;s.aimY=input.aimY/a;}
   else if(len>.1&&!input.grabbing){s.aimX=ix/(len||1);s.aimY=iy/(len||1);}
   if(input.burst&&s.dashCooldown<=0){s.dash=.22;s.dashCooldown=1.3;s.dashX=len>.1?ix:s.aimX;s.dashY=len>.1?iy:s.aimY;particles(s,s.x,s.y,'#f39870',9);}
-  const f=FORMS[formFor(s.mass)],head=s.nodes[0],oldX=head.x,oldY=head.y;
+  const head=s.nodes[0];
   const room=ROOMS[s.room],gate=room.gate;
   if(s.dash>0&&gate?.kind==='heavy'&&!currentRoom(s).gateOpen&&Math.abs(head.x-gate.x)<70){
     if(formFor(s.mass)===2){currentRoom(s).gateOpen=true;particles(s,gate.x,head.y,'#a1b0a6',24);notice(s,'Грузовая перегородка разрушена.');s.checkpointEvent++;}
     else notice(s,'Для этой перегородки нужна большая форма.');
   }
-  const supports=updateAnchors(s,ix,iy,blocked,H),traction=supports>=2?1:supports===1?.65:.25,speed=f.speed*(s.dash>0?3.2:traction);
-  const blend=s.dash>0?1:.38,vx=(head.x-head.px)*(1-blend)+(s.dash>0?s.dashX:ix)*speed*H*blend,
-    vy=(head.y-head.py)*(1-blend)+(s.dash>0?s.dashY:iy)*speed*H*blend+(supports?0:170*H*H);
-  moveNode(s,head,vx,vy);
-  head.px=oldX;head.py=oldY;
-  for(let i=1;i<s.nodes.length;i++){const n=s.nodes[i],vx=(n.x-n.px)*.81,vy=(n.y-n.py)*.81;n.px=n.x;n.py=n.y;moveNode(s,n,vx,vy);}
-  for(let pass=0;pass<7;pass++)for(let i=1;i<s.nodes.length;i++){
-    const n=s.nodes[i],p=s.nodes[n.parent],dx=n.x-p.x,dy=n.y-p.y,d=hyp(dx,dy)||1,max=(n.r+p.r)*.87;
-    if(d>max){const excess=(d-max)/d;n.x-=dx*excess*.9;n.y-=dy*excess*.9;if(n.parent>0){p.x+=dx*excess*.1;p.y+=dy*excess*.1;}collide(s,n);}
+  easeShape(s);
+  const oldX=head.x,oldY=head.y;
+  if(len>.1){const angle=Math.atan2(iy,ix),turn=Math.atan2(Math.sin(angle-s.bodyAngle),Math.cos(angle-s.bodyAngle));s.bodyAngle+=clamp(turn,-5*H,5*H);}
+  const supports=updateAnchors(s,ix,iy,blocked,H),traction=supportTraction(s,ix,iy),speed=s.moveSpeed*(s.dash>0?3.2:.3+.7*traction);
+  let vx=(head.x-head.px)/H,vy=(head.y-head.py)/H;
+  if(s.dash>0){vx=s.dashX*speed;vy=s.dashY*speed;}
+  else{
+    const drag=supports?(len>.05?.985:.82):.975;vx*=drag;vy*=drag;
+    const response=supports?14:1.2,ax=(ix*speed-vx)*response,ay=(iy*speed-vy)*response;
+    const acceleration=900*(.8+.2*FORMS[0].speed/s.moveSpeed),amount=Math.min(1,acceleration/(hyp(ax,ay)||1));
+    // In free flight only intent adds force; releasing input leaves exponential air drag.
+    vx+=(supports?ax:ix*90)*amount*H;vy+=(supports?ay:iy*90)*amount*H;
+    if(!supports)vy+=170*H;
+    const velocity=hyp(vx,vy),max=s.moveSpeed*1.15;if(velocity>max){vx*=max/velocity;vy*=max/velocity;}
   }
-  constrainAnchors(s,collide);
+  moveNode(s,head,vx*H,vy*H);
+  head.px=oldX;head.py=oldY;
+  for(let i=1;i<s.nodes.length;i++){
+    const n=s.nodes[i],p=s.nodes[n.parent],rest=(n.r+p.r)*.8,angle=s.bodyAngle+(i<4?0:(i%2?.55:-.55));
+    limitVelocity(n,s.moveSpeed*3.2*H);
+    // A bounded elastic bias turns the rear around the front instead of pushing a rigid pile.
+    const ax=clamp((p.x-Math.cos(angle)*rest-n.x)*40*H*H,-.3,.3),ay=clamp((p.y-Math.sin(angle)*rest-n.y)*40*H*H,-.3,.3);
+    const vx=(n.x-n.px)*.8+ax,vy=(n.y-n.py)*.8+ay;n.px=n.x;n.py=n.y;moveNode(s,n,vx,vy);
+  }
+  constrainAnchors(s,moveNode);solveBody(s);
+  for(const n of s.nodes)limitVelocity(n,s.moveSpeed*(s.dash>0?3.2:1.4)*H);
+  validateAnchors(s,blocked);
   s.x=head.x;s.y=head.y;
   if(input.interact){const item=interaction(s);if(item)activate(s,item.object);else notice(s,'Подойди ближе к рычагу, резервуару или терминалу.');}
   updateGrab(s,input);tickAI(s);tickBullets(s);
+  validateAnchors(s,blocked);
   for(const o of currentRoom(s).objects)if(o.kind==='crate'&&s.grab?.id!==o.id){
     if(hyp(o.x-s.x,o.y-s.y)<31){const nx=o.x+(o.x-s.x)*.05;if(!blocked(s,nx,o.y))o.x=clamp(nx,64,704);}
     if(o.y<362&&!blocked(s,o.x,o.y+20))o.y=Math.min(362,o.y+120*H);
