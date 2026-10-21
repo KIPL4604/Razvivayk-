@@ -21,7 +21,9 @@
   <script src="/static/js/poker-mode.js?v=1" defer></script>
   <script src="/static/js/platform.js?v=1" defer></script>
   <script src="/static/js/lumen-mode.js?v=menu-6" defer></script>
-  <script src="/static/js/games.js?v=7" defer></script>
+  <script src="/static/js/specimen-mode.js?v=2" defer></script>
+  <link rel="stylesheet" href="/static/css/specimen.css?v=2">
+  <script src="/static/js/games.js?v=8" defer></script>
 </head>
 <body>
 <div id="app">
@@ -36,7 +38,7 @@
     <div id="launchStatus" class="launch-status" role="status"></div>
     <div id="cloudStatus" class="cloud-status hidden" role="status"></div>
     <section class="screen active" data-screen="home" aria-labelledby="homeTitle">
-      <div class="welcome-block"><div><p class="eyebrow">Время для себя</p><h1 id="homeTitle">Во что сыграем?</h1><p class="lead">Выбери игру. Найди свой ритм.</p></div><span class="library-count"><strong>13</strong> игр<br><span>1000 уровней</span></span></div>
+      <div class="welcome-block"><div><p class="eyebrow">Время для себя</p><h1 id="homeTitle">Во что сыграем?</h1><p class="lead">Выбери игру. Найди свой ритм.</p></div><span class="library-count"><strong>14</strong> игр<br><span>1000 уровней</span></span></div>
       <div id="resumeList"></div>
       <button class="together-link" type="button" data-screen-link="lobby"><span><strong>Играть вместе</strong><span>Пригласи друга или найди соперника в покере</span></span><span data-ui-icon="arrow"></span></button>
       <div class="pending-notice hidden" id="pendingNotice"><span>Результат сохранён на устройстве и ждёт отправки.</span><button class="text-button" id="retryPending" type="button">Повторить сохранение</button></div>
@@ -93,6 +95,7 @@
       <div class="game-toolbar"><button class="icon-button" data-poker-action="setup" type="button" aria-label="Вернуться к выбору режима покера"><span data-ui-icon="back"></span></button><h1>Математический покер</h1><button class="icon-button" data-poker-action="rules" type="button" aria-label="Правила покера"><span data-ui-icon="help"></span></button></div>
       <div id="pokerMount"></div>
     </section>
+    <section class="screen" data-screen="specimen" aria-label="Нулевой образец"><div id="specimenMount"></div></section>
     <section class="screen" data-screen="lumen" aria-labelledby="lumenTitle">
       <div class="page-toolbar"><button class="back-button" data-screen-link="home" type="button"><span data-ui-icon="back"></span>Игры</button><span class="page-kicker">Survival · одиночная игра</span></div>
       <div id="lumenSetupMount"></div>

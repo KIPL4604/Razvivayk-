@@ -32,7 +32,7 @@ async (page) => {
   try{
     await p.route('https://telegram.org/**',r=>r.fulfill({body:'',contentType:'text/javascript'}));await p.goto(base);await p.locator('#campaignCards [data-lumen-action="open"]').waitFor();
     assert(!requests.some(u=>u.includes('/lumen/engine.mjs')||u.includes('/lumen/game.mjs')),'Game downloaded before opening');
-    assert(await p.locator('#campaignCards button').count()===13,'Catalogue count');
+    assert(await p.locator('#campaignCards button').count()===14,'Catalogue count');
     await capture('lumen-library-375-iteration2');
     await p.locator('[data-lumen-action="open"]').click();await p.locator('#lumenTitle').waitFor();
     for(const [width,height] of [[375,812],[768,1024],[1440,900],[1920,1080]]){
@@ -41,7 +41,7 @@ async (page) => {
       assert(await p.evaluate(()=>document.querySelector('#main').scrollWidth<=document.querySelector('#main').clientWidth),'Setup overflow '+width);
       if(width===375){await p.locator('.lumen-menu-nav [data-lumen-value="play"]').click();const box=await p.locator('[data-lumen-action="start"]').boundingBox();assert(box.y+box.height<738,'Mobile launch below fold');await p.keyboard.press('Escape');}
     }
-    results.push('lazy loading, 13 games, setup at four widths, mobile start visible');
+    results.push('lazy loading, 14 games, setup at four widths, mobile start visible');
     await p.setViewportSize({width:375,height:812});
     await p.locator('.lumen-menu-nav [data-lumen-value="weapons"]').click();await p.evaluate(()=>document.querySelector('#lumenMenuContent').scrollTop=250);await p.setViewportSize({width:375,height:780});
     assert(await p.evaluate(()=>document.querySelector('#lumenMenuContent').scrollTop)>=240,'Resize reset menu scroll');await p.setViewportSize({width:375,height:812});

@@ -1,0 +1,50 @@
+{
+  "version": 2,
+  "origin": "Original imagegen artwork, normalized from retained source atlases",
+  "tileSize": 64,
+  "environmentSlots": 16,
+  "fixtureSlots": 12,
+  "people": {
+    "frames": 6,
+    "rows": 2,
+    "frameSize": 64,
+    "anchor": [
+      32,
+      58
+    ]
+  },
+  "files": {
+    "atlas.png": {
+      "bytes": 117630,
+      "sha256": "c0535009e283c3673c495666da774a9d2fc746579f90e6aefb8aab9fd1d95a00",
+      "size": [
+        256,
+        256
+      ]
+    },
+    "people.png": {
+      "bytes": 34558,
+      "sha256": "462a58012ac91245cce7ad3af1eddc023f890e88428edb03feb418636eb6c49a",
+      "size": [
+        384,
+        128
+      ]
+    },
+    "cover.png": {
+      "bytes": 60853,
+      "sha256": "8e13af7faf0d492c9fe40f4431b991ff491cbe61e34fad1a035f4a9f4034f36c",
+      "size": [
+        384,
+        240
+      ]
+    },
+    "fixtures.png": {
+      "bytes": 110360,
+      "sha256": "4428877c5777981b3760919b696900494210ab3008f0e4471f72537084d7abb2",
+      "size": [
+        256,
+        192
+      ]
+    }
+  }
+}
