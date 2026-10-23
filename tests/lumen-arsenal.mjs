@@ -79,7 +79,7 @@ test('three bosses have different shot patterns; all six common species spawn in
 test('real version1 record migrates without moving the player, losing XP or duplicating kit',()=>{
   const old=JSON.parse(readFileSync(new URL('./fixtures/lumen-v1.json',import.meta.url),'utf8'));
   old.player.x=123;old.xp=4;old.upgrades={orbit:2};
-  const r=restore(old);assert(r);assert.equal(r.version,7);assert.equal(r.player.x,123);assert.equal(r.xp,4);
+  const r=restore(old);assert(r);assert.equal(r.version,8);assert.equal(r.player.x,123);assert.equal(r.xp,4);
   assert.deepEqual(r.upgrades,{spark:1,orbit:3});assert.equal(r.coinsEarned,0);assert.deepEqual(serialize(restore(serialize(r))),serialize(r));
   assert.equal(old.version,1);assert.deepEqual(old.upgrades,{orbit:2});
 });

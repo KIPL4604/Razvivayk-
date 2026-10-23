@@ -88,7 +88,7 @@ test('v6 migration keeps native and strongest four, archives exact stages and un
   const old=serialize(createRun());old.version=6;delete old.relicState;delete old.archivedWeapons;
   old.upgrades={spark:1,orbit:8,pulse:7,ice:6,flame:5,storm:8};old.foundWeapons=['orbit','pulse','ice','flame','storm'];old.masteredWeapons=['orbit','storm'];
   old.status='upgrade';old.choices=['ice','collector','meteor'];const original=JSON.stringify(old);
-  const r=restore(old);assert(r);assert.equal(r.version,7);assert.deepEqual(r.upgrades,{spark:1,orbit:8,pulse:7,storm:8});
+  const r=restore(old);assert(r);assert.equal(r.version,8);assert.deepEqual(r.upgrades,{spark:1,orbit:8,pulse:7,storm:8});
   assert.deepEqual(r.archivedWeapons,{ice:6,flame:5});assert.deepEqual(r.choices,['collector']);assert.equal(JSON.stringify(old),original);
   const meta=normalizeMeta();recordProgress(meta,r);assert.equal(meta.weaponBest.flame,5);assert.equal(meta.weaponBest.storm,8);
   assert.deepEqual(serialize(restore(serialize(r))),serialize(r));

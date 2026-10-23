@@ -67,7 +67,8 @@ async(page)=>{
     await p.keyboard.press('Escape');const buttons=p.locator('#lumenOverlay button,#lumenOverlay summary');await buttons.last().focus();await p.keyboard.press('Tab');assert(await buttons.first().evaluate(e=>e===document.activeElement),'Pause focus escape');
     await p.emulateMedia({reducedMotion:'reduce'});await p.locator('[data-lumen-action="continue"]').click();await p.waitForTimeout(80);await p.keyboard.press('Escape');
     assert(await p.evaluate(()=>matchMedia('(prefers-reduced-motion:reduce)').matches),'Reduced motion');
-    await seed('quarry-finish');await p.locator('#lumenDialogTitle').waitFor();assert((await p.locator('#lumenDialogTitle').innerText()).includes('Лунный карьер пройден'),'Final map result');assert(await p.locator('[data-lumen-action="next"]').count()===0,'Nonexistent third map');assert(await p.evaluate(()=>saved.lumen.meta.clearedMaps.includes('quarry')),'Final map clear not saved');
+    await seed('quarry-finish');await p.locator('#lumenDialogTitle').waitFor();assert((await p.locator('#lumenDialogTitle').innerText()).includes('Лунный карьер пройден'),'Quarry result');assert(await p.locator('[data-lumen-action="next"][data-lumen-value="crater"]').count()===1,'Crater unlock');assert(await p.evaluate(()=>saved.lumen.meta.clearedMaps.includes('quarry')),'Quarry clear not saved');
+    await p.locator('[data-lumen-action="next"]').click();await p.keyboard.press('Escape');assert(await p.evaluate(()=>saved.lumen.run.map==='crater'&&saved.lumen.run.level===1),'Third expedition starts at level1');
     assert(!errors.length&&!badAssets.length,JSON.stringify({errors,badAssets}));results.push('Distinct quarry assets, four widths, clear HUD, nearest, focus and reduced motion');
     return {results,errors,badAssets,screenshots:out};
   }finally{await context.close();}

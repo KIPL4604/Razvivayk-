@@ -1,0 +1,13 @@
+{
+  "method": "OpenAI built-in image_gen",
+  "sourceSession": "01a16878-b801-7240-8600-3345e2df408e",
+  "files": {
+    "boss-carapace-raw.png": "exec-170de41d-eefd-4f0d-8295-0635c66db333.png",
+    "boss-tempest-raw.png": "exec-d45dd93d-9d7e-48f3-b2c0-8d8ae8e171ab.png",
+    "boss-matriarch-raw.png": "exec-abfe3f81-533b-40de-a6b6-8b8e7825a9d1.png",
+    "arena-tick-raw.png": "exec-b72eb7f8-98cb-4964-abfd-1db8d0a9f1b5.png",
+    "mega-chest-raw.png": "exec-26579735-7bfd-40a2-8522-b7593e81fcc2.png",
+    "crater-environment-raw.png": "exec-4eaf265e-e858-4e5f-98bb-ef1945288f8e.png",
+    "arena-fx-raw.png": "exec-1c5d50f2-4b78-495a-9454-e09f5b6070c9.png"
+  }
+}

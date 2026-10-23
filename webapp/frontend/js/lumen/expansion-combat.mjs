@@ -13,7 +13,7 @@ export function updateExpansionWeapons(state,dt,{hit,effect,limits}){
   function nearest(from,range=650,seen=[]){
     let target=null,distance=range*range;
     for(const e of state.enemies){
-      if(e.hp<=0||seen.includes(e.id))continue;
+      if(e.hp<=0||e.kind==='arena-tick'||seen.includes(e.id))continue;
       const d=squared(e,from);if(d<distance){distance=d;target=e;}
     }
     return target;
@@ -23,9 +23,9 @@ export function updateExpansionWeapons(state,dt,{hit,effect,limits}){
     effect(state,kind,x,y,radius,life);
     const event=state.effects.at(-1);if(weapon)event.weapon=weapon;return event;
   }
-  function blast(center,damage,push=0){
+  function blast(center,damage,push=0,weapon){
     for(const e of state.enemies)if(e.hp>0&&squared(e,center)<(center.radius+e.radius)**2){
-      hit(state,e,damage,e.kind==='guardian'?push*.18:e.elite?push*.4:push);
+      hit(state,e,damage,e.kind==='guardian'?push*.18:e.elite?push*.4:push,weapon);
     }
   }
   function plant(kind,x,y,stats,maxLife,tick=0){
@@ -45,13 +45,13 @@ export function updateExpansionWeapons(state,dt,{hit,effect,limits}){
     if(!EXPANSION_ZONE_KINDS.includes(z.kind))continue;
     z.life-=dt;z.tick=Math.max(0,z.tick-dt);
     if(z.kind==='meteor'){
-      if(z.life<=0){blast(z,z.damage,24);emit('fusion',z.x,z.y,z.radius,.4,z.kind);}
+      if(z.life<=0){blast(z,z.damage,24,z.kind);emit('fusion',z.x,z.y,z.radius,.4,z.kind);}
       continue;
     }
     if(z.life<=0)continue;
     if(z.kind==='mine'){
       if(z.tick<=0&&state.enemies.some(e=>e.hp>0&&squared(e,z)<(28*area+e.radius)**2)){
-        blast(z,z.damage,32);emit('fusion',z.x,z.y,z.radius,.35,z.kind);z.life=0;
+        blast(z,z.damage,32,z.kind);emit('fusion',z.x,z.y,z.radius,.35,z.kind);z.life=0;
       }
       continue;
     }
@@ -60,8 +60,8 @@ export function updateExpansionWeapons(state,dt,{hit,effect,limits}){
       const dx=z.x-e.x,dy=z.y-e.y,distance=Math.hypot(dx,dy)||1;
       const resistance=(e.kind==='guardian'||e.elite) ? .25 : 1;
       const pull=Math.min(Math.max(0,distance-e.radius-4),dt*65*resistance);
-      e.x+=dx/distance*pull;e.y+=dy/distance*pull;
-      if(z.tick<=0)hit(state,e,z.damage);
+      if(!['arena-tick','arena-boss'].includes(e.kind)){e.x+=dx/distance*pull;e.y+=dy/distance*pull;}
+      if(z.tick<=0)hit(state,e,z.damage,0,z.kind);
     }
     if(z.tick<=0){z.tick=.45;emit('pulse',z.x,z.y,z.radius,.35,z.kind);}
   }
@@ -92,9 +92,9 @@ export function updateExpansionWeapons(state,dt,{hit,effect,limits}){
     }else if(id==='bell'||id==='frostnova'){
       const center={x:p.x,y:p.y,radius:stats.radius*area};
       emit('pulse',p.x,p.y,center.radius,.5,id);
-      if(id==='bell')blast(center,stats.damage*scale,55+rank*4);
+      if(id==='bell')blast(center,stats.damage*scale,55+rank*4,id);
       else for(const e of state.enemies)if(e.hp>0&&squared(e,center)<(center.radius+e.radius)**2){
-        hit(state,e,stats.damage*scale);e.slowTime=Math.max(e.slowTime||0,Math.min(2,1.5+rank*.06));
+        hit(state,e,stats.damage*scale,0,id);e.slowTime=Math.max(e.slowTime||0,Math.min(2,1.5+rank*.06));
       }
     }else if(id==='mine'){
       const dx=target?target.x-p.x:p.facingX,dy=target?target.y-p.y:p.facingY;
@@ -120,13 +120,13 @@ export function updateExpansionWeapons(state,dt,{hit,effect,limits}){
         for(const e of state.enemies){
           const x=e.x-p.x,y=e.y-p.y,along=x*dx+y*dy;
           if(e.hp>0&&along>=0&&along<=range&&Math.abs(x*dy-y*dx)<width+e.radius){
-            hit(state,e,stats.damage*scale*(e.kind==='guardian'||e.elite?1.8:1));
+            hit(state,e,stats.damage*scale*(['guardian','arena-boss'].includes(e.kind)||e.elite?1.8:1),0,id);
           }
         }
       }
     }else if(id==='eclipse'){
       const center={x:p.x,y:p.y,radius:stats.radius*area};
-      emit('fusion',p.x,p.y,center.radius,.55,id);blast(center,stats.damage*scale,38);
+      emit('fusion',p.x,p.y,center.radius,.55,id);blast(center,stats.damage*scale,38,id);
       state.projectiles=state.projectiles.filter(shot=>!shot.hostile||squared(shot,p)>(center.radius+shot.radius)**2);
     }
     state.weaponTimers[id]=Math.min(6,stats.cooldown/haste);state.attackSerial++;

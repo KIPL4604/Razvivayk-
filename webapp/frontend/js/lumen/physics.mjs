@@ -6,6 +6,7 @@ const EPS = 1e-6;
 const CELL = 96; // Largest possible body diameter is 90.
 export function bodyRadius(entity) {
   if (!entity.kind || entity.kind === 'hero') return PLAYER_BODY;
+  if(entity.kind==='arena-tick')return entity.radius+2;
   const padding = entity.kind === 'guardian' ? 9 : entity.elite ? 8
     : ['wasp','wisp','moonmoth'].includes(entity.kind) ? 10 : 12;
   return Math.min(45, entity.radius + padding);
@@ -73,16 +74,18 @@ export function separateCrowd(enemies,player) {
         for(const j of grid.get(key(x,y))||[]) {
           if(j<=i)continue;
           const b=alive[j],radius=radii[i]+radii[j];
+          const fixedA=['arena-tick','arena-boss'].includes(a.kind),fixedB=['arena-tick','arena-boss'].includes(b.kind);
+          if(fixedA&&fixedB)continue;
           if((a.x-b.x)**2+(a.y-b.y)**2>=radius*radius)continue;
           const [nx,ny,d]=direction(a,b);
           if(d>=radius)continue;
-          const depth=radius-d,share=masses[j]/(masses[i]+masses[j]);
+          const depth=radius-d,share=fixedA?0:fixedB?1:masses[j]/(masses[i]+masses[j]);
           a.x+=nx*depth*share;a.y+=ny*depth*share;
           b.x-=nx*depth*(1-share);b.y-=ny*depth*(1-share);
         }
       }
     }
-    for(let i=0;i<alive.length;i++)keepOutsidePlayer(alive[i],player,radii[i]+PLAYER_BODY);
+    for(let i=0;i<alive.length;i++)if(!['arena-tick','arena-boss'].includes(alive[i].kind))keepOutsidePlayer(alive[i],player,radii[i]+PLAYER_BODY);
   }
 }
 

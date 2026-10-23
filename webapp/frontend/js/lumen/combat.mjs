@@ -6,7 +6,7 @@ export function updateWeapons(state,dt,{hit,effect,limits}){
   const p=state.player,scale=(1+(state.upgrades.focus||0)*.2)*(1+(state.training?.lens||0)*.01),haste=1+(state.upgrades.haste||0)*.15+(state.upgrades.chronogear||0)*.12+(state.relicState?.surge>0?(state.upgrades.hourglass||0)*.2:0),area=1+(state.upgrades.amplifier||0)*.12;
   const nearest=(from,range=640,seen=[])=>{
     let target=null,distance=range*range;
-    for(const e of state.enemies){if(e.hp<=0||seen.includes(e.id))continue;const d=squared(e,from);if(d<distance){target=e;distance=d;}}
+    for(const e of state.enemies){if(e.hp<=0||e.kind==='arena-tick'||seen.includes(e.id))continue;const d=squared(e,from);if(d<distance){target=e;distance=d;}}
     return target;
   };
   function shoot(id,stats,target,index){
@@ -23,7 +23,7 @@ export function updateWeapons(state,dt,{hit,effect,limits}){
   for(const z of state.zones){
     if(EXPANSION_ZONE_KINDS.includes(z.kind))continue;
     z.life-=dt;z.tick-=dt;if(z.tick>0||z.life<=0)continue;
-    for(const e of state.enemies)if(e.hp>0&&squared(e,z)<(e.radius+z.radius)**2){hit(state,e,z.damage);if(z.kind==='briar')e.slowTime=1.2;}
+    for(const e of state.enemies)if(e.hp>0&&squared(e,z)<(e.radius+z.radius)**2){hit(state,e,z.damage,0,z.kind);if(z.kind==='briar')e.slowTime=1.2;}
     z.tick=['flame','briar'].includes(z.kind)?.35:.6;
   }
   state.zones=state.zones.filter(z=>z.life>0);
@@ -40,32 +40,32 @@ export function updateWeapons(state,dt,{hit,effect,limits}){
     if(id==='orbit'||id==='cyclone'){
       for(let i=0;i<stats.count;i++){
         const a=state.orbitAngle+i/stats.count*TAU,point={x:p.x+Math.cos(a)*stats.radius,y:p.y+Math.sin(a)*stats.radius};
-        for(const e of state.enemies)if(squared(e,point)<(e.radius+16)**2)hit(state,e,stats.damage*scale);
+        for(const e of state.enemies)if(squared(e,point)<(e.radius+16)**2)hit(state,e,stats.damage*scale,0,id);
       }
       if(id==='cyclone'){
         let from=p,to=nearest(p,stats.radius+160);const seen=[];
         for(let n=0;n<3+rank&&to;n++){
-          hit(state,to,stats.damage*scale);seen.push(to.id);effect(state,'arc',from.x,from.y,12,.25);Object.assign(state.effects.at(-1),{toX:to.x,toY:to.y});from=to;to=nearest(from,180,seen);
+          hit(state,to,stats.damage*scale,0,id);seen.push(to.id);effect(state,'arc',from.x,from.y,12,.25);Object.assign(state.effects.at(-1),{toX:to.x,toY:to.y,weapon:id});from=to;to=nearest(from,180,seen);
         }
       }
     }else if(id==='pulse'){
       for(let i=0;i<stats.count;i++){
-        const radius=stats.radius*(1-i*.12);effect(state,'pulse',p.x,p.y,radius,.55+i*.12);
-        for(const e of state.enemies)if(squared(e,p)<(radius+e.radius)**2)hit(state,e,stats.damage*scale,e.kind==='guardian'?8:35);
+        const radius=stats.radius*(1-i*.12);effect(state,'pulse',p.x,p.y,radius,.55+i*.12);state.effects.at(-1).weapon=id;
+        for(const e of state.enemies)if(squared(e,p)<(radius+e.radius)**2)hit(state,e,stats.damage*scale,e.kind==='guardian'?8:35,id);
       }
     }else if(id==='storm'){
       let from=p;const seen=[];
       for(let i=0;i<stats.count&&target;i++){
-        hit(state,target,stats.damage*scale);seen.push(target.id);
-        effect(state,'arc',from.x,from.y,12,.2);Object.assign(state.effects.at(-1),{toX:target.x,toY:target.y});
+        hit(state,target,stats.damage*scale,0,id);seen.push(target.id);
+        effect(state,'arc',from.x,from.y,12,.2);Object.assign(state.effects.at(-1),{toX:target.x,toY:target.y,weapon:id});
         from=target;target=nearest(from,stats.radius,seen);
       }
     }else if(id==='thorn'||id==='briar'){
       const enemy=nearest(p,200),center=enemy||{x:p.x+p.facingX*60,y:p.y+p.facingY*60};
       for(let i=0;i<stats.count;i++){const a=i/stats.count*TAU;zone(id,center.x+Math.cos(a)*(stats.count>1?42:0),center.y+Math.sin(a)*(stats.count>1?42:0),stats);}
     }else if(id==='sunrise'){
-      const radius=(170+rank*20)*area;effect(state,'fusion',p.x,p.y,radius,.5);
-      for(const e of state.enemies)if(squared(e,p)<(radius+e.radius)**2)hit(state,e,stats.damage*scale,30);
+      const radius=(170+rank*20)*area;effect(state,'fusion',p.x,p.y,radius,.5);state.effects.at(-1).weapon=id;
+      for(const e of state.enemies)if(squared(e,p)<(radius+e.radius)**2)hit(state,e,stats.damage*scale,30,id);
       for(let i=0;i<stats.count;i++){const a=i/stats.count*TAU;shoot(id,{...stats,count:1},{x:p.x+Math.cos(a)*200,y:p.y+Math.sin(a)*200},0);}
     }else for(let i=0;i<stats.count;i++)shoot(id,stats,target,i);
     if(key)state[key]=stats.cooldown/haste;else state.weaponTimers[id]=stats.cooldown/haste;

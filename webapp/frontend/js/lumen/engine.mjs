@@ -8,6 +8,8 @@ import {CHARACTERS,WEAPONS,WEAPON_IDS,BASE_WEAPON_IDS,HYBRIDS,ARTIFACTS,MAX_WEAP
 import {updateWeapons,flameImpact} from './combat.mjs';
 import {CONTACT_PERIOD,movePlayer,separateCrowd,touchingEnemies,contactDamage} from './physics.mjs';
 import {normalizeTraining,validTraining} from './training.mjs';
+import {startArena,updateArena,enforceArenaBoundary,bossDeath,markArenaChestOpened,validateArena} from './arena.mjs';
+import {updateBossAttacks,validateBossFields} from './bosses.mjs';
 
 export const DURATION = 480; // Historical benchmark for older harnesses; no time limit.
 export const LIMITS = Object.freeze({ enemies: 240, projectiles: 100, gems: 220, effects: 80, zones:24, chests:12 });
@@ -25,7 +27,7 @@ export const UPGRADES = Object.freeze([
 const H = 1 / 60;
 const TAU = Math.PI * 2;
 const GUARDIAN_TIMES = [120, 240, 420];
-const TYPES = [...ENEMIES, 'guardian'];
+const TYPES = [...ENEMIES, 'guardian','arena-boss','arena-tick'];
 const CATALOG = new Map(UPGRADES.map((upgrade) => [upgrade.id, upgrade]));
 const own = (object, key) => Object.prototype.hasOwnProperty.call(object, key);
 const clamp = (value, low, high) => Math.max(low, Math.min(high, value));
@@ -66,7 +68,7 @@ export function createRun({ seed = 0x1a71be, character = 'scout',runId,map='gard
   const normalizedSeed = Number.isInteger(seed) ? seed >>> 0 : 0x1a71be;
   const selected = own(CHARACTERS, character) ? character : 'scout';
   const state = {
-    version: 7, relicState:{shield:0,recharge:0,surge:0},archivedWeapons:{}, training:normalizeTraining(training),map:own(MAPS,map)?map:'garden',foundWeapons:[],masteredWeapons:[], seed: normalizedSeed, rngState: normalizedSeed || 0x9e3779b9,
+    version: 8, arena:null,relicState:{shield:0,recharge:0,surge:0},archivedWeapons:{}, training:normalizeTraining(training),map:own(MAPS,map)?map:'garden',foundWeapons:[],masteredWeapons:[], seed: normalizedSeed, rngState: normalizedSeed || 0x9e3779b9,
     runId:typeof runId==='string'&&/^[a-zA-Z0-9-]{1,90}$/.test(runId)?runId:`run-${normalizedSeed.toString(16)}-${selected}`,
     character: selected, time: 0, status: 'playing', endReason: '',
     player: { x: 0, y: 0, hp: CHARACTERS[selected].hp, maxHp: CHARACTERS[selected].hp,
@@ -107,11 +109,13 @@ function gem(state, x, y, value, tier) {
   }
 }
 
-function hit(state, enemy, amount, push = 0) {
+function hit(state, enemy, amount, push = 0,weapon) {
   if (enemy.hp <= 0) return;
+  if(enemy.kind==='arena-tick'||enemy.kind==='arena-boss'&&state.arena?.phase!=='fighting')return;
   enemy.hp -= amount;
   enemy.hitFlash = 0.12;
-  if (push) {
+  if(weapon&&own(WEAPONS,weapon)&&state.effects.length<LIMITS.effects-8){effect(state,'impact',enemy.x,enemy.y,Math.min(48,enemy.radius+9),.22);state.effects.at(-1).weapon=weapon;}
+  if (push&&enemy.kind!=='arena-boss') {
     const dx = enemy.x - state.player.x;
     const dy = enemy.y - state.player.y;
     const distance = Math.hypot(dx, dy) || 1;
@@ -119,6 +123,7 @@ function hit(state, enemy, amount, push = 0) {
     enemy.y += dy / distance * push;
   }
   if (enemy.hp <= 0) {
+    if(enemy.kind==='arena-boss'&&bossDeath(state,enemy,{effect}))return;
     state.kills += 1;
     if (enemy.kind === 'guardian') {
       state.bossesDefeated += 1;
@@ -190,12 +195,15 @@ function spawn(state, guardianStage = 0, wave = waveAt(state.time),elite=false) 
   state.enemies.push({ id: state.nextId++, kind, x: state.player.x + Math.cos(angle) * range,
     y: state.player.y + Math.sin(angle) * range, ...base, value, maxHp: base.hp,
     phase: random(state) * TAU, hitFlash: 0, guardianStage, fireTimer: 2.8,elite,slowTime:0,actionTimer:0 });
+  if(guardianStage&&state.map==='crater')Object.assign(state.enemies.at(-1),{bossType:guardianStage===2?'tempest':'carapace',attackStage:0});
   if (guardianStage) effect(state, 'warning', state.player.x, state.player.y, 160, 1.5);
 }
 
 function creatures(state, dt) {
   for (const enemy of state.enemies) {
     if (enemy.hp <= 0) continue;
+    if(['arena-boss','arena-tick'].includes(enemy.kind))continue;
+    if(enemy.bossType){updateBossAttacks(state,enemy,dt,{hurt,effect,limits:LIMITS});continue;}
     enemy.hitFlash = Math.max(0, enemy.hitFlash - dt);
     enemy.slowTime=Math.max(0,(enemy.slowTime||0)-dt);enemy.actionTimer=Math.max(0,(enemy.actionTimer||0)-dt);
     const dx = state.player.x - enemy.x;
@@ -250,6 +258,7 @@ function creatures(state, dt) {
 }
 
 function projectiles(state, dt) {
+  if(state.arena&&state.arena.phase!=='fighting'){state.projectiles=[];state.zones=[];return;}
   for (const projectile of state.projectiles) {
     if(['cleaver','sunrise'].includes(projectile.weapon)&&projectile.life<=.8){
       if(!projectile.returning){projectile.returning=true;projectile.hits=[];}
@@ -268,14 +277,17 @@ function projectiles(state, dt) {
     }
     if(projectile.weapon==='flame'&&projectile.life<=0){flameImpact(state,projectile,LIMITS);continue;}
     for (const enemy of state.enemies) {
-      if (enemy.hp > 0 && !projectile.hits.includes(enemy.id)&&distanceSquared(projectile, enemy) < (projectile.radius + enemy.radius) ** 2) {
-        hit(state, enemy, projectile.damage);
+      if (enemy.hp > 0 && enemy.kind!=='arena-tick'&&!projectile.hits.includes(enemy.id)&&distanceSquared(projectile, enemy) < (projectile.radius + enemy.radius) ** 2) {
+        hit(state, enemy, projectile.damage,0,projectile.weapon);
+        // bossDeath replaces the live collections. The old iterator must not
+        // process a hostile shot or create a lingering weapon zone afterward.
+        if(state.arena?.phase==='reward'){state.projectiles=[];state.zones=[];return;}
         projectile.hits.push(enemy.id);
         if(['ice','prism'].includes(projectile.weapon))enemy.slowTime=projectile.weapon==='prism'?2:1.4;
         if(projectile.weapon==='flame')flameImpact(state,projectile,LIMITS);
         if(!['cleaver','sunrise'].includes(projectile.weapon)&&(projectile.pierce--<=0))projectile.life=0;
         if(projectile.weapon==='chakram'&&projectile.life>0){
-          const next=state.enemies.filter(e=>e.hp>0&&!projectile.hits.includes(e.id)&&distanceSquared(e,projectile)<300**2)
+          const next=state.enemies.filter(e=>e.hp>0&&e.kind!=='arena-tick'&&!projectile.hits.includes(e.id)&&distanceSquared(e,projectile)<300**2)
             .sort((a,b)=>distanceSquared(a,projectile)-distanceSquared(b,projectile))[0];
           if(next){const a=Math.atan2(next.y-projectile.y,next.x-projectile.x);projectile.vx=Math.cos(a)*380;projectile.vy=Math.sin(a)*380;}
         }
@@ -290,11 +302,15 @@ function projectiles(state, dt) {
 }
 
 function offerUpgrade(state) {
-  if (state.status !== 'playing' || state.xp < state.xpNext) return;
+  if (state.status !== 'playing' || state.arena || state.xp < state.xpNext) return;
   state.xp -= state.xpNext;
   state.level += 1;
   state.xpNext = xpForLevel(state.level);
-  if(state.level>=MAPS[state.map].goal){state.status='won';state.endReason='level';state.choices=[];state.remainder=0;return;}
+  if(state.level>=MAPS[state.map].goal){
+    state.choices=[];state.remainder=0;
+    if(MAPS[state.map].bossGoal)startArena(state,{effect});else{state.status='won';state.endReason='level';}
+    return;
+  }
   const candidates = UPGRADES.filter(u=>availableUpgrade(state,u.id)&&(u.id!=='repair'||state.player.hp<state.player.maxHp||state.level>35)).map(u=>u.id);
   const pick=items=>items.length?items[Math.floor(random(state)*items.length)]:null;
   const existing=pick(candidates.filter(id=>WEAPONS[id]&&rank(state,id)));
@@ -342,16 +358,18 @@ function collect(state, dt) {
     const weapon=chest.upgrade&&candidates.length?candidates[Math.floor(random(state)*candidates.length)]:'';
     if(weapon)state.upgrades[weapon]++;
     rememberMastery(state);
-    const coins=chest.coins+(chest.upgrade&&!candidates.length?25:0);
+    const coins=chest.coins+(!chest.mega&&chest.upgrade&&!candidates.length?25:0);
     state.coinsEarned+=coins;state.openedChests++;
+    if(chest.mega)markArenaChestOpened(state,chest);
     state.lootLog.push({id:chest.id,coins,weapon,stage:weapon?state.upgrades[weapon]:0,time:state.time});state.lootLog=state.lootLog.slice(-4);
-    effect(state,'chest',chest.x,chest.y,40,.6);return false;
+    effect(state,'chest',chest.x,chest.y,chest.mega?100:40,.6);if(chest.mega)state.effects.at(-1).mega=true;return false;
   });
   offerUpgrade(state);
 }
 
 function tick(state, input, dt) {
-  if(state.level>=MAPS[state.map].goal){state.status='won';state.endReason='level';state.choices=[];return;}
+  if(state.level>=MAPS[state.map].goal&&!MAPS[state.map].bossGoal){state.status='won';state.endReason='level';state.choices=[];return;}
+  if(state.level>=MAPS[state.map].goal&&MAPS[state.map].bossGoal&&!state.arena)startArena(state,{effect});
   state.time += dt;
   const player = state.player;
   player.invulnerable = Math.max(0, player.invulnerable - dt);
@@ -362,11 +380,14 @@ function tick(state, input, dt) {
   }
   if(rank(state,'heart'))player.hp=Math.min(player.maxHp,player.hp+rank(state,'heart')*.4*dt);
   state.contactTimer = Math.max(0,state.contactTimer-dt);
-  const wind=player.hp>=player.maxHp?1+rank(state,'compass')*.05:1;
-  movePlayer(player,state.enemies,input.x*player.speed*dt*wind,input.y*player.speed*dt*wind);
-  if (Math.hypot(input.x, input.y) > 0.01) { player.facingX = input.x; player.facingY = input.y; }
   for (const event of state.effects) event.life -= dt;
   state.effects = state.effects.filter((event) => event.life > 0);
+  if(state.arena){updateArena(state,dt,{hit,hurt,effect,limits:LIMITS});if(state.status!=='playing')return;enforceArenaBoundary(state,{hurt,effect});if(state.status!=='playing')return;}
+  const wind=player.hp>=player.maxHp?1+rank(state,'compass')*.05:1;
+  movePlayer(player,state.enemies,input.x*player.speed*dt*wind,input.y*player.speed*dt*wind);
+  if(state.arena){enforceArenaBoundary(state,{hurt,effect});if(state.status!=='playing')return;}
+  if (Math.hypot(input.x, input.y) > 0.01) { player.facingX = input.x; player.facingY = input.y; }
+  if(!state.arena){
   while (state.spawnedGuardians < 3 && state.time + 1e-7 >= GUARDIAN_TIMES[state.spawnedGuardians]) {
     state.spawnedGuardians += 1;
     spawn(state, state.spawnedGuardians);
@@ -381,17 +402,18 @@ function tick(state, input, dt) {
     for (let i = 0; i < wave.count; i += 1) spawn(state,0,wave);
     state.spawnTimer += wave.interval;
   }
-  updateWeapons(state, dt, {hit,effect,limits:LIMITS});
+  }
+  if(!state.arena||state.arena.phase==='fighting')updateWeapons(state, dt, {hit,effect,limits:LIMITS});
   creatures(state, dt);
   separateCrowd(state.enemies,player);
-  const contacts=touchingEnemies(state);
+  const contacts=state.arena?.phase==='forming'?[]:touchingEnemies(state);
   if(state.contactTimer<=0&&contacts.length&&hurt(state,contactDamage(contacts),.2)){
     state.contactTimer=CONTACT_PERIOD;
   }
   if (state.status === 'lost') return;
   projectiles(state, dt);
   if (state.status === 'lost') return;
-  collect(state, dt);
+  if(!state.arena||state.arena.phase==='reward')collect(state, dt);
 }
 
 export function step(state, input = {}, dt = 0, beforeTick) {
@@ -498,10 +520,11 @@ export function restore(snapshot) {
     if(object(snapshot)&&snapshot.version===4)snapshot={...snapshot,version:5,contactTimer:0};
     if(object(snapshot)&&snapshot.version===5)snapshot={...snapshot,version:6,training:normalizeTraining()};
     if(object(snapshot)&&snapshot.version===6)snapshot=migrateLoadout(snapshot);
-    if (!object(snapshot) || snapshot.version !== 7 || !validTraining(snapshot.training)||!own(MAPS,snapshot.map)||!own(CHARACTERS, snapshot.character) ||
+    if(object(snapshot)&&snapshot.version===7)snapshot={...snapshot,version:8,arena:null};
+    if (!object(snapshot) || snapshot.version !== 8 || !own(snapshot,'arena')||!validTraining(snapshot.training)||!own(MAPS,snapshot.map)||!own(CHARACTERS, snapshot.character) ||
       !integer(snapshot.seed, 0, 0xffffffff) || !integer(snapshot.rngState, 1, 0xffffffff) ||
       !number(snapshot.time, 0, 1e7) || !['playing', 'upgrade', 'won', 'lost'].includes(snapshot.status) ||
-      !['', 'health', 'beacon', 'dawn','level'].includes(snapshot.endReason) ||
+      !['', 'health', 'beacon', 'dawn','level','boss'].includes(snapshot.endReason) ||
       !integer(snapshot.level, 1, 1000) || !number(snapshot.xp, 0, 1e7) || !integer(snapshot.xpNext, 1, 1e6) ||
       !integer(snapshot.kills, 0, 1e7) || !integer(snapshot.bossesDefeated, 0, 3) ||
       !integer(snapshot.spawnedGuardians, 0, 3) || typeof snapshot.finalGuardianDefeated !== 'boolean' ||
@@ -548,21 +571,22 @@ export function restore(snapshot) {
       snapshot.choices.some((id) => !CATALOG.has(id)||rank(state,id)>=CATALOG.get(id).max||(id!=='repair'&&!availableUpgrade(state,id)))) return null;
     if ((snapshot.status === 'upgrade') !== (snapshot.choices.length > 0) ||
       (snapshot.status !== 'lost' && player.hp <= 0) ||
-      (snapshot.status === 'won' && (snapshot.level<MAPS[state.map].goal||snapshot.endReason!=='level'))) return null;
+      (snapshot.status === 'won' && (snapshot.level<MAPS[state.map].goal||snapshot.endReason!==(MAPS[state.map].bossGoal?'boss':'level')))) return null;
     const ids = new Set();
     for (const enemy of snapshot.enemies) {
       if (!position(enemy) || !integer(enemy.id, 1, 0x7fffffff) || ids.has(enemy.id) || !TYPES.includes(enemy.kind) ||
         !number(enemy.maxHp, 1, 1e5) || !number(enemy.hp, 0, enemy.maxHp) || enemy.hp <= 0 ||
         !number(enemy.radius, 1, 100) || !number(enemy.speed, 0, 1000) || !number(enemy.damage, 0, 1000) ||
-        !integer(enemy.value, 1, 1e5) || !number(enemy.phase, 0, TAU) || !number(enemy.hitFlash, 0, 1) ||
+        !integer(enemy.value, ['arena-boss','arena-tick'].includes(enemy.kind)?0:1, 1e5) || !number(enemy.phase, 0, TAU) || !number(enemy.hitFlash, 0, 1) ||
         !integer(enemy.guardianStage, 0, 3) || (enemy.kind === 'guardian') !== (enemy.guardianStage > 0) ||
         !number(enemy.fireTimer, -H, 4) ||(own(enemy,'elite')&&typeof enemy.elite!=='boolean')||
-        !number(enemy.slowTime??0,0,2)||!number(enemy.actionTimer??0,0,2)) return null;
+        !number(enemy.slowTime??0,0,2)||!number(enemy.actionTimer??0,0,2)||!validateBossFields(enemy)||own(enemy,'bossType')&&state.map!=='crater') return null;
       ids.add(enemy.id);
       state.enemies.push({ id: enemy.id, kind: enemy.kind, x: enemy.x, y: enemy.y, hp: enemy.hp, maxHp: enemy.maxHp,
         radius: enemy.radius, speed: enemy.speed, damage: enemy.damage, value: enemy.value,
         phase: enemy.phase, hitFlash: enemy.hitFlash, guardianStage: enemy.guardianStage, fireTimer: enemy.fireTimer,
         elite:enemy.elite===true,slowTime:enemy.slowTime||0,actionTimer:enemy.actionTimer||0 });
+      if(own(enemy,'bossType'))Object.assign(state.enemies.at(-1),{bossType:enemy.bossType,attackStage:enemy.attackStage});
     }
     for (const projectile of snapshot.projectiles) {
       if (!position(projectile) || !integer(projectile.id, 1, 0x7fffffff) || ids.has(projectile.id) ||
@@ -587,10 +611,11 @@ export function restore(snapshot) {
         ...(own(crystal,'tier')?{tier:crystal.tier}:{}) });
     }
     for (const event of snapshot.effects) {
-      if (!position(event) || !['pulse', 'hurt', 'dissolve', 'guardian', 'warning','arc','chest','charge','shards','fusion','shield'].includes(event.kind) ||
+      if (!position(event) || !['pulse', 'hurt', 'dissolve', 'guardian', 'warning','arc','chest','charge','shards','fusion','shield','impact'].includes(event.kind) ||
         !number(event.radius, 1, 1000) || !number(event.maxLife, 0.001, 3) || !number(event.life, 0, event.maxLife) || event.life <= 0) return null;
       state.effects.push({ x: event.x, y: event.y, kind: event.kind, radius: event.radius, life: event.life, maxLife: event.maxLife });
       if(own(event,'weapon')){if(!own(WEAPONS,event.weapon))return null;state.effects.at(-1).weapon=event.weapon;}
+      if(own(event,'mega')){if(typeof event.mega!=='boolean'||event.kind!=='chest')return null;state.effects.at(-1).mega=event.mega;}
       if(['arc','charge'].includes(event.kind)){
         if(!number(event.toX,-1e7,1e7)||!number(event.toY,-1e7,1e7))return null;
         Object.assign(state.effects.at(-1),{toX:event.toX,toY:event.toY});
@@ -602,8 +627,9 @@ export function restore(snapshot) {
       ids.add(zone.id);state.zones.push({id:zone.id,kind:zone.kind,x:zone.x,y:zone.y,radius:zone.radius,damage:zone.damage,life:zone.life,maxLife:zone.maxLife,tick:zone.tick});
     }
     for(const chest of snapshot.chests){
-      if(!position(chest)||!integer(chest.id,1,0x7fffffff)||ids.has(chest.id)||!integer(chest.coins,1,1e6)||typeof chest.upgrade!=='boolean'||typeof chest.boss!=='boolean')return null;
+      if(!position(chest)||!integer(chest.id,1,0x7fffffff)||ids.has(chest.id)||!integer(chest.coins,1,1e6)||typeof chest.upgrade!=='boolean'||typeof chest.boss!=='boolean'||own(chest,'mega')&&typeof chest.mega!=='boolean')return null;
       ids.add(chest.id);state.chests.push({id:chest.id,x:chest.x,y:chest.y,coins:chest.coins,upgrade:chest.upgrade,boss:chest.boss});
+      if(own(chest,'mega'))state.chests.at(-1).mega=chest.mega;
     }
     if(ids.size&&Math.max(...ids)>=snapshot.nextId)return null;
     if(!Array.isArray(snapshot.lootLog)||snapshot.lootLog.length>4)return null;
@@ -616,6 +642,8 @@ export function restore(snapshot) {
       'spawnedGuardians', 'finalGuardianDefeated', 'nextId', 'remainder', 'contactTimer', 'spawnTimer', 'boltTimer', 'pulseTimer', 'orbitTimer', 'orbitAngle',
       'coinsEarned','openedChests','spawnedElites','attackSerial']) state[key] = snapshot[key];
     state.choices = snapshot.choices.slice();
+    if(!validateArena(snapshot.arena,state))return null;
+    state.arena=snapshot.arena===null?null:{...snapshot.arena};
     return state;
   } catch { return null; }
 }

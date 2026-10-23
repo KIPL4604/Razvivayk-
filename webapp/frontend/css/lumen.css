@@ -1,4 +1,4 @@
-@import url('./lumen-menu.css?v=1');
+@import url('./lumen-menu.css?v=arena-8');
 @font-face{font-family:LumenSquare;src:url('../assets/lumen/fonts/Tektur-game.ttf') format('truetype');font-style:normal;font-weight:400;font-display:swap}
 /* The light Teramont library surrounds an original night-garden game world. */
 .lumen-catalog{grid-column:1/-1;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:center;padding:0;overflow:hidden;background:#E8F0ED;border-color:#CDDFD6}
@@ -328,3 +328,12 @@ html.lumen-active,html.lumen-active body{overflow:hidden;overscroll-behavior:non
   .lumen-artifacts{flex-wrap:wrap;max-width:260px;row-gap:3px}
   .lumen-loadout-summary{font-size:12px!important}
 }
+
+/* Boss status takes the place of XP while the battlefield stays visible. */
+.lumen-boss-hud{position:absolute;z-index:3;top:max(120px,calc(var(--lumen-safe-top,0px) + 112px));left:50%;transform:translateX(-50%);width:min(680px,calc(100% - 44px));padding:9px 12px 7px;background:#18242cf2;border:1px solid #ae815f;border-bottom:3px solid #6f433b;color:#f3d8ac;pointer-events:none;font:14px/1.2 LumenSquare,monospace}
+.lumen-boss-hud[hidden]{display:none}.lumen-boss-hud>div:first-child{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:7px}.lumen-boss-hud strong{font-size:20px;font-weight:500}.lumen-boss-hud #lumenBossPhase{font-size:12px;color:#e9b89c;text-align:right;max-width:44%}.lumen-boss-track{height:9px;background:#382e34;border:1px solid #111b25;overflow:hidden}.lumen-boss-track i{display:block;height:100%;width:100%;background:#d17865;box-shadow:inset 0 2px #f2bb91;transition:width .12s linear}.lumen-boss-hud>span{display:block;text-align:right;font-size:12px;margin-top:3px;color:#d1c4ae;font-variant-numeric:tabular-nums}
+#lumenGameMount[data-boss=true] .lumen-xp{visibility:hidden}
+#lumenGameMount[data-boss=true] .lumen-wave,#lumenGameMount[data-arena]:not([data-arena=""]) .lumen-wave{top:max(212px,calc(var(--lumen-safe-top,0px) + 204px));font-size:15px;letter-spacing:0}
+.lumen-wave[data-phase=arena]{color:#f1c197}
+@media(max-width:540px){.lumen-boss-hud{top:max(108px,calc(var(--lumen-safe-top,0px) + 104px));padding:8px 9px 6px}.lumen-boss-hud strong{font-size:18px}.lumen-boss-hud #lumenBossPhase{font-size:10px}#lumenGameMount[data-boss=true] .lumen-wave,#lumenGameMount[data-arena]:not([data-arena=""]) .lumen-wave{top:max(198px,calc(var(--lumen-safe-top,0px) + 194px));font-size:12px}}
+@media(prefers-reduced-motion:reduce){.lumen-boss-track i{transition:none}}

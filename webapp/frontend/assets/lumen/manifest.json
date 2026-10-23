@@ -236,6 +236,34 @@
     "expansion/tinkerer-raw.png": {
       "bytes": 2200382,
       "sha256": "3ea2e3f2c9b6bf3f2b292f1ce1e547870a98f096aac2f0e960053ec4dafe752d"
+    },
+    "arena/arena-fx-raw.png": {
+      "bytes": 2530056,
+      "sha256": "38305f7768918cdd9317c906e7325891f18aca9e0167d88f5882aa617f67173a"
+    },
+    "arena/arena-tick-raw.png": {
+      "bytes": 2392244,
+      "sha256": "be11002fbc85b7398916fbb7e328c429ee4957ac0588cb3609fc7d1ba0150855"
+    },
+    "arena/boss-carapace-raw.png": {
+      "bytes": 3057684,
+      "sha256": "0ee4be12aeab77b7f5ca672d4662af4d9d332ee1e4f776ef006ab403ef5a0847"
+    },
+    "arena/boss-matriarch-raw.png": {
+      "bytes": 2952990,
+      "sha256": "f723ddbc509bf9a517f90a7529ac45143373c9b69dab451000cb2c7544b0dc27"
+    },
+    "arena/boss-tempest-raw.png": {
+      "bytes": 2839868,
+      "sha256": "5315ff05149af4c10fbdbb0a300e181f0a4664e9b6892e09387257421fd95cd2"
+    },
+    "arena/crater-environment-raw.png": {
+      "bytes": 2518847,
+      "sha256": "384406d7c7c1466e66f7f4b04c5cc5ddbcba5271c9ae9899480a484dd42a19db"
+    },
+    "arena/mega-chest-raw.png": {
+      "bytes": 1381962,
+      "sha256": "6a76edda8f435b3b00e72cddd8e21c7bed839599439faae12066c4a551054f4e"
     }
   },
   "font": {
@@ -397,6 +425,38 @@
     "expansion-items.png": {
       "bytes": 37506,
       "sha256": "823c98a8f6f6b4f33ca8a7e1241645078fe121e00bd0d9c7ebcb47cbfd008d48"
+    },
+    "boss-carapace.png": {
+      "bytes": 251743,
+      "sha256": "4523e268010e5c75d85372f0d9dced26fbee193c4dbd9abc1588b611482a1c59"
+    },
+    "boss-tempest.png": {
+      "bytes": 158007,
+      "sha256": "08d527efa1732855014c27faba4f51b20089540019bb9d5198371476ce31f156"
+    },
+    "boss-matriarch.png": {
+      "bytes": 229505,
+      "sha256": "7f522b3bb1982e786aa61261669c972ade2e54618c32fe05e0db077353b498a3"
+    },
+    "arena-tick.png": {
+      "bytes": 54037,
+      "sha256": "ae16f0cdec00edefc630ce0c868fab76bb93021d5e28d5d1f24231b7c3b1c0ce"
+    },
+    "mega-chest.png": {
+      "bytes": 41565,
+      "sha256": "1427c85c421538fd1edc1b74989c01b5d0ca62e33a4b464e507d742d82cb5242"
+    },
+    "crater-tiles.png": {
+      "bytes": 12247,
+      "sha256": "99360c34f94c611420c72923a00462804f18c8032cdd3170333aab4aecfbad49"
+    },
+    "crater-props.png": {
+      "bytes": 21005,
+      "sha256": "122ab08d54853423cc4a41377092b4ebe9488593fd18a1ef10e8c06f35f127c2"
+    },
+    "arena-fx.png": {
+      "bytes": 79090,
+      "sha256": "8e1af35fd19cec16f2c95bc176a23ee79268d2fdebcaf3459e1df0316579a008"
     }
   },
   "actors": {
@@ -608,6 +668,42 @@
       "rows": 5
     },
     "heliarch": {
+      "frameSize": 48,
+      "anchor": [
+        24,
+        45
+      ],
+      "columns": 6,
+      "rows": 5
+    },
+    "boss-carapace": {
+      "frameSize": 96,
+      "anchor": [
+        48,
+        90
+      ],
+      "columns": 6,
+      "rows": 5
+    },
+    "boss-tempest": {
+      "frameSize": 96,
+      "anchor": [
+        48,
+        90
+      ],
+      "columns": 6,
+      "rows": 5
+    },
+    "boss-matriarch": {
+      "frameSize": 96,
+      "anchor": [
+        48,
+        90
+      ],
+      "columns": 6,
+      "rows": 5
+    },
+    "arena-tick": {
       "frameSize": 48,
       "anchor": [
         24,
@@ -1297,6 +1393,142 @@
       "#1f100b",
       "#150e0c",
       "#0d0403"
+    ],
+    "boss-carapace": [
+      "#efcf94",
+      "#e3b36c",
+      "#e7a448",
+      "#cea26c",
+      "#ea8e15",
+      "#d58f3d",
+      "#bc8b56",
+      "#d47611",
+      "#b4763a",
+      "#c3620a",
+      "#af5e17",
+      "#9f6c3d",
+      "#9d571f",
+      "#845936",
+      "#934c17",
+      "#8c410f",
+      "#784725",
+      "#763914",
+      "#664127",
+      "#623920",
+      "#5e3118",
+      "#46372e",
+      "#442d21",
+      "#40291e",
+      "#3a251c",
+      "#382015",
+      "#241f1e",
+      "#261a16",
+      "#111b25",
+      "#13181f",
+      "#22130e",
+      "#100c0d"
+    ],
+    "boss-tempest": [
+      "#e0becf",
+      "#87a2d0",
+      "#9c6ca0",
+      "#5b65bd",
+      "#8f49ae",
+      "#6a49b0",
+      "#5b469a",
+      "#4245d2",
+      "#454074",
+      "#632daf",
+      "#492c9c",
+      "#3e29a9",
+      "#3c2b62",
+      "#2f27a0",
+      "#2e2573",
+      "#2e2449",
+      "#23204b",
+      "#311a6d",
+      "#1f1948",
+      "#121972",
+      "#111b25",
+      "#08197a",
+      "#371273",
+      "#27125e",
+      "#21124e",
+      "#1c1052",
+      "#1b1128",
+      "#130b3f",
+      "#100a25",
+      "#110b17",
+      "#0b0614",
+      "#06020e"
+    ],
+    "boss-matriarch": [
+      "#f5e2c7",
+      "#e6c1a1",
+      "#daa381",
+      "#be906f",
+      "#b27254",
+      "#bf4f38",
+      "#845949",
+      "#6f433a",
+      "#c82d25",
+      "#b32923",
+      "#a02623",
+      "#762f2b",
+      "#7b1f20",
+      "#51302f",
+      "#4f2122",
+      "#392627",
+      "#351d1f",
+      "#971a1c",
+      "#65191b",
+      "#37191c",
+      "#111b25",
+      "#951418",
+      "#7b1216",
+      "#671115",
+      "#511317",
+      "#411416",
+      "#4a0c10",
+      "#331416",
+      "#281316",
+      "#2f0b0e",
+      "#1d1013",
+      "#18080a"
+    ],
+    "arena-tick": [
+      "#ead1a8",
+      "#c49b6c",
+      "#be8045",
+      "#9b7c5e",
+      "#ad652c",
+      "#93633e",
+      "#795f4e",
+      "#924c1f",
+      "#7f4825",
+      "#704830",
+      "#5d4a41",
+      "#553f35",
+      "#733516",
+      "#60331c",
+      "#543527",
+      "#542a17",
+      "#463530",
+      "#46281c",
+      "#3b2f2d",
+      "#362926",
+      "#332522",
+      "#34201a",
+      "#271f1e",
+      "#291b18",
+      "#111b25",
+      "#3f130e",
+      "#1e1514",
+      "#181313",
+      "#150c0b",
+      "#0d0908",
+      "#090404",
+      "#040101"
     ]
   }
 }

@@ -35,7 +35,7 @@ async (page)=>{
     const start=await p.locator('[data-lumen-action="start"]').boundingBox(),navbar=await p.locator('.lumen-menu-nav').boundingBox();
     await shot('departure-selected-375');assert(start.y+start.height<=navbar.y,'Mobile start below menu '+JSON.stringify({start,navbar}));checks.push({mobileStartBottom:start.y+start.height,navbarTop:navbar.y});
     await p.locator('[data-lumen-action="start"]').click();await p.keyboard.down('d');await p.waitForTimeout(300);await p.keyboard.up('d');await p.keyboard.press('Escape');
-    const before=await p.evaluate(()=>JSON.parse(JSON.stringify(saved.lumen.run)));assert(before.character==='artificer'&&before.map==='quarry'&&before.player.x>15&&before.version===7,'Real run from menu');
+    const before=await p.evaluate(()=>JSON.parse(JSON.stringify(saved.lumen.run)));assert(before.character==='artificer'&&before.map==='quarry'&&before.player.x>15&&before.version===8,'Real run from menu');
     await p.locator('[data-lumen-action="exit"]').click();assert(await p.locator('.lumen-shell').getAttribute('data-page')==='home','Pause did not return to game menu');
     await nav('training');await p.locator('[data-lumen-action="train"][data-lumen-value="vigor"]').click();
     assert(await p.evaluate(()=>saved.lumen.meta.coins===410&&saved.lumen.meta.training.vigor===1),'Training spend');

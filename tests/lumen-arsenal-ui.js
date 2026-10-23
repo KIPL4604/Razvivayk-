@@ -87,11 +87,11 @@ async (page) => {
       }
       const pure=before===JSON.stringify(serialize(r));renderer.destroy();canvas.remove();return {pure,clips};
     });
-    assert(animation.pure&&Object.keys(animation.clips).length===120&&Object.values(animation.clips).every(n=>n>1),'Actor clips/renderer purity '+JSON.stringify(animation));
+    assert(animation.pure&&Object.keys(animation.clips).length===140&&Object.values(animation.clips).every(n=>n>1),'Actor clips/renderer purity '+JSON.stringify(animation));
     await p.emulateMedia({reducedMotion:'reduce'});await seed('showcase');await p.waitForTimeout(80);await p.keyboard.press('Escape');
     assert(await p.locator('#lumenDialogTitle').isVisible(),'Reduced motion pause');
     assert(!errors.length&&!badAssets.length,JSON.stringify({errors,badAssets}));
-    results.push('120 nonstatic actor clips (24 actors × 5 states), renderer purity, reduced motion, no page/asset errors');
+    results.push('140 nonstatic actor clips (28 actors × 5 states), renderer purity, reduced motion, no page/asset errors');
     return {results,errors,badAssets,screenshots:out};
   }finally{await context.close();}
 }

@@ -5,8 +5,8 @@ import {MAPS,MAX_WEAPON_STAGE,weaponStats,CHARACTERS} from '../webapp/frontend/j
 import {normalizeMeta,recordProgress,mapAvailable,buyCharacter,characterRequirement} from '../webapp/frontend/js/lumen/economy.mjs';
 const grant=(r,id)=>{r.status='upgrade';r.choices=[id];assert(chooseUpgrade(r,id));};
 
-test('each map ends at its own exact target, with no final choice or boss gate',()=>{
-  for(const map of Object.keys(MAPS)){
+test('level-goal maps end at their exact target, with no final choice or boss gate',()=>{
+  for(const map of Object.keys(MAPS).filter(id=>!MAPS[id].bossGoal)){
     const r=createRun({map});r.level=MAPS[map].goal-1;r.xp=r.xpNext+10;
     step(r,{},1/60);assert.equal(r.level,MAPS[map].goal);assert.equal(r.status,'won');assert.equal(r.endReason,'level');assert.deepEqual(r.choices,[]);assert.equal(r.bossesDefeated,0);
     const snapshot=serialize(r);step(r,{x:1},1);assert.deepEqual(serialize(r),snapshot);assert(restore(snapshot));
@@ -47,7 +47,7 @@ test('eight stages deliver four orbiting blades; the cap rejects stage IX',()=>{
 test('v2 active saves keep wallet-independent state and migrate discovered weapons and pending choices',()=>{
   const v2=serialize(createRun());v2.version=2;delete v2.map;delete v2.foundWeapons;
   v2.time=479;v2.player.x=125;v2.upgrades={spark:3,ice:5};v2.coinsEarned=85;v2.status='upgrade';v2.choices=['ice'];
-  const r=restore(v2);assert(r);assert.equal(r.version,7);assert.equal(r.map,'garden');assert.deepEqual(r.foundWeapons,['ice']);assert.equal(r.coinsEarned,85);assert.equal(r.player.x,125);
+  const r=restore(v2);assert(r);assert.equal(r.version,8);assert.equal(r.map,'garden');assert.deepEqual(r.foundWeapons,['ice']);assert.equal(r.coinsEarned,85);assert.equal(r.player.x,125);
   assert(chooseUpgrade(r,'ice'));assert.equal(r.upgrades.ice,6);assert(restore(serialize(r)));
   v2.level=33;v2.status='playing';v2.choices=[];const completed=restore(v2);assert(completed);step(completed,{},1/60);assert.equal(completed.status,'won');
 });

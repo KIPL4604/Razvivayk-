@@ -9,6 +9,10 @@ export function steer(run,frame,memory){
     const d=Math.hypot(item.x-p.x,item.y-p.y);
     if(d<nearest){nearest=d;target=item;}
   }
+  if(run.arena&&['forming','fighting'].includes(run.arena.phase)){
+    const a=run.arena,dx=p.x-a.x,dy=p.y-a.y,d=Math.hypot(dx,dy)||1;
+    target={x:a.x+dx/d*205-dy/d*65,y:a.y+dy/d*205+dx/d*65};
+  }
   const nearby=run.enemies.filter(e=>e.hp>0&&Math.hypot(e.x-p.x,e.y-p.y)<260);
   if(!target&&run.enemies.length){
     const e=run.enemies.reduce((a,b)=>Math.hypot(a.x-p.x,a.y-p.y)<Math.hypot(b.x-p.x,b.y-p.y)?a:b);
@@ -23,6 +27,13 @@ export function steer(run,frame,memory){
     let score=(x*gx+y*gy)/gd+.18*(x*(memory.input?.x||0)+y*(memory.input?.y||0));
     for(const horizon of [.2,.5]){
       const px=p.x+x*p.speed*horizon,py=p.y+y*p.speed*horizon;
+      if(run.arena&&['forming','fighting'].includes(run.arena.phase)){
+        const distance=Math.hypot(px-run.arena.x,py-run.arena.y);
+        if(distance>240)score-=(distance-240)/3;
+        for(const warning of run.effects.filter(e=>e.kind==='warning'&&e.radius<250)){
+          const d=Math.hypot(px-warning.x,py-warning.y);if(d<warning.radius+30)score-=(warning.radius+30-d)/6;
+        }
+      }
       for(const e of nearby){
         const dx=p.x-e.x,dy=p.y-e.y,d=Math.hypot(dx,dy)||1;
         const spacing=['spitter','moonmoth'].includes(e.kind)&&d<140?-.6:1;

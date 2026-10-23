@@ -1,13 +1,16 @@
 import { FIXED_STEP, cameraScale, sceneryOpacity, lerp, crystalTier, HealthFeedback } from './presentation.mjs';
 import {WEAPONS,weaponStats,BOSSES,MAPS} from './catalog.mjs';
 import {bodyRadius,PLAYER_BODY} from './physics.mjs';
+import {BOSS_VARIANTS} from './bosses.mjs';
+import {ARENA_HAZARD_INSET} from './arena.mjs';
+import {WeaponVFX,arenaCamera} from './weapon-vfx.mjs';
 
 const TAU = Math.PI * 2;
 const round = Math.round;
 const hash = (x, y) => ((Math.imul(x, 374761393) ^ Math.imul(y, 668265263)) >>> 0);
 const distance = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
-const spriteKey=e=>e.kind==='guardian'?BOSSES[e.guardianStage||1].sprite:e.kind;
-const actorSize=e=>e.kind==='guardian'?220:e.elite?128:({beetle:90,wasp:76,crawler:92,spitter:90,wisp:76,quartzling:86,shardback:110,moonmoth:86}[e.kind]||80);
+const spriteKey=e=>e.bossType&&BOSS_VARIANTS[e.bossType]?BOSS_VARIANTS[e.bossType].sprite:e.kind==='arena-boss'?BOSS_VARIANTS.matriarch.sprite:e.kind==='guardian'?BOSSES[e.guardianStage||1].sprite:e.kind;
+const actorSize=e=>e.kind==='arena-boss'?252:e.kind==='arena-tick'?86:e.kind==='guardian'?220:e.elite?128:({beetle:90,wasp:76,crawler:92,spitter:90,wisp:76,quartzling:86,shardback:110,moonmoth:86}[e.kind]||80);
 
 /** Presentation only. Simulation coordinates, collisions and save records are untouched. */
 export class Renderer {
@@ -20,6 +23,7 @@ export class Renderer {
     this.views = new Map(); this.ghosts = [];
     this.lastTime = -1; this.lastAttack = 0; this.attackUntil = 0; this.lastContact = 0;
     this.health = new HealthFeedback(); this.hitSheets = new Map();
+    this.vfx = new WeaponVFX();
     this.media = matchMedia('(prefers-reduced-motion: reduce)');
     this.previous = { player: null, enemies: new Map(), shots: new Map(), gems: new WeakMap() };
     this.captureTick = this.captureTick.bind(this);
@@ -46,7 +50,7 @@ export class Renderer {
     if (this.canvas.width !== width || this.canvas.height !== height) {
       this.canvas.width = width; this.canvas.height = height;
     }
-    this.scale = cameraScale(box.width,box.height);
+    this.baseScale = this.scale = cameraScale(box.width,box.height);
     this.zoom = this.scale*this.dpr;
     this.ctx.imageSmoothingEnabled = false;
   }
@@ -137,7 +141,7 @@ export class Renderer {
       const old = this.views.get(enemy.id);
       const near = distance(enemy, state.player) <= bodyRadius(enemy) + PLAYER_BODY + 2;
       const hurtUntil = enemy.hitFlash > (old?.flash || 0) ? t + .375 : old?.hurtUntil || 0;
-      const animation = hurtUntil > t ? 'hurt' : near||enemy.actionTimer>0 ? 'attack'
+      const animation = hurtUntil > t ? 'hurt' : near||enemy.actionTimer>0||enemy.attackFlash>0 ? 'attack'
         : old && distance(enemy, old) < .02 ? 'idle' : 'walk';
       const since = animation === old?.animation && !(animation === 'attack' && (t - old.since >= .8 || near&&biting)) ? old.since : t;
       next.set(enemy.id, { ...enemy, animation, since, hurtUntil, flash: enemy.hitFlash,
@@ -146,18 +150,20 @@ export class Renderer {
     for (const [id, old] of this.views) {
       if (next.has(id)) continue;
       // Far-away despawns are not deaths. Match the simulation's dissolve event.
-      if ((state.effects || []).some(e => ['dissolve','guardian'].includes(e.kind) && distance(e, old) < 45)) {
+      if (old.kind==='arena-tick'&&state.arena&&['reward','celebrating','complete'].includes(state.arena.phase)
+        || (state.effects || []).some(e => ['dissolve','guardian','arena-clear'].includes(e.kind) && distance(e, old) < 45)) {
         this.ghosts.push({ ...old, sprite:spriteKey(old),size:actorSize(old), since: t });
       }
     }
-    this.ghosts = this.ghosts.filter(e => t - e.since < .6).slice(-30);
+    this.ghosts = this.ghosts.filter(e => t - e.since < .6).slice(this.arena?-64:-30);
     this.views = next; this.lastTime = t;
   }
 
   ground(player) {
     const c = this.ctx;
-    const left = player.x - this.width / this.scale / 2 - 128;
-    const top = player.y - this.height / this.scale / 2 - 128;
+    const center=this.camera||player;
+    const left = center.x - this.width / this.scale / 2 - 128;
+    const top = center.y - this.height / this.scale / 2 - 128;
     const right = left + this.width / this.scale + 256, bottom = top + this.height / this.scale + 256;
     // Cache a world-anchored tile field once; never stretch individual tiles as
     // the fractional camera moves. Their pixels no longer change width per frame.
@@ -172,6 +178,7 @@ export class Renderer {
         const n = hash(x + 53, y - 41);
         const px = x * 300 + 100 + n % 90, py = y * 280 + 90 + (n >>> 8) % 60;
         if (Math.hypot(px, py) < 175) continue;
+        if(this.arena&&Math.hypot(px-this.arena.x,py-this.arena.y)<this.arena.radius+85)continue;
         props.push({ kind: 'prop', index: n % 3 + 1, x: px, y: py, size: n % 3 === 2 ? 150 : 126 });
         if (n % 3 !== 0) props.push({ kind: 'prop', index: 1, x: px - 66, y: py + 34, size: 88 });
       }
@@ -205,18 +212,69 @@ export class Renderer {
     c.globalAlpha=alpha*.12;c.fillStyle='#83df9b';c.fill();c.restore();
   }
 
+  arenaGround(arena, time) {
+    const c=this.ctx,[x,y]=this.at(arena.x,arena.y),radius=arena.radius*this.zoom;
+    const forming=arena.phase==='forming',danger=['forming','fighting'].includes(arena.phase);
+    const progress=forming?Math.min(1,(arena.time||0)/2.5):1;
+    c.save();c.fillStyle='#161820';c.globalAlpha=.17*progress;
+    c.beginPath();c.arc(x,y,radius,0,TAU);c.fill();
+    if(danger){
+      // Paint the complete damage band, including its inner threshold.
+      c.globalAlpha=.18*progress;c.strokeStyle='#d45b50';c.lineWidth=ARENA_HAZARD_INSET*this.zoom;
+      c.beginPath();c.arc(x,y,radius-ARENA_HAZARD_INSET*this.zoom/2,0,TAU*progress);c.stroke();
+      // A continuous red floor seam remains readable between the stationary ticks.
+      c.globalAlpha=.45+progress*.25;c.strokeStyle='#391d25';c.lineWidth=21*this.zoom;
+      c.beginPath();c.arc(x,y,radius,0,TAU*progress);c.stroke();
+      c.strokeStyle='#de6b63';c.lineWidth=5*this.zoom;c.stroke();
+      c.strokeStyle='#ffd49f';c.globalAlpha=.8;c.lineWidth=Math.max(this.dpr,1.5*this.zoom);c.stroke();
+      c.setLineDash([8*this.zoom,12*this.zoom]);c.strokeStyle='#e5a18a';c.globalAlpha=.35;c.lineWidth=this.dpr;
+      c.beginPath();c.arc(x,y,radius-22*this.zoom,0,TAU);c.stroke();c.setLineDash([]);
+      if(!this.media.matches)for(let i=0;i<16;i++){
+        const a=i/16*TAU;if(i/16>progress)continue;
+        this.vfx.atlas(this,0,(time*.7+i*.13)%.65,.65,arena.x+Math.cos(a)*arena.radius,arena.y+Math.sin(a)*arena.radius,40,.38);
+      }
+    }else{
+      c.strokeStyle='#bfa57a';c.globalAlpha=Math.max(.05,.28-(arena.time||0)*.06);c.lineWidth=3*this.zoom;
+      c.beginPath();c.arc(x,y,radius,0,TAU);c.stroke();
+    }
+    c.restore();
+  }
+
+  coinFountain(arena) {
+    if(arena.phase!=='celebrating')return;
+    const elapsed=arena.time||0,c=this.ctx,reduced=this.media.matches;
+    // The simulation has already credited the reward. These are visual coins only.
+    const count=reduced?12:54;
+    for(let i=0;i<count;i++){
+      const delay=reduced?0:(i%18)*.055,age=elapsed-delay;
+      if(age<0||age>2.1)continue;
+      const spread=((hash(i,31)%1000)/999-.5),vx=spread*330,vy=-390-(hash(i,9)%150);
+      const px=arena.x+(reduced?spread*150:vx*age),py=arena.y-32+(reduced?-75:vy*age+175*age*age);
+      c.save();c.globalAlpha=Math.min(1,age/.12,Math.max(0,(2.1-age)/.5));
+      const [x,y]=this.at(px,py),height=Math.max(18*this.dpr,30*this.zoom),width=height*(reduced?1:.35+.65*Math.abs(Math.cos(age*7+i)));
+      c.drawImage(this.art.images.arsenal,336,144,48,48,Math.round(x-width/2),Math.round(y-height/2),Math.round(width),Math.round(height));c.restore();
+    }
+  }
+
   draw(state, preview = false, terminalElapsed) {
     if (!this.width || !this.height) return;
     this.alpha=state.status==='playing'&&Math.abs(state.time-(this.previous.time+FIXED_STEP))<1e-6
       ? Math.min(1,state.remainder/FIXED_STEP) : 1;
-    const c = this.ctx, p = {...state.player,...this.pose(state.player)}, t = state.time || 0, z = this.zoom;
+    const c = this.ctx, p = {...state.player,...this.pose(state.player)}, t = state.time || 0;
     this.map=state.map||'garden';
+    this.arena=this.map==='crater'?state.arena:null;
+    const target=arenaCamera(this.width,this.height,this.baseScale,p,this.arena);
+    const transition=this.arena?.phase==='forming'&&!this.media.matches?Math.min(1,(this.arena.time||0)/.75):1;
+    const blend=transition*transition*(3-2*transition);
+    this.camera={x:lerp(p.x,target.x,blend),y:lerp(p.y,target.y,blend)};
+    this.scale=lerp(this.baseScale,target.scale,blend);this.zoom=this.scale*this.dpr;const z=this.zoom;
     if (terminalElapsed !== undefined) this.terminalElapsed = terminalElapsed;
     c.setTransform(1, 0, 0, 1, 0, 0); c.imageSmoothingEnabled = false;
     c.globalAlpha = 1; c.fillStyle = '#17262e'; c.fillRect(0, 0, this.canvas.width, this.canvas.height);
-    this.cx = this.canvas.width / 2 - p.x * z;
-    this.cy = this.canvas.height * .49 - p.y * z;
+    this.cx = this.canvas.width / 2 - this.camera.x * z;
+    this.cy = (this.arena ? this.canvas.height / 2 + 40*this.dpr : this.canvas.height * .49) - this.camera.y * z;
     this.view(state);
+    this.vfx.observe(state);this.vfx.beginFrame();
     this.health.update(state);
     const cue=this.health.sample(t+(state.status==='lost'?(this.terminalElapsed||0):state.remainder||0));
     const heroAnimation=state.status==='lost'?'death':cue.hurt?'hurt'
@@ -224,6 +282,7 @@ export class Renderer {
     const heroSince=heroAnimation==='death'?t-(this.terminalElapsed??.6)
       :heroAnimation==='hurt'?this.health.hitSince:heroAnimation==='attack'?this.attackUntil-.375:0;
     const props = this.ground(p);
+    if(this.arena)this.arenaGround(this.arena,t);
     if(state.upgrades?.collector&&!preview){
       const scan=this.media.matches?0:(t%3)/.9;
       if(scan<1){
@@ -232,6 +291,7 @@ export class Renderer {
       }
     }
     for(const zone of state.zones||[]){
+      if(this.vfx.zone(this,zone,t))continue;
       c.globalAlpha=Math.min(.85,zone.life/.4);
       if(['mine','meteor','gravity'].includes(zone.kind)){
         if(zone.kind==='mine'){
@@ -264,12 +324,12 @@ export class Renderer {
           p.y + Math.sin(angle) * radius, 48, 48, .5);
       }
     }
-    const entities = [...props, { kind: 'prop', index: 0, x: 0, y: 0, size: 178 },
+    const entities = [...props, ...(this.map==='crater'?[]:[{ kind: 'prop', index: 0, x: 0, y: 0, size: 178 }]),
       ...(state.chests||[]).map(e=>({...e,kind:'chest'})),...(state.enemies || []), ...this.ghosts.map(e => ({ ...e, kind: 'dead' })), { ...p, kind: 'hero' }]
       .sort((a, b) => a.y - b.y);
     for (const entity of entities) {
-      if (Math.abs(entity.x - p.x) > this.width / this.scale * .6 + 180
-        || Math.abs(entity.y - p.y) > this.height / this.scale * .6 + 180) continue;
+      if (Math.abs(entity.x - this.camera.x) > this.width / this.scale * .6 + 180
+        || Math.abs(entity.y - this.camera.y) > this.height / this.scale * .6 + 180) continue;
       if (entity.kind === 'prop') {
         c.globalAlpha = sceneryOpacity(entity,p);
         this.blit(MAPS[this.map].props, entity.index * 64, 0, 64, 64, entity.x, entity.y, entity.size);
@@ -277,9 +337,15 @@ export class Renderer {
       } else if (entity.kind === 'hero') {
           this.actor(state.character, heroAnimation, p.x, p.y, 96, t, heroSince, state.player.facingX < -.1);
       } else if(entity.kind==='chest'){
-        const frame=this.media.matches?0:Math.floor(t*5)%3;
-        this.blit('arsenal',frame*48,144,48,48,entity.x,entity.y,78,78,.85);
-        this.blit('arsenal',336,144,48,48,entity.x,entity.y-68,28,28,.5);
+        if(entity.mega&&this.art.images['mega-chest']){
+          const frame=this.media.matches?0:Math.floor(t*5)%3;
+          this.blit('mega-chest',frame*96,0,96,96,entity.x,entity.y,154,154,.85);
+          this.vfx.glow(this,entity.x,entity.y-48,100,'#dcb665',.14);
+        }else{
+          const frame=this.media.matches?0:Math.floor(t*5)%3;
+          this.blit('arsenal',frame*48,144,48,48,entity.x,entity.y,78,78,.85);
+          this.blit('arsenal',336,144,48,48,entity.x,entity.y-68,28,28,.5);
+        }
       } else {
         const view = entity.kind === 'dead' ? entity : this.views.get(entity.id) || entity;
         const key=entity.kind==='dead'?entity.sprite:spriteKey(entity);
@@ -287,7 +353,7 @@ export class Renderer {
         this.actor(key, entity.kind === 'dead' ? 'death' : view.animation || 'walk',
           point.x, point.y, entity.kind==='dead'?entity.size:actorSize(entity), t, view.since || 0, view.flip);
       }
-      if (!['hero', 'prop', 'dead','chest'].includes(entity.kind) && (entity.kind === 'guardian' || entity.elite || entity.hp < entity.maxHp)) {
+      if (!['hero', 'prop', 'dead','chest','arena-tick'].includes(entity.kind) && (['guardian','arena-boss'].includes(entity.kind) || entity.elite || entity.hp < entity.maxHp)) {
         const point=this.pose(entity,'enemies');
         const [x, y] = this.at(point.x, point.y - entity.radius - 23);
         const width = round(entity.radius * 2 * z);
@@ -298,6 +364,7 @@ export class Renderer {
     }
     for (const shot of state.projectiles || []) {
       const point=this.pose(shot,'shots'),[x, y] = this.at(point.x, point.y);
+      this.vfx.trail(this,shot,point,t);
       c.save(); c.translate(x, y);
       c.rotate(Math.round((['cleaver','chakram','sunrise'].includes(shot.weapon)?t*9:Math.atan2(shot.vy, shot.vx)) / (TAU / 8)) * TAU / 8);
       const size=round((shot.hostile?26:48*(1+(state.upgrades.amplifier||0)*.12))*z),frame=shot.hostile?32:48;
@@ -319,7 +386,9 @@ export class Renderer {
       }else c.drawImage(shot.hostile?this.art.images.combat:this.art.images.arsenal,shot.hostile?96:(index||0)*48,shot.hostile?0:48,frame,frame,-size/2,-size/2,size,size);
       c.restore();
     }
+    this.vfx.muzzles(this,t);
     for (const effect of state.effects || []) {
+      if(this.vfx.effect(this,effect))continue;
       const fraction = effect.life / (effect.maxLife || .5);
       if(effect.kind==='shield'){
         this.shield(effect.x,effect.y,48+(this.media.matches?0:(1-fraction)*28),Math.min(1,fraction*1.8));
@@ -327,40 +396,26 @@ export class Renderer {
       }else if(effect.kind==='charge'){
         const [x,y]=this.at(effect.x,effect.y),[tx,ty]=this.at(effect.toX,effect.toY);
         c.save();c.strokeStyle='#f2b9b5';c.globalAlpha=.7;c.lineWidth=2*this.dpr;c.setLineDash([7*this.dpr,6*this.dpr]);c.beginPath();c.moveTo(x,y);c.lineTo(tx,ty);c.stroke();c.setLineDash([]);c.strokeRect(tx-5*this.dpr,ty-5*this.dpr,10*this.dpr,10*this.dpr);c.restore();
-      }else if(effect.kind==='fusion'&&effect.weapon==='eclipse'){
-        c.save();c.globalAlpha=Math.min(.8,fraction*1.2);
-        const size=effect.radius*2*(this.media.matches?1:1-.55*fraction);
-        this.expansionItem(9,effect.x,effect.y,size,size);c.restore();
-      }else if(effect.kind==='shards'||effect.kind==='fusion'){
-        const radius=effect.radius*(effect.kind==='shards'||this.media.matches?1:1-.65*fraction),color=effect.kind==='shards'?'#d3a8ed':'#ffe09a';
-        c.save();c.globalAlpha=Math.min(.8,fraction+.2);c.fillStyle=color;
+      }else if(effect.kind==='shards'){
+        const radius=effect.radius;
+        c.save();c.globalAlpha=Math.min(.8,fraction+.2);c.fillStyle='#d3a8ed';
         for(let i=0;i<24;i++){const a=i/24*TAU,[x,y]=this.at(effect.x+Math.cos(a)*radius,effect.y+Math.sin(a)*radius);c.fillRect(x-2*this.dpr,y-2*this.dpr,4*this.dpr,4*this.dpr);}c.restore();
-      }else if(effect.kind==='arc'){
-        c.save();c.globalAlpha=Math.min(1,fraction*2);
-        const dx=effect.toX-effect.x,dy=effect.toY-effect.y,steps=Math.min(16,Math.max(1,Math.ceil(Math.hypot(dx,dy)/35)));
-        if(effect.weapon==='sunlance'){
-          const [x,y]=this.at(effect.x,effect.y),[tx,ty]=this.at(effect.toX,effect.toY);
-          c.strokeStyle='#bb7c35';c.lineWidth=Math.max(5*this.dpr,effect.radius*z*1.4);c.beginPath();c.moveTo(x,y);c.lineTo(tx,ty);c.stroke();
-          c.strokeStyle='#ffe17b';c.lineWidth=Math.max(2*this.dpr,effect.radius*z*.65);c.stroke();
-          c.strokeStyle='#fff2bd';c.lineWidth=this.dpr;c.stroke();
-        }else for(let i=0;i<=steps;i++)this.blit('arsenal',240,48,48,48,effect.x+dx*i/steps,effect.y+dy*i/steps,45,45,.5);
-        c.restore();
       }else if(effect.kind==='chest'){
-        this.blit('arsenal',(3+Math.min(3,Math.floor((1-fraction)*4)))*48,144,48,48,effect.x,effect.y,100,100,.85);
-      }else if(effect.kind==='pulse'){
-        c.save();c.globalAlpha=Math.min(.85,fraction);
-        if(['bell','frostnova','gravity'].includes(effect.weapon)){
-          const [x,y]=this.at(effect.x,effect.y),radius=effect.radius*z*(this.media.matches?1:1-.65*fraction);
-          c.strokeStyle=effect.weapon==='bell'?'#8fcadf':effect.weapon==='frostnova'?'#98e3e9':'#b2a4eb';c.lineWidth=Math.max(2*this.dpr,4*z);
-          c.beginPath();c.ellipse(x,y,radius,radius*.8,0,0,TAU);c.stroke();
-          if(effect.weapon==='frostnova')this.expansionItem(4,effect.x,effect.y,48);
-        }else this.blit('arsenal',96,48,48,48,effect.x,effect.y,effect.radius*2*(1-.65*fraction),undefined,.5);c.restore();
+        if(effect.mega&&this.art.images['mega-chest'])this.blit('mega-chest',(3+Math.min(2,Math.floor((1-fraction)*3)))*96,0,96,96,effect.x,effect.y,154,154,.85);
+        else this.blit('arsenal',(3+Math.min(3,Math.floor((1-fraction)*4)))*48,144,48,48,effect.x,effect.y,100,100,.85);
       }else if(effect.kind==='warning'){
         this.ring(effect.x,effect.y,effect.radius,true,Math.min(.9,fraction));
       } else if (!this.media.matches) {
         c.save(); c.globalAlpha = Math.min(.8, fraction);
         this.blit('combat', (effect.kind==='hurt'?3:7)*32, 0, 32, 32, effect.x, effect.y, 45 * (1.4 - fraction), undefined, .5); c.restore();
       }
+    }
+    if(this.arena){
+      if(this.arena.phase==='celebrating'&&this.art.images['mega-chest']){
+        const frame=3+Math.min(2,Math.floor((this.arena.time||0)*5));
+        this.blit('mega-chest',frame*96,0,96,96,this.arena.x,this.arena.y,154,154,.85);
+      }
+      this.coinFountain(this.arena);
     }
     // A chest remains findable after the player kites its guardian off screen.
     for(const chest of state.chests||[]){
@@ -397,6 +452,7 @@ export class Renderer {
     this.canvas.width = 1; this.canvas.height = 1;
     this.views.clear(); this.ghosts = []; this.art = null;this.floorPatterns={};
     this.hitSheets.clear();
+    this.vfx.reset();
     this.previous.enemies.clear();this.previous.shots.clear();this.previous.gems=new WeakMap();
   }
 }

@@ -26,7 +26,7 @@ class LumenArtTests(unittest.TestCase):
     @unittest.skipIf(Image is None, 'Offline pixel checks: install design/lumen-pixel/requirements.txt')
     def test_actor_frames_have_hard_alpha_shared_palette_and_baseline(self):
         manifest = json.loads((ART / 'manifest.json').read_text(encoding='utf-8'))
-        self.assertEqual(len(manifest['actors']), 24)
+        self.assertEqual(len(manifest['actors']), 28)
         for actor, data in manifest['actors'].items():
             palette = {tuple(bytes.fromhex(color[1:])) for color in manifest.get('palettes', {}).get(actor, manifest['palette'])}
             size=data['frameSize']; baseline=data['anchor'][1]
@@ -89,6 +89,29 @@ class LumenArtTests(unittest.TestCase):
             self.assertEqual(len({c.getbbox() for c in cells}), 1)
             for cell, color in zip(cells, [(141,201,238), (255,211,111), (244,173,195)]):
                 self.assertEqual(cell.getpixel((18,18))[:3], color)
+
+    @unittest.skipIf(Image is None, 'Offline pixel checks: install design/lumen-pixel/requirements.txt')
+    def test_arena_environment_fx_and_treasure_have_runtime_frames(self):
+        manifest = json.loads((ART / 'manifest.json').read_text(encoding='utf-8'))
+        for name, size, columns, rows in [('mega-chest',96,6,1), ('arena-fx',64,6,5),
+                                          ('crater-tiles',32,4,1), ('crater-props',64,4,1)]:
+            with Image.open(ART / (name + '.png')) as raw:
+                sheet = raw.convert('RGBA')
+                self.assertEqual(sheet.size, (size*columns, size*rows))
+                self.assertTrue(set(sheet.getchannel('A').get_flattened_data()).issubset({0,255}))
+                if name == 'crater-tiles':
+                    self.assertEqual(set(sheet.getchannel('A').get_flattened_data()), {255})
+                for row in range(rows):
+                    frames = [sheet.crop((col*size,row*size,(col+1)*size,(row+1)*size)) for col in range(columns)]
+                    self.assertEqual(len({frame.tobytes() for frame in frames}), columns)
+                    for frame in frames:
+                        self.assertIsNotNone(frame.getbbox(), f'{name} row={row}')
+                        self.assertGreater(sum(1 for p in frame.get_flattened_data() if p[3]), 3)
+        for name in ['boss-carapace','boss-tempest','boss-matriarch','arena-tick',
+                     'mega-chest','crater-environment','arena-fx']:
+            source = ART.parents[3] / 'design/lumen-arena/sources' / (name + '-raw.png')
+            self.assertEqual(hashlib.sha256(source.read_bytes()).hexdigest(),
+                             manifest['sources']['arena/' + source.name]['sha256'])
 
 
 if __name__ == '__main__':

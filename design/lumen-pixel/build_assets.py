@@ -285,6 +285,11 @@ def main():
     if arsenal_expansion_path.exists():
         spec=importlib.util.spec_from_file_location('lumen_expansion_build',arsenal_expansion_path)
         module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module);arsenal_expansion=module.build()
+    arena_path=Path(__file__).parent.parent/'lumen-arena/build_assets.py'
+    arena={}
+    if arena_path.exists():
+        spec=importlib.util.spec_from_file_location('lumen_arena_build',arena_path)
+        module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module);arena=module.build()
     manifest = {
         'version': 1, 'frameSize': 48, 'columns': 6, 'anchor': [24, 45],
         'animations': {name: {'row': i, 'frames': 6, 'fps': [6, 10, 16, 16, 10][i], 'loop': i < 2} for i, name in enumerate(STATES)},
@@ -304,6 +309,7 @@ def main():
     manifest['sources'].update(campaign.get('sources',{}))
     for key in ['actors','palettes','sources']:manifest[key].update(quarry.get(key,{}))
     for key in ['actors','palettes','sources']:manifest[key].update(arsenal_expansion.get(key,{}))
+    for key in ['actors','palettes','sources']:manifest[key].update(arena.get(key,{}))
     (DEST / 'manifest.json').write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
     print(json.dumps({name: item['bytes'] for name, item in manifest['files'].items()}))
 
