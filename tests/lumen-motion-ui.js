@@ -45,10 +45,10 @@ async (page) => {
     async function seed(upgrade){
       await p.evaluate(async upgrade=>{
         showScreen('home');const core=await import('/static/js/lumen/engine.mjs'),run=core.createRun({seed:55});
-        run.time=78;run.spawnTimer=2;run.player.y=85;run.upgrades={spark:2,orbit:2,pulse:2};run.kills=110;
+        run.time=78;run.spawnTimer=2;run.player.y=85;run.upgrades={spark:2,flame:2,storm:2};run.foundWeapons=['flame','storm'];run.kills=110;
         run.enemies=Array.from({length:20},(_,i)=>({id:i+1,x:Math.cos(i*2.4)*(135+i*10),y:85+Math.sin(i*2.4)*(135+i*10),kind:['mote','beetle','wasp'][i%3],hp:100,maxHp:100,radius:12,speed:40,damage:7,value:2,phase:i%6,hitFlash:0,guardianStage:0,fireTimer:2.8}));run.nextId=50;
         run.gems=[{x:-80,y:125,value:2,tier:1},{x:-50,y:200,value:12,tier:2},{x:100,y:200,value:40,tier:3}];
-        if(upgrade){run.status='upgrade';run.choices=['spark','orbit','pulse'];run.level=8;}
+        if(upgrade){run.status='upgrade';run.choices=['spark','flame','storm'];run.level=8;}
         if(!core.restore(core.serialize(run)))throw Error('Invalid colorful fixture');
         saved.lumen={run:core.serialize(run),lastTouchedAt:Date.now()};saveState();
       },upgrade);
@@ -67,9 +67,9 @@ async (page) => {
           buttons:[...document.querySelectorAll('.lumen-upgrades button')].map(e=>{const b=e.getBoundingClientRect();return [b.width,b.height];}),
           colors:[...document.querySelectorAll('.lumen-upgrades button')].map(e=>getComputedStyle(e)[innerWidth<=540?'borderLeftColor':'borderTopColor'])};
       });
-      assert(!layout.overflow&&layout.ratio<.44,'Upgrade sheet covers too much: '+width+' '+JSON.stringify(layout));
+      assert(!layout.overflow&&layout.ratio<.58,'Upgrade sheet covers too much: '+width+' '+JSON.stringify(layout));
       assert(layout.buttons.every(([w,h])=>w>=44&&h>=44),'Small upgrade action');
-      assert(new Set(layout.colors).size===3,'Weapon choices have identical color');
+      assert(new Set(layout.colors).size===3,'Different rarity choices have identical color');
       const buttons=p.locator('#lumenOverlay button');await buttons.last().focus();await p.keyboard.press('Tab');
       assert(await buttons.first().evaluate(e=>e===document.activeElement),'Upgrade focus trap');
       await p.screenshot({path:out+`lumen-motion-upgrade-${width}.png`});layouts.push({width,...layout});

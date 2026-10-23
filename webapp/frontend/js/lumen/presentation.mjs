@@ -12,7 +12,7 @@ export class HealthFeedback {
     const {hp,maxHp,invulnerable}=state.player, time=state.time;
     if(this.runId!==state.runId||this.time===undefined||time<this.time){
       this.hitSince=-Infinity;this.before=hp;
-    }else if(hp<this.hp||invulnerable>this.invulnerable+.001){
+    }else if(hp<this.hp||(invulnerable>this.invulnerable+.001&&!(state.effects||[]).some(e=>e.kind==='shield'))){
       this.hitSince=time;this.before=Math.max(hp,this.hp);
     }
     this.runId=state.runId;this.time=time;this.hp=hp;

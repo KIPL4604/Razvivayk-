@@ -1,8 +1,9 @@
 import {WEAPON_IDS,weaponStats} from './catalog.mjs';
+import {updateExpansionWeapons,EXPANSION_WEAPON_IDS,EXPANSION_ZONE_KINDS} from './expansion-combat.mjs';
 const TAU=Math.PI*2;
 const squared=(a,b)=>(a.x-b.x)**2+(a.y-b.y)**2;
 export function updateWeapons(state,dt,{hit,effect,limits}){
-  const p=state.player,scale=(1+(state.upgrades.focus||0)*.2)*(1+(state.training?.lens||0)*.01),haste=1+(state.upgrades.haste||0)*.15+(state.upgrades.chronogear||0)*.12,area=1+(state.upgrades.amplifier||0)*.12;
+  const p=state.player,scale=(1+(state.upgrades.focus||0)*.2)*(1+(state.training?.lens||0)*.01),haste=1+(state.upgrades.haste||0)*.15+(state.upgrades.chronogear||0)*.12+(state.relicState?.surge>0?(state.upgrades.hourglass||0)*.2:0),area=1+(state.upgrades.amplifier||0)*.12;
   const nearest=(from,range=640,seen=[])=>{
     let target=null,distance=range*range;
     for(const e of state.enemies){if(e.hp<=0||seen.includes(e.id))continue;const d=squared(e,from);if(d<distance){target=e;distance=d;}}
@@ -20,6 +21,7 @@ export function updateWeapons(state,dt,{hit,effect,limits}){
     state.zones.push({id:state.nextId++,kind,x,y,radius:stats.radius*area,damage:stats.damage*scale,life:kind==='flame'?2.6:4,maxLife:kind==='flame'?2.6:4,tick:0});
   }
   for(const z of state.zones){
+    if(EXPANSION_ZONE_KINDS.includes(z.kind))continue;
     z.life-=dt;z.tick-=dt;if(z.tick>0||z.life<=0)continue;
     for(const e of state.enemies)if(e.hp>0&&squared(e,z)<(e.radius+z.radius)**2){hit(state,e,z.damage);if(z.kind==='briar')e.slowTime=1.2;}
     z.tick=['flame','briar'].includes(z.kind)?.35:.6;
@@ -27,6 +29,7 @@ export function updateWeapons(state,dt,{hit,effect,limits}){
   state.zones=state.zones.filter(z=>z.life>0);
   state.orbitAngle=(state.orbitAngle+dt*1.9)%TAU;
   for(const id of WEAPON_IDS){
+    if(EXPANSION_WEAPON_IDS.includes(id))continue;
     const rank=state.upgrades[id]||0;if(!rank)continue;
     const base=weaponStats(id,rank),stats={...base,radius:base.radius*(['orbit','pulse','cyclone','storm'].includes(id)?area:1)},key=id==='spark'?'boltTimer':id==='orbit'?'orbitTimer':id==='pulse'?'pulseTimer':null;
     const timer=Math.max(0,(key?state[key]:state.weaponTimers[id]||0)-dt);
@@ -68,6 +71,7 @@ export function updateWeapons(state,dt,{hit,effect,limits}){
     if(key)state[key]=stats.cooldown/haste;else state.weaponTimers[id]=stats.cooldown/haste;
     if(id!=='orbit')state.attackSerial++;
   }
+  updateExpansionWeapons(state,dt,{hit,effect,limits});
 }
 
 export function flameImpact(state,projectile,limits){

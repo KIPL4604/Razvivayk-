@@ -25,17 +25,17 @@ async (page)=>{
         assert(fit.w===width&&fit.h===height&&!fit.overflow&&!fit.small.length&&!fit.outside.length,'Menu fit '+section+' '+width+' '+JSON.stringify(fit));checks.push({section,width});
       }
     }
-    await p.setViewportSize({width:375,height:812});await nav('weapons');assert(await p.locator('.lumen-library article').count()===10,'Ten base weapons');
+    await p.setViewportSize({width:375,height:812});await nav('weapons');assert(await p.locator('.lumen-library article').count()===20,'Twenty base weapons');
     await p.locator('[data-lumen-action="book"][data-lumen-value="hybrids"]').click();assert(await p.locator('.lumen-recipes-list article').count()===4,'Four recipes');await shot('hybrids-375');
-    await p.locator('[data-lumen-action="book"][data-lumen-value="artifacts"]').click();assert(await p.locator('.lumen-library article').count()===4,'Four artifacts');
-    await nav('characters');assert(await p.locator('.lumen-roster button').count()===8,'Eight characters');
+    await p.locator('[data-lumen-action="book"][data-lumen-value="artifacts"]').click();assert(await p.locator('.lumen-library article').count()===10,'Ten artifacts');
+    await nav('characters');assert(await p.locator('.lumen-roster button').count()===12,'Twelve characters');
     await p.locator('[data-lumen-action="character"][data-lumen-value="artificer"]').click();assert(await p.locator('[data-lumen-action="buy"]').isEnabled(),'Weapon mastery purchase');
     await p.locator('[data-lumen-action="buy"]').click();assert(await p.locator('#lumenWallet').innerText()==='460','Exact hero cost');
     await nav('play');await p.locator('[data-lumen-action="map"][data-lumen-value="quarry"]').click();
     const start=await p.locator('[data-lumen-action="start"]').boundingBox(),navbar=await p.locator('.lumen-menu-nav').boundingBox();
     await shot('departure-selected-375');assert(start.y+start.height<=navbar.y,'Mobile start below menu '+JSON.stringify({start,navbar}));checks.push({mobileStartBottom:start.y+start.height,navbarTop:navbar.y});
     await p.locator('[data-lumen-action="start"]').click();await p.keyboard.down('d');await p.waitForTimeout(300);await p.keyboard.up('d');await p.keyboard.press('Escape');
-    const before=await p.evaluate(()=>JSON.parse(JSON.stringify(saved.lumen.run)));assert(before.character==='artificer'&&before.map==='quarry'&&before.player.x>15&&before.version===6,'Real run from menu');
+    const before=await p.evaluate(()=>JSON.parse(JSON.stringify(saved.lumen.run)));assert(before.character==='artificer'&&before.map==='quarry'&&before.player.x>15&&before.version===7,'Real run from menu');
     await p.locator('[data-lumen-action="exit"]').click();assert(await p.locator('.lumen-shell').getAttribute('data-page')==='home','Pause did not return to game menu');
     await nav('training');await p.locator('[data-lumen-action="train"][data-lumen-value="vigor"]').click();
     assert(await p.evaluate(()=>saved.lumen.meta.coins===410&&saved.lumen.meta.training.vigor===1),'Training spend');

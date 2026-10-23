@@ -14,14 +14,14 @@ async (page) => {
       r.time=76;r.spawnedGuardians=3;r.spawnedElites=4;r.spawnTimer=3;r.level=22;r.xp=0;
       const {xpForLevel}=await import('/static/js/lumen/progression.mjs');r.xpNext=xpForLevel(r.level);
       if(kind==='fusion'){
-        r.upgrades={spark:8,ice:8,orbit:3,flame:3,storm:3,pulse:3};r.foundWeapons=['ice','orbit','flame','storm','pulse'];
+        r.upgrades={spark:8,ice:8,orbit:3,flame:3};r.foundWeapons=['ice','orbit','flame'];
         r.xp=r.xpNext;core.step(r,{},1/60);if(!r.choices.includes('prism'))throw Error('Real level did not offer ready fusion');
         r.choices=['prism','collector','chronogear'];
       }else if(kind==='artifacts'){
         r.upgrades={spark:1,aegis:1};r.status='upgrade';r.choices=['collector','chronogear','amplifier'];
       }else{
         r.player.y=120;
-        r.upgrades={chakram:3,spear:3,cyclone:2,briar:1,sunrise:1,collector:2,chronogear:2,amplifier:2,aegis:2};r.foundWeapons=['spear'];
+        r.upgrades={chakram:3,spear:3,cyclone:2,briar:1,collector:2,chronogear:2,amplifier:2,aegis:2};r.foundWeapons=['spear'];
         const spots=[[-120,50,'quartzling'],[160,90,'shardback'],[-175,-65,'moonmoth'],[240,-50,'moonmoth'],[65,240,'quartzling'],[-260,175,'shardback'],[300,190,'crawler'],[-260,-170,'beetle'],[135,-220,'spitter']];
         r.enemies=spots.map(([x,y,kind],i)=>({id:10+i,x,y,kind,hp:1500,maxHp:1500,radius:kind==='shardback'?21:12,speed:20,damage:7,value:12,phase:i*.3,hitFlash:0,guardianStage:0,fireTimer:kind==='quartzling'?.1:kind==='shardback'?.3:1,elite:false,slowTime:0,actionTimer:0}));
         r.gems=[{x:120,y:150,value:2,tier:1},{x:-90,y:170,value:12,tier:2},{x:185,y:190,value:40,tier:3}];r.nextId=100;
@@ -37,20 +37,20 @@ async (page) => {
   try{
     await p.route('https://telegram.org/**',r=>r.fulfill({body:'',contentType:'text/javascript'}));await p.goto(base);await p.evaluate(()=>{saved.lumen={meta:{coins:600,clearedMaps:['garden']}};saveState();});await p.reload();
     await p.locator('[data-lumen-action="open"]').click();await p.locator('.lumen-menu-nav [data-lumen-value="characters"]').click();await p.locator('.lumen-roster').waitFor();
-    assert(await p.locator('.lumen-roster button').count()===8,'Eight fighter roster');await p.locator('.lumen-menu-nav [data-lumen-value="play"]').click();await p.locator('[data-lumen-action="map"][data-lumen-value="quarry"]').click();
+    assert(await p.locator('.lumen-roster button').count()===12,'Twelve fighter roster');await p.locator('.lumen-menu-nav [data-lumen-value="play"]').click();await p.locator('[data-lumen-action="map"][data-lumen-value="quarry"]').click();
     for(const [width,height]of [[375,812],[768,1024],[1440,900],[1920,1080]]){
       await p.setViewportSize({width,height});await p.evaluate(()=>showScreen('home'));await p.locator('[data-lumen-action="open"]').click();
       await p.locator('.lumen-menu-nav [data-lumen-value="play"]').click();await p.locator('[data-lumen-action="map"][data-lumen-value="quarry"]').click();await p.evaluate(()=>{document.querySelector('#main').scrollTop=0;});await p.waitForTimeout(150);await shot('setup',width);
       assert(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'Setup horizontal overflow '+width);
     }
     await p.setViewportSize({width:1440,height:900});await p.locator('.lumen-menu-nav [data-lumen-value="weapons"]').click();await shot('book',1440);
-    assert(await p.locator('.lumen-library article').count()===10,'Ten base weapons');await p.locator('[data-lumen-action="book"][data-lumen-value="hybrids"]').click();assert(await p.locator('.lumen-recipes-list article').count()===4,'Four recipes');await p.locator('[data-lumen-action="book"][data-lumen-value="artifacts"]').click();assert(await p.locator('.lumen-library article').count()===4,'Four artifacts');
+    assert(await p.locator('.lumen-library article').count()===20,'Twenty base weapons');await p.locator('[data-lumen-action="book"][data-lumen-value="hybrids"]').click();assert(await p.locator('.lumen-recipes-list article').count()===4,'Four recipes');await p.locator('[data-lumen-action="book"][data-lumen-value="artifacts"]').click();assert(await p.locator('.lumen-library article').count()===10,'Ten artifacts');
     await p.evaluate(()=>{saved.lumen.meta={coins:600,weaponBest:{chakram:8},clearedMaps:['garden']};saveState();});await p.reload();
     await p.locator('[data-lumen-action="open"]').click();await p.locator('.lumen-menu-nav [data-lumen-value="characters"]').click();await p.locator('[data-lumen-action="character"][data-lumen-value="artificer"]').click();
     assert(await p.locator('[data-lumen-action="buy"]').isEnabled(),'Earned mechanic purchase');await p.locator('[data-lumen-action="buy"]').click();
     assert(await p.locator('#lumenWallet').innerText()==='60','Exact 540-coin purchase');await p.locator('.lumen-menu-nav [data-lumen-value="play"]').click();await p.locator('[data-lumen-action="start"]').click();await p.keyboard.press('Escape');
     assert(await p.evaluate(()=>saved.lumen.run.character==='artificer'&&saved.lumen.run.upgrades.chakram===1),'Native chakram');
-    results.push('Eight fighters; exact purchase, native attack; setup four widths; recipe/artifact encyclopedia');
+    results.push('Twelve fighters; exact purchase, native attack; setup four widths; recipe/artifact encyclopedia');
 
     for(const [width,height]of [[375,812],[768,1024],[1440,900],[1920,1080]]){
       await p.setViewportSize({width,height});await seed('fusion');await shot('fusion',width);
@@ -58,7 +58,7 @@ async (page) => {
       assert((await p.locator('[data-lumen-value="prism"]').innerText()).includes('Соединить VIII + VIII → I'),'Explicit fusion action');
       await p.locator('[data-lumen-value="prism"]').click();await p.waitForTimeout(60);await p.keyboard.press('Escape');
       assert(await p.evaluate(()=>saved.lumen.run.upgrades.prism===1&&!saved.lumen.run.upgrades.spark&&!saved.lumen.run.upgrades.ice&&saved.lumen.run.masteredWeapons.includes('ice')),'Fusion kit/mastery save');
-      assert(await p.locator('.lumen-slot').count()===5,'Fusion frees one slot');
+      assert(await p.locator('.lumen-slot').count()===3,'Fusion frees one slot');
       await p.reload();await p.locator('[data-resume="lumen"]').click();await p.locator('.lumen-slot.prism').waitFor();assert(await p.locator('.lumen-slot.prism').count()===1,'Fusion survives reload');
       const focusables=p.locator('#lumenOverlay button,#lumenOverlay summary');await focusables.last().focus();await p.keyboard.press('Tab');assert(await focusables.first().evaluate(e=>e===document.activeElement),'Pause keyboard trap');
     }

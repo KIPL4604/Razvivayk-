@@ -26,16 +26,16 @@ test('banked XP can complete a map directly from the pending upgrade choice',()=
 });
 test('coins alone cannot buy paid heroes; a found VIII weapon qualifies after loss and reload',()=>{
   for(const [id,hero] of Object.entries(CHARACTERS).filter(([,h])=>h.price)){
-    let meta=normalizeMeta({coins:1000});assert(!buyCharacter(meta,id));assert.equal(meta.coins,1000);
+    let meta=normalizeMeta({coins:2000});assert(!buyCharacter(meta,id));assert.equal(meta.coins,2000);
     const r=createRun();for(let i=0;i<7;i++)grant(r,hero.weapon);
     recordProgress(meta,r);assert.equal(characterRequirement(meta,id).best,7);assert(!buyCharacter(meta,id));
     grant(r,hero.weapon);r.status='lost';r.player.hp=0;r.endReason='health';
     const resumed=restore(serialize(r));assert(resumed);recordProgress(meta,resumed);meta=normalizeMeta(JSON.parse(JSON.stringify(meta)));
-    assert(characterRequirement(meta,id).eligible);assert(buyCharacter(meta,id));assert.equal(meta.coins,1000-hero.price);assert(!buyCharacter(meta,id));
+    assert(characterRequirement(meta,id).eligible);assert(buyCharacter(meta,id));assert.equal(meta.coins,2000-hero.price);assert(!buyCharacter(meta,id));
   }
 });
 test('partial stages from separate runs never add, and native weapons do not count as found',()=>{
-  const meta=normalizeMeta({coins:1000});
+  const meta=normalizeMeta({coins:2000});
   for(let attempt=0;attempt<2;attempt++){const r=createRun();for(let i=0;i<4;i++)grant(r,'orbit');recordProgress(meta,r);}
   assert.equal(meta.weaponBest.orbit,4);assert(!buyCharacter(meta,'duelist'));
   const r=createRun({character:'duelist'});for(let i=1;i<8;i++)grant(r,'orbit');assert.deepEqual(r.foundWeapons,[]);recordProgress(meta,r);assert.equal(meta.weaponBest.orbit,4);
@@ -47,7 +47,7 @@ test('eight stages deliver four orbiting blades; the cap rejects stage IX',()=>{
 test('v2 active saves keep wallet-independent state and migrate discovered weapons and pending choices',()=>{
   const v2=serialize(createRun());v2.version=2;delete v2.map;delete v2.foundWeapons;
   v2.time=479;v2.player.x=125;v2.upgrades={spark:3,ice:5};v2.coinsEarned=85;v2.status='upgrade';v2.choices=['ice'];
-  const r=restore(v2);assert(r);assert.equal(r.version,6);assert.equal(r.map,'garden');assert.deepEqual(r.foundWeapons,['ice']);assert.equal(r.coinsEarned,85);assert.equal(r.player.x,125);
+  const r=restore(v2);assert(r);assert.equal(r.version,7);assert.equal(r.map,'garden');assert.deepEqual(r.foundWeapons,['ice']);assert.equal(r.coinsEarned,85);assert.equal(r.player.x,125);
   assert(chooseUpgrade(r,'ice'));assert.equal(r.upgrades.ice,6);assert(restore(serialize(r)));
   v2.level=33;v2.status='playing';v2.choices=[];const completed=restore(v2);assert(completed);step(completed,{},1/60);assert.equal(completed.status,'won');
 });

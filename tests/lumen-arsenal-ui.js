@@ -11,7 +11,7 @@ async (page) => {
       const r=core.createRun({seed:71,character:'duelist',runId:'arsenal-browser-'+kind});
       if(kind==='showcase'){
         r.time=194;r.kills=308;r.level=16;r.xp=31;r.xpNext=136;r.spawnedGuardians=1;r.spawnedElites=2;r.spawnTimer=3;
-        r.upgrades={orbit:3,spark:3,flame:3,ice:3,storm:3,thorn:3};r.player.hp=104;r.player.x=35;r.player.y=100;
+        r.upgrades={orbit:3,spark:3,flame:3,ice:3};r.player.hp=104;r.player.x=35;r.player.y=100;
         const spots=[[-120,-20,'crawler'],[130,75,'spitter'],[-170,150,'wisp'],[185,-110,'wasp'],[-240,-130,'beetle'],[70,-195,'mote'],[260,170,'beetle'],[-240,245,'crawler'],[310,-170,'spitter'],[-330,35,'wisp'],[100,270,'mote']];
         r.enemies=spots.map(([x,y,kind],i)=>({id:50+i,x,y,kind,hp:100,maxHp:100,radius:12,speed:25,damage:7,value:2,phase:i*.4,hitFlash:0,guardianStage:0,fireTimer:3,elite:false,slowTime:0,actionTimer:0}));
         r.enemies.push({id:70,x:270,y:-20,kind:'guardian',hp:1500,maxHp:1800,radius:31,speed:25,damage:22,value:60,phase:0,hitFlash:0,guardianStage:1,fireTimer:3,elite:false,slowTime:0,actionTimer:0});
@@ -32,7 +32,7 @@ async (page) => {
   }
   try{
     await p.route('https://telegram.org/**',r=>r.fulfill({body:'',contentType:'text/javascript'}));await p.goto(base);await p.locator('[data-lumen-action="open"]').click();await p.locator('.lumen-menu-nav [data-lumen-value="characters"]').click();await p.locator('.lumen-roster').waitFor();
-    assert(await p.locator('.lumen-roster button').count()===8,'Roster size');
+    assert(await p.locator('.lumen-roster button').count()===12,'Roster size');
     await p.locator('[data-lumen-action="character"][data-lumen-value="duelist"]').click();
     assert(await p.locator('[data-lumen-action="buy"]').isDisabled(),'Unaffordable purchase enabled');
     await p.locator('.lumen-menu-nav [data-lumen-value="play"]').click();assert(await p.locator('[data-lumen-action="start"]').isDisabled(),'Locked hero starts');await p.locator('.lumen-menu-nav [data-lumen-value="characters"]').click();
@@ -44,7 +44,7 @@ async (page) => {
       await p.screenshot({path:out+`lumen-arsenal-setup-${width}-v2.png`,fullPage:true});
       assert(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth&&document.querySelector('#lumenMenuContent').getBoundingClientRect().right<=innerWidth),'Setup overflow '+width);
       await p.locator('.lumen-menu-nav [data-lumen-value="play"]').click();if(width===375)assert((await p.locator('[data-lumen-action="start"]').boundingBox()).y<738,'Launch below fold');
-      await p.locator('.lumen-menu-nav [data-lumen-value="weapons"]').click();await p.locator('[data-lumen-action="book"][data-lumen-value="weapons"]').click();assert(await p.locator('.lumen-library article').count()===10,'Base armory count');await p.locator('[data-lumen-action="book"][data-lumen-value="hybrids"]').click();assert(await p.locator('.lumen-recipes-list article').count()===4,'Recipe count');await p.locator('[data-lumen-action="book"][data-lumen-value="artifacts"]').click();assert(await p.locator('.lumen-library article').count()===4,'Artifact count');await p.locator('.lumen-menu-nav [data-lumen-value="characters"]').click();
+      await p.locator('.lumen-menu-nav [data-lumen-value="weapons"]').click();await p.locator('[data-lumen-action="book"][data-lumen-value="weapons"]').click();assert(await p.locator('.lumen-library article').count()===20,'Base armory count');await p.locator('[data-lumen-action="book"][data-lumen-value="hybrids"]').click();assert(await p.locator('.lumen-recipes-list article').count()===4,'Recipe count');await p.locator('[data-lumen-action="book"][data-lumen-value="artifacts"]').click();assert(await p.locator('.lumen-library article').count()===10,'Artifact count');await p.locator('.lumen-menu-nav [data-lumen-value="characters"]').click();
       await p.locator('.lumen-roster').scrollIntoViewIfNeeded();await p.screenshot({path:out+`lumen-arsenal-roster-${width}-v2.png`});
     }
     await p.evaluate(()=>{saved.lumen.meta={coins:400,weaponBest:{orbit:8},unlocked:['scout','keeper']};saveState();});
@@ -53,7 +53,7 @@ async (page) => {
     await p.locator('.lumen-menu-nav [data-lumen-value="play"]').click();await p.locator('[data-lumen-action="start"]').click();await p.keyboard.press('Escape');
     assert(await p.evaluate(()=>saved.lumen.meta.coins===80&&saved.lumen.run.character==='duelist'&&saved.lumen.run.upgrades.orbit===1&&!saved.lumen.run.upgrades.spark),'Native weapon or wallet');
     await p.reload();await p.locator('[data-resume="lumen"]').click();assert(await p.evaluate(()=>saved.lumen.meta.unlocked.includes('duelist')),'Unlock not durable');
-    results.push('Eight heroes, paid unlock with exact deduction and durable native kit; fourteen-weapon armory and four artifacts; setup four widths');
+    results.push('Twelve heroes, paid unlock with exact deduction and durable native kit; twenty base weapons, four hybrids and ten artifacts; setup four widths');
 
     await seed('loot');await p.waitForTimeout(100);await p.keyboard.press('Escape');
     assert(await p.evaluate(()=>saved.lumen.meta.coins===140&&saved.lumen.run.coinsEarned===60&&saved.lumen.run.upgrades.orbit===2),'Chest reward not saved');
@@ -65,7 +65,7 @@ async (page) => {
     for(const [width,height] of [[1440,900],[375,812],[768,1024],[1920,1080]]){
       await p.setViewportSize({width,height});await p.screenshot({path:out+`lumen-arsenal-field-${width}-v2.png`});
       const info=await p.evaluate(()=>{const b=document.querySelector('.lumen-bottom').getBoundingClientRect(),slots=[...document.querySelectorAll('.lumen-slot')].map(e=>e.getBoundingClientRect());return {overflow:document.documentElement.scrollWidth>innerWidth,slots:slots.length,inside:slots.every(r=>r.x>=0&&r.right<=innerWidth)&&b.right<=innerWidth,smoothing:lumenCanvas.getContext('2d').imageSmoothingEnabled};});
-      assert(!info.overflow&&info.inside&&!info.smoothing&&info.slots===6,'Six weapon dock at '+width+JSON.stringify(info));
+      assert(!info.overflow&&info.inside&&!info.smoothing&&info.slots===4,'Four weapon dock at '+width+JSON.stringify(info));
     }
     await p.setViewportSize({width:375,height:812});await seed('upgrade');
     await p.screenshot({path:out+'lumen-arsenal-upgrade-375-v2.png'});
@@ -73,7 +73,7 @@ async (page) => {
     await p.locator('[data-lumen-action="upgrade"][data-lumen-value="orbit"]').click();await p.keyboard.press('Escape');
     assert(await p.evaluate(()=>saved.lumen.run.upgrades.orbit===3),'Second upgrade did not give stage III');
     const buttons=p.locator('#lumenOverlay button,#lumenOverlay summary');await buttons.last().focus();await p.keyboard.press('Tab');assert(await buttons.first().evaluate(e=>e===document.activeElement),'Focus trap');
-    results.push('Six weapon dock on all four widths; compact stage III choice and pause keyboard focus');
+    results.push('Four weapon dock on all four widths; compact stage III choice and pause keyboard focus');
 
     const animation=await p.evaluate(async()=>{
       const {Renderer}=await import('/static/js/lumen/renderer.mjs'),{loadArt}=await import('/static/js/lumen/assets.mjs'),{createRun,serialize}=await import('/static/js/lumen/engine.mjs');
@@ -87,11 +87,11 @@ async (page) => {
       }
       const pure=before===JSON.stringify(serialize(r));renderer.destroy();canvas.remove();return {pure,clips};
     });
-    assert(animation.pure&&Object.keys(animation.clips).length===100&&Object.values(animation.clips).every(n=>n>1),'Actor clips/renderer purity '+JSON.stringify(animation));
+    assert(animation.pure&&Object.keys(animation.clips).length===120&&Object.values(animation.clips).every(n=>n>1),'Actor clips/renderer purity '+JSON.stringify(animation));
     await p.emulateMedia({reducedMotion:'reduce'});await seed('showcase');await p.waitForTimeout(80);await p.keyboard.press('Escape');
     assert(await p.locator('#lumenDialogTitle').isVisible(),'Reduced motion pause');
     assert(!errors.length&&!badAssets.length,JSON.stringify({errors,badAssets}));
-    results.push('100 nonstatic actor clips (20 actors × 5 states), renderer purity, reduced motion, no page/asset errors');
+    results.push('120 nonstatic actor clips (24 actors × 5 states), renderer purity, reduced motion, no page/asset errors');
     return {results,errors,badAssets,screenshots:out};
   }finally{await context.close();}
 }

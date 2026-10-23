@@ -193,6 +193,18 @@ export class Renderer {
     this.ctx.restore();
   }
 
+  expansionItem(index, x, y, width, height = width, anchor = .5) {
+    this.blit('expansion-items', index % 8 * 48, Math.floor(index / 8) * 48,
+      48, 48, x, y, width, height, anchor);
+  }
+
+  shield(x, y, radius, alpha = .6) {
+    const c=this.ctx,[px,py]=this.at(x,y-32);
+    c.save();c.globalAlpha=alpha;c.strokeStyle='#9bdda3';c.lineWidth=Math.max(this.dpr,2*this.zoom);
+    c.beginPath();c.ellipse(px,py,radius*this.zoom,radius*1.05*this.zoom,0,0,TAU);c.stroke();
+    c.globalAlpha=alpha*.12;c.fillStyle='#83df9b';c.fill();c.restore();
+  }
+
   draw(state, preview = false, terminalElapsed) {
     if (!this.width || !this.height) return;
     this.alpha=state.status==='playing'&&Math.abs(state.time-(this.previous.time+FIXED_STEP))<1e-6
@@ -221,11 +233,25 @@ export class Renderer {
     }
     for(const zone of state.zones||[]){
       c.globalAlpha=Math.min(.85,zone.life/.4);
+      if(['mine','meteor','gravity'].includes(zone.kind)){
+        if(zone.kind==='mine'){
+          this.expansionItem(3,zone.x,zone.y,52,44);
+        }else if(zone.kind==='meteor'){
+          this.ring(zone.x,zone.y,zone.radius,true,.65);
+          const fall=this.media.matches?0:Math.max(0,zone.life/(zone.maxLife||.65));
+          this.expansionItem(6,zone.x,zone.y-fall*95,62);
+        }else{
+          c.globalAlpha=Math.min(.42,zone.life/.6);
+          this.expansionItem(7,zone.x,zone.y,zone.radius*2,zone.radius*1.5);
+        }
+        c.globalAlpha=1;continue;
+      }
       const frame=this.media.matches?0:Math.floor(t*8)%4;
       this.blit('arsenal',(frame+(zone.kind==='thorn'?4:0))*48,96,48,48,zone.x,zone.y,zone.radius*2.4,zone.radius*1.8,.5);
       if(zone.kind==='briar'){c.globalAlpha*=.75;this.blit('arsenal',(frame+4)*48,96,48,48,zone.x,zone.y,zone.radius*2,zone.radius*1.5,.5);}
       c.globalAlpha=1;
     }
+    if(state.relicState?.shield>0&&!preview)this.shield(p.x,p.y,45,.52);
     for (const gem of state.gems || []) {
       const tier=crystalTier(gem),point=this.pose(gem,'gems');
       this.blit('combat', (3+tier)*32, 0, 32, 32, point.x, point.y, 32, undefined, .5);
@@ -282,6 +308,11 @@ export class Renderer {
         c.fillStyle='#f3edff';c.fillRect(-size*.1,-this.dpr,size*.45,2*this.dpr);
       }else if(shot.weapon==='prism'){
         c.fillStyle='#40939e';c.fillRect(-size*.8,-size*.14,size*1.8,size*.28);c.fillStyle='#8de8ee';c.fillRect(-size*.6,-size*.08,size*1.6,size*.16);c.fillStyle='#fff1c9';c.fillRect(-size*.2,-this.dpr,size*1.2,2*this.dpr);
+      }else if(index>=14){
+        // Fan volleys are needles; the held fan remains the inventory icon.
+        const item=shot.weapon==='fan'?0:index-14;
+        const width=shot.weapon==='needle'||shot.weapon==='fan'?size*.7:size*.85;
+        c.drawImage(this.art.images['expansion-items'],item%8*48,Math.floor(item/8)*48,48,48,-width/2,-width/2,width,width);
       }else if(index>=8){
         const item=index-8;if(shot.weapon==='spear')c.rotate(Math.PI*.75);
         c.drawImage(this.art.images.expedition,item%5*48,Math.floor(item/5)*48,48,48,-size/2,-size/2,size,size);
@@ -290,9 +321,16 @@ export class Renderer {
     }
     for (const effect of state.effects || []) {
       const fraction = effect.life / (effect.maxLife || .5);
-      if(effect.kind==='charge'){
+      if(effect.kind==='shield'){
+        this.shield(effect.x,effect.y,48+(this.media.matches?0:(1-fraction)*28),Math.min(1,fraction*1.8));
+        c.save();c.globalAlpha=Math.min(1,fraction*2);this.expansionItem(10,effect.x,effect.y-18,64);c.restore();
+      }else if(effect.kind==='charge'){
         const [x,y]=this.at(effect.x,effect.y),[tx,ty]=this.at(effect.toX,effect.toY);
         c.save();c.strokeStyle='#f2b9b5';c.globalAlpha=.7;c.lineWidth=2*this.dpr;c.setLineDash([7*this.dpr,6*this.dpr]);c.beginPath();c.moveTo(x,y);c.lineTo(tx,ty);c.stroke();c.setLineDash([]);c.strokeRect(tx-5*this.dpr,ty-5*this.dpr,10*this.dpr,10*this.dpr);c.restore();
+      }else if(effect.kind==='fusion'&&effect.weapon==='eclipse'){
+        c.save();c.globalAlpha=Math.min(.8,fraction*1.2);
+        const size=effect.radius*2*(this.media.matches?1:1-.55*fraction);
+        this.expansionItem(9,effect.x,effect.y,size,size);c.restore();
       }else if(effect.kind==='shards'||effect.kind==='fusion'){
         const radius=effect.radius*(effect.kind==='shards'||this.media.matches?1:1-.65*fraction),color=effect.kind==='shards'?'#d3a8ed':'#ffe09a';
         c.save();c.globalAlpha=Math.min(.8,fraction+.2);c.fillStyle=color;
@@ -300,13 +338,23 @@ export class Renderer {
       }else if(effect.kind==='arc'){
         c.save();c.globalAlpha=Math.min(1,fraction*2);
         const dx=effect.toX-effect.x,dy=effect.toY-effect.y,steps=Math.min(16,Math.max(1,Math.ceil(Math.hypot(dx,dy)/35)));
-        for(let i=0;i<=steps;i++)this.blit('arsenal',240,48,48,48,effect.x+dx*i/steps,effect.y+dy*i/steps,45,45,.5);
+        if(effect.weapon==='sunlance'){
+          const [x,y]=this.at(effect.x,effect.y),[tx,ty]=this.at(effect.toX,effect.toY);
+          c.strokeStyle='#bb7c35';c.lineWidth=Math.max(5*this.dpr,effect.radius*z*1.4);c.beginPath();c.moveTo(x,y);c.lineTo(tx,ty);c.stroke();
+          c.strokeStyle='#ffe17b';c.lineWidth=Math.max(2*this.dpr,effect.radius*z*.65);c.stroke();
+          c.strokeStyle='#fff2bd';c.lineWidth=this.dpr;c.stroke();
+        }else for(let i=0;i<=steps;i++)this.blit('arsenal',240,48,48,48,effect.x+dx*i/steps,effect.y+dy*i/steps,45,45,.5);
         c.restore();
       }else if(effect.kind==='chest'){
         this.blit('arsenal',(3+Math.min(3,Math.floor((1-fraction)*4)))*48,144,48,48,effect.x,effect.y,100,100,.85);
       }else if(effect.kind==='pulse'){
         c.save();c.globalAlpha=Math.min(.85,fraction);
-        this.blit('arsenal',96,48,48,48,effect.x,effect.y,effect.radius*2*(1-.65*fraction),undefined,.5);c.restore();
+        if(['bell','frostnova','gravity'].includes(effect.weapon)){
+          const [x,y]=this.at(effect.x,effect.y),radius=effect.radius*z*(this.media.matches?1:1-.65*fraction);
+          c.strokeStyle=effect.weapon==='bell'?'#8fcadf':effect.weapon==='frostnova'?'#98e3e9':'#b2a4eb';c.lineWidth=Math.max(2*this.dpr,4*z);
+          c.beginPath();c.ellipse(x,y,radius,radius*.8,0,0,TAU);c.stroke();
+          if(effect.weapon==='frostnova')this.expansionItem(4,effect.x,effect.y,48);
+        }else this.blit('arsenal',96,48,48,48,effect.x,effect.y,effect.radius*2*(1-.65*fraction),undefined,.5);c.restore();
       }else if(effect.kind==='warning'){
         this.ring(effect.x,effect.y,effect.radius,true,Math.min(.9,fraction));
       } else if (!this.media.matches) {

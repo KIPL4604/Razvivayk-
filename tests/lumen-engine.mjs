@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {steer} from './helpers/lumen-pilot.mjs';
-import {WEAPON_IDS} from '../webapp/frontend/js/lumen/catalog.mjs';
+import {WEAPON_IDS,CHARACTERS} from '../webapp/frontend/js/lumen/catalog.mjs';
 import { DURATION, LIMITS, UPGRADES, createRun, step, chooseUpgrade, serialize, restore } from '../webapp/frontend/js/lumen/engine.mjs';
 
 const advance = (run, seconds, direction = { x: 0, y: 0 }) => {
@@ -150,7 +150,7 @@ test('long seeded runs respect entity caps and remain finite', () => {
       // God mode is confined to this stress fixture; all production combat still runs.
       run.player.hp = run.player.maxHp;
       step(run, { x: Math.cos(frame / 130), y: Math.sin(frame / 130) }, 1 / 60);
-      while (run.status === 'upgrade') chooseUpgrade(run, run.choices[0]);
+      while (run.status === 'upgrade') assert.equal(chooseUpgrade(run, run.choices[0]),true,'the offered stress upgrade must remain selectable');
       for (const collection of ['enemies', 'projectiles', 'gems', 'effects']) assert.ok(run[collection].length <= LIMITS[collection]);
       assert.ok(Number.isFinite(run.player.x) && Number.isFinite(run.player.hp));
     }
@@ -192,20 +192,20 @@ test('exhausted upgrade ranks never produce an impossible choice', () => {
   assert.equal(run.status, 'playing');
 });
 
-for(const map of ['garden','quarry'])for(const character of ['scout','keeper','alchemist','ranger','duelist','stormcaller','artificer','sentinel'])test(`a complete normal ${map}/${character} run wins through movement, pickups, and legal upgrades`, (t) => {
+for(const map of ['garden','quarry'])for(const character of Object.keys(CHARACTERS))test(`a complete normal ${map}/${character} run wins through movement, pickups, and legal upgrades`, (t) => {
   const attempts=[];
   // A survival game allows losing a seed. Prove each fighter can complete both
   // maps across three fixed seeds, always through legal choices and real HP.
   for(const seed of [1,17,61]){
   const run = createRun({ seed,character,map }),pilotMemory={};
-  const preference = [...(character==='stormcaller'?['storm','haste','focus']:[]),'pulse', 'spark', 'orbit','flame', 'focus', 'haste', 'storm','ice','cleaver','thorn','aegis','chronogear','amplifier','collector','chakram','spear','prism','cyclone','briar','sunrise','magnet', 'vitality', 'stride', 'repair'];
+  const preference = [...(character==='stormcaller'?['storm','haste','focus']:[]),'pulse', 'spark', 'orbit','flame', 'focus', 'haste', 'storm','ice','cleaver','thorn','aegis','chronogear','amplifier','collector','chakram','spear','prism','cyclone','briar','sunrise','sunlance','eclipse','gravity','drone','meteor','bell','mine','frostnova','needle','fan','laurel','heart','carapace','ember','compass','hourglass','magnet', 'vitality', 'stride', 'repair'];
   for (let frame = 0; frame < 900 * 60 && !['lost', 'won'].includes(run.status); frame += 1) {
     step(run, steer(run,frame,pilotMemory), 1 / 60);
     while (run.status === 'upgrade') {
       const recovery=run.player.hp<run.player.maxHp*.65&&['vitality','repair'].find(id=>run.choices.includes(id));
       const discovery=WEAPON_IDS.filter(id=>run.upgrades[id]).length<3&&preference.find(id=>WEAPON_IDS.includes(id)&&!run.upgrades[id]&&run.choices.includes(id));
       const defense=run.player.hp<run.player.maxHp*.8&&['aegis','stride'].find(id=>run.choices.includes(id));
-      const id = recovery || discovery || defense || preference.find((candidate) => run.choices.includes(candidate));
+      const id = recovery || discovery || defense || preference.find((candidate) => run.choices.includes(candidate)) || run.choices[0];
       assert.equal(chooseUpgrade(run, id), true);
     }
   }

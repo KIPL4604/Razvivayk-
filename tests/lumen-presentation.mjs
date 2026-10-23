@@ -72,3 +72,10 @@ test('lethal health and damage with simultaneous healing remain readable',()=>{
   assert.equal(cue.sample(2).ratio,0);assert.equal(cue.sample(2).trail,1);
   assert.equal(cue.sample(2.6).trail,0);assert.equal(cue.sample(2.6).flash,0);
 });
+
+test('a blocked shield hit does not play health damage feedback',()=>{
+  const run=createRun(),cue=new HealthFeedback();cue.update(run);
+  run.time=1;run.player.invulnerable=.3;run.effects=[{kind:'shield',life:.35,maxLife:.35}];cue.update(run);
+  assert.equal(cue.sample(1).flash,0);assert(!cue.sample(1).hurt);
+  run.time+=.1;run.player.hp-=10;cue.update(run);assert(cue.sample(run.time).hurt);
+});

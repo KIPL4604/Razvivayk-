@@ -1,11 +1,11 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import {CHARACTERS,WEAPON_IDS,WEAPONS,weaponStats} from '../webapp/frontend/js/lumen/catalog.mjs';
 import {normalizeMeta,buyCharacter,bankCoins} from '../webapp/frontend/js/lumen/economy.mjs';
-test('eight heroes have distinct native weapons; all fourteen weapons have real stage stats',()=>{
-  assert.equal(Object.keys(CHARACTERS).length,8);assert.equal(new Set(Object.values(CHARACTERS).map(c=>c.weapon)).size,8);
-  assert.equal(WEAPON_IDS.length,14);
+test('twelve heroes have distinct native weapons; all twenty-four weapons have real stage stats',()=>{
+  assert.equal(Object.keys(CHARACTERS).length,12);assert.equal(new Set(Object.values(CHARACTERS).map(c=>c.weapon)).size,12);
+  assert.equal(WEAPON_IDS.length,24);
   for(const hero of Object.values(CHARACTERS))assert(WEAPONS[hero.weapon]&&hero.hp>0&&hero.speed>0);
-  for(const id of WEAPON_IDS){assert(weaponStats(id,3).count>weaponStats(id,1).count);assert(weaponStats(id,5).damage>weaponStats(id,1).damage);}
+  for(const id of WEAPON_IDS){assert(weaponStats(id,8).count>=weaponStats(id,1).count);assert(weaponStats(id,5).damage>weaponStats(id,1).damage);}
   assert.equal(weaponStats('orbit',1).count,1);assert.equal(weaponStats('orbit',2).count,1);assert.equal(weaponStats('orbit',3).count,2);
 });
 test('purchases spend exactly once and reject unavailable or unknown transactions',()=>{

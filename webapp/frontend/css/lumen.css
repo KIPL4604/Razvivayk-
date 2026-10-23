@@ -305,3 +305,26 @@ html.lumen-active,html.lumen-active body{overflow:hidden;overscroll-behavior:non
   .lumen-slot-caption{max-width:46px}
   .lumen-upgrade-dialog .lumen-upgrades .lumen-fusion-choice{border-top-width:1px;border-left:3px solid var(--weapon-color)}
 }
+/* Rarity uses a second semantic color; attack art keeps its original palette. */
+.lumen-expansion-icon{display:inline-block;flex-shrink:0;width:32px;height:32px;background-image:url('../assets/lumen/expansion-items.png');background-repeat:no-repeat;background-size:256px 64px;background-position:calc(var(--item-x) * -32px) calc(var(--item-y) * -32px);image-rendering:pixelated;vertical-align:middle}
+.lumen-rarity-legend{display:flex;flex-wrap:wrap;gap:8px 18px;margin:18px 0 8px;font-size:14px}
+.lumen-rarity-legend span{color:var(--rarity-color);border-bottom:3px solid var(--rarity-color);padding-bottom:4px}
+.lumen-rarity-label{display:block;color:var(--weapon-color);font-size:13px;line-height:1.4;margin:0 0 5px}
+.lumen-rarity-note{color:#b6c6c8;font-size:14px;line-height:1.5;margin:8px 0 18px}
+.lumen-library article[data-rarity]{border-left:3px solid var(--weapon-color);padding-left:12px}
+.lumen-library article>.lumen-expansion-icon{width:48px;height:48px;background-size:384px 96px;background-position:calc(var(--item-x) * -48px) calc(var(--item-y) * -48px)}
+.lumen-kit-count{font:14px LumenSquare,monospace;color:#d9dfdc;align-self:center;min-width:24px}
+.lumen-slot-caption{max-width:calc(100% + 4px);font-size:14px}
+.lumen-shield-count{font-size:13px;color:#b8e9ba;white-space:nowrap;margin-left:5px}
+.lumen-loadout-summary{font:14px/1.4 LumenSquare,monospace!important;color:#bdc9cc!important;margin:10px 0 0!important}
+.lumen-upgrade-dialog .lumen-upgrades button[data-rarity]{border-top-color:var(--weapon-color);border-left-color:var(--weapon-color)}
+.lumen-upgrade-dialog .lumen-upgrades button[data-rarity=legendary]{background:#332f21;box-shadow:inset 0 0 0 1px #f8dc6533}
+.lumen-upgrade-dialog .lumen-upgrades button[data-rarity] small{color:var(--weapon-color);line-height:1.2}
+.lumen-migration-note{font-size:15px!important;color:#e6d6ad!important;line-height:1.4!important;border-left:2px solid #c3ac73;padding-left:10px;margin-top:14px}
+@media(max-width:540px){
+  .lumen-shield-count{font-size:11px;margin-left:2px}
+  .lumen-kit-count{font-size:12px;min-width:19px}
+  .lumen-slot-caption{font-size:11px;max-width:calc(100% + 3px)}
+  .lumen-artifacts{flex-wrap:wrap;max-width:260px;row-gap:3px}
+  .lumen-loadout-summary{font-size:12px!important}
+}

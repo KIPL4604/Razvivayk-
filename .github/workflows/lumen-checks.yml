@@ -17,7 +17,7 @@ jobs:
       - uses: actions/setup-python@v5
         with: {python-version: '3.12', cache: pip, cache-dependency-path: design/lumen-pixel/requirements.txt}
       - run: pip install -r design/lumen-pixel/requirements.txt
-      - run: node --test tests/lumen-engine.mjs tests/lumen-presentation.mjs tests/lumen-progression.mjs tests/lumen-economy.mjs tests/lumen-arsenal.mjs tests/lumen-campaign.mjs
+      - run: node --test tests/lumen-*.mjs
       - run: python tests/test_lumen_art.py
       - run: for script in webapp/frontend/js/lumen/*.mjs; do node --check "$script"; done
       - run: git diff --check

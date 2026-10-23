@@ -20,9 +20,9 @@ test('each fusion requires both VIII, replaces the pair with I, upgrades to IV a
   }
 });
 
-test('a ready fusion is always offered with six weapons, and consumed ingredients stay out of offers',()=>{
+test('a ready fusion is always offered with four weapons, and consumed ingredients stay out of offers',()=>{
   for(let seed=1;seed<=100;seed++){
-    const r=createRun({seed});r.upgrades={spark:8,ice:8,orbit:1,pulse:1,flame:1,storm:1};r.xp=r.xpNext;step(r,{},tick);
+    const r=createRun({seed});r.upgrades={spark:8,ice:8,orbit:1,pulse:1};r.xp=r.xpNext;step(r,{},tick);
     assert(r.choices.includes('prism'));assert.equal(new Set(r.choices).size,r.choices.length);assert(chooseUpgrade(r,'prism'));
     for(let n=0;n<8;n++){
       r.xp=r.xpNext;step(r,{},tick);assert(!r.choices.includes('spark')&&!r.choices.includes('ice'));
@@ -99,6 +99,6 @@ test('new weapons bounce and pierce; hybrids slow, chain, burn and return withou
 
 test('v3 saves migrate without losing position, XP, kit or pending level choice; corrupt fusions are rejected',()=>{
   const v3=serialize(createRun());v3.version=3;delete v3.masteredWeapons;v3.player.x=98;v3.upgrades.ice=8;v3.foundWeapons=['ice'];v3.xp=3;v3.status='upgrade';v3.choices=['magnet'];
-  const r=restore(v3);assert(r);assert.equal(r.version,6);assert.equal(r.player.x,98);assert.equal(r.xp,3);assert.deepEqual(r.masteredWeapons,['ice']);assert(chooseUpgrade(r,'magnet'));
+  const r=restore(v3);assert(r);assert.equal(r.version,7);assert.equal(r.player.x,98);assert.equal(r.xp,3);assert.deepEqual(r.masteredWeapons,['ice']);assert(chooseUpgrade(r,'magnet'));
   for(const changed of [{upgrades:{prism:5}},{upgrades:{prism:1,ice:8}},{masteredWeapons:['ice']},{status:'upgrade',choices:['prism']}])assert.equal(restore({...serialize(createRun()),...changed}),null);
 });

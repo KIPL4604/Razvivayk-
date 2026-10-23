@@ -17,7 +17,7 @@ async(page)=>{
         r.level=29;r.xpNext=xpForLevel(29);r.xp=r.xpNext-2;r.gems=[{x:0,y:0,value:2,tier:1}];
       }else if(kind==='quarry'){
         r.level=18;r.xpNext=xpForLevel(18);r.xp=45;r.time=195;r.spawnedGuardians=1;r.spawnedElites=2;r.spawnTimer=3;r.player.x=35;r.player.y=100;
-        r.upgrades={spark:4,orbit:8,flame:3,ice:3,thorn:4};r.foundWeapons=['orbit','flame','ice','thorn'];
+        r.upgrades={spark:4,orbit:8,flame:3,ice:3};r.foundWeapons=['orbit','flame','ice'];
         r.enemies=[[-125,-20,'crawler'],[135,70,'spitter'],[-180,150,'wisp'],[190,-100,'wasp'],[-240,-130,'beetle'],[70,-195,'mote'],[160,235,'crawler']].map(([x,y,kind],i)=>({id:10+i,x,y,kind,hp:90,maxHp:100,radius:12,speed:25,damage:7,value:2,phase:i*.4,hitFlash:0,guardianStage:0,fireTimer:3,elite:false,slowTime:0,actionTimer:0}));
         r.gems=[{x:80,y:200,value:2,tier:1},{x:-75,y:190,value:12,tier:2},{x:115,y:260,value:40,tier:3}];r.chests=[{id:30,x:-140,y:70,coins:60,upgrade:true,boss:true}];r.nextId=40;
       }

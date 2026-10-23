@@ -26,7 +26,7 @@ class LumenArtTests(unittest.TestCase):
     @unittest.skipIf(Image is None, 'Offline pixel checks: install design/lumen-pixel/requirements.txt')
     def test_actor_frames_have_hard_alpha_shared_palette_and_baseline(self):
         manifest = json.loads((ART / 'manifest.json').read_text(encoding='utf-8'))
-        self.assertEqual(len(manifest['actors']), 20)
+        self.assertEqual(len(manifest['actors']), 24)
         for actor, data in manifest['actors'].items():
             palette = {tuple(bytes.fromhex(color[1:])) for color in manifest.get('palettes', {}).get(actor, manifest['palette'])}
             size=data['frameSize']; baseline=data['anchor'][1]
@@ -48,7 +48,7 @@ class LumenArtTests(unittest.TestCase):
 
     @unittest.skipIf(Image is None, 'Offline pixel checks: install design/lumen-pixel/requirements.txt')
     def test_tile_prop_and_ui_cells(self):
-        for name, size in [('tiles.png', (128, 32)), ('garden.png', (256, 64)), ('quarry-tiles.png',(128,32)), ('quarry-props.png',(256,64)), ('ui.png', (256, 16)), ('weapons.png',(384,48)), ('arsenal.png',(384,192)), ('expedition.png',(240,96))]:
+        for name, size in [('tiles.png', (128, 32)), ('garden.png', (256, 64)), ('quarry-tiles.png',(128,32)), ('quarry-props.png',(256,64)), ('ui.png', (256, 16)), ('weapons.png',(384,48)), ('arsenal.png',(384,192)), ('expedition.png',(240,96)), ('expansion-items.png',(384,96))]:
             with Image.open(ART / name) as image:
                 self.assertEqual(image.size, size)
                 if name.startswith('quarry-'):
@@ -58,6 +58,27 @@ class LumenArtTests(unittest.TestCase):
                     if name=='quarry-tiles.png': self.assertEqual({p[3] for p in pixels},{255})
         manifest = json.loads((ART / 'manifest.json').read_text(encoding='utf-8'))
         self.assertIn('SIL OPEN FONT LICENSE', (ART / manifest['font']['license']).read_text(encoding='utf-8'))
+
+    @unittest.skipIf(Image is None, 'Offline pixel checks: install design/lumen-pixel/requirements.txt')
+    def test_expansion_icons_are_distinct_and_sources_are_reproducible(self):
+        with Image.open(ART / 'expansion-items.png') as sheet:
+            sheet = sheet.convert('RGBA')
+            self.assertEqual(set(sheet.getchannel('A').get_flattened_data()), {0, 255})
+            cells = [sheet.crop((col*48, row*48, (col+1)*48, (row+1)*48))
+                     for row in range(2) for col in range(8)]
+            self.assertEqual(len({cell.tobytes() for cell in cells}), 16)
+            for cell in cells:
+                bounds = cell.getbbox()
+                self.assertIsNotNone(bounds)
+                self.assertGreaterEqual(bounds[0], 2)
+                self.assertLessEqual(bounds[2], 46)
+                self.assertGreater(sum(1 for p in cell.get_flattened_data() if p[3]), 100)
+        manifest = json.loads((ART / 'manifest.json').read_text(encoding='utf-8'))
+        sources = ART.parents[3] / 'design/lumen-expansion/sources'
+        for name in ['tinkerer', 'cantor', 'astronomer', 'heliarch', 'items']:
+            file = name + '-raw.png'
+            data = (sources / file).read_bytes()
+            self.assertEqual(hashlib.sha256(data).hexdigest(), manifest['sources']['expansion/' + file]['sha256'])
 
     @unittest.skipIf(Image is None, 'Offline pixel checks: install design/lumen-pixel/requirements.txt')
     def test_xp_tiers_share_the_same_crystal_mask_and_colored_facets(self):
