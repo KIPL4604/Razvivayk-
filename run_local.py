@@ -110,6 +110,20 @@ def run():
     load_env()
     if not os.getenv('TG_BOT_TOKEN'):
         raise RuntimeError('Set TG_BOT_TOKEN in .env')
+    key_setting = os.getenv('TUNNEL_SSH_KEY', '').strip()
+    if key_setting:
+        key_path = Path(key_setting).expanduser()
+        if not key_path.is_absolute():
+            key_path = ROOT / key_path
+        if not key_path.is_file():
+            raise RuntimeError('TUNNEL_SSH_KEY does not point to an existing private key')
+        identity_args = ['-i', str(key_path)]
+        tunnel_user = 'tunnel'
+        tunnel_auth = 'key'
+    else:
+        identity_args = ['-o', 'IdentityFile=none']
+        tunnel_user = 'nokey'
+        tunnel_auth = 'anonymous'
     RUNTIME.mkdir(exist_ok=True)
     with socket.socket() as probe:
         if probe.connect_ex(('127.0.0.1', PORT)) == 0:
@@ -151,13 +165,13 @@ def run():
             if tunnel is None and now >= next_connect:
                 lines = queue.Queue()
                 tunnel = subprocess.Popen(['ssh','-T','-o','StrictHostKeyChecking=accept-new','-o',f'UserKnownHostsFile={RUNTIME / "tunnel_known_hosts"}',
-                    '-o','IdentityFile=none','-o','IdentitiesOnly=yes','-o','PasswordAuthentication=no','-o','KbdInteractiveAuthentication=no',
+                    *identity_args,'-o','IdentitiesOnly=yes','-o','BatchMode=yes','-o','PasswordAuthentication=no','-o','KbdInteractiveAuthentication=no',
                     '-o','ConnectTimeout=15','-o','ExitOnForwardFailure=yes','-o','ServerAliveInterval=20','-o','ServerAliveCountMax=3',
-                    '-R',f'80:127.0.0.1:{PORT}','nokey@localhost.run','--','--output','json'],
+                    '-R',f'80:127.0.0.1:{PORT}',f'{tunnel_user}@localhost.run','--','--output','json'],
                     cwd=ROOT,stdin=subprocess.DEVNULL,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,encoding='utf-8',errors='replace',creationflags=FLAGS)
                 threading.Thread(target=tunnel_reader,args=(tunnel,lines),daemon=True).start()
                 tunnel_started = now
-                logging.info('Tunnel connecting, PID %s', tunnel.pid)
+                logging.info('Tunnel connecting, PID %s, authentication=%s', tunnel.pid, tunnel_auth)
             try:
                 line = lines.get(timeout=2)
             except queue.Empty:
@@ -209,7 +223,7 @@ def run():
                         local_failures = 0
             if current_url and (bot is None or bot.poll() is not None):
                 bot = start_service('bot',[sys.executable,'-m','bots.razvivayka.main'],env)
-            atomic_json(STATE,{'status':'running','pid':os.getpid(),'apiPid':api.pid,'tunnelPid':tunnel.pid if tunnel else None,'botPid':bot.pid if bot else None,'url':current_url,'tunnelStatus':'online' if tunnel_ready else 'reconnecting','reconnects':reconnects,'publicHealthFailures':public_failures,'lastPublicHealthAt':last_public_health,'updatedAt':time.time(),'recentTunnelErrors':list(errors)})
+            atomic_json(STATE,{'status':'running','pid':os.getpid(),'apiPid':api.pid,'tunnelPid':tunnel.pid if tunnel else None,'botPid':bot.pid if bot else None,'url':current_url,'tunnelAuth':tunnel_auth,'tunnelStatus':'online' if tunnel_ready else 'reconnecting','reconnects':reconnects,'publicHealthFailures':public_failures,'lastPublicHealthAt':last_public_health,'updatedAt':time.time(),'recentTunnelErrors':list(errors)})
             if line is None:
                 time.sleep(2)
     finally:
