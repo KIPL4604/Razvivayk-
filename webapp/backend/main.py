@@ -9,7 +9,7 @@ from fastapi import Depends, FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from fastapi.responses import FileResponse
-from starlette.middleware.gzip import GZipMiddleware
+from .static_compression import StaticAwareGZipMiddleware
 
 from .poker import router as poker_router, init_poker_db
 from .auth import get_current_user
@@ -46,7 +46,7 @@ app = FastAPI(title="Teramont Game Platform", version="4.0.0", lifespan=lifespan
 app.include_router(poker_router)
 app.include_router(platform.router)
 app.include_router(realtime.router)
-app.add_middleware(GZipMiddleware, minimum_size=1000, compresslevel=6)
+app.add_middleware(StaticAwareGZipMiddleware, minimum_size=1000, compresslevel=6)
 app.middleware("http")(observability.measure)
 
 

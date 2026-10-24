@@ -7,6 +7,7 @@ from pathlib import Path
 import hashlib
 import json
 from PIL import Image, ImageDraw
+from pack_assets import build_pack
 
 ROOT = Path(__file__).resolve().parents[2]
 SOURCE = Path(__file__).parent / 'sources'
@@ -310,6 +311,7 @@ def main():
     for key in ['actors','palettes','sources']:manifest[key].update(quarry.get(key,{}))
     for key in ['actors','palettes','sources']:manifest[key].update(arsenal_expansion.get(key,{}))
     for key in ['actors','palettes','sources']:manifest[key].update(arena.get(key,{}))
+    build_pack(DEST, manifest)
     (DEST / 'manifest.json').write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
     print(json.dumps({name: item['bytes'] for name, item in manifest['files'].items()}))
 

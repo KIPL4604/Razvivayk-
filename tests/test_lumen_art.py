@@ -1,5 +1,6 @@
 """Production-asset integrity gates. Run: python tests/test_lumen_art.py."""
 import hashlib
+from io import BytesIO
 import json
 from pathlib import Path
 import unittest
@@ -22,6 +23,27 @@ class LumenArtTests(unittest.TestCase):
                 self.assertEqual(hashlib.sha256(data).hexdigest(), entry['sha256'])
         for entry in [manifest['font'], manifest['cover']]:
             self.assertEqual(hashlib.sha256((ART / entry['file']).read_bytes()).hexdigest(), entry['sha256'])
+
+    @unittest.skipIf(Image is None, 'Install design/lumen-pixel/requirements.txt for pixel checks')
+    def test_runtime_pack_matches_every_manifest_texture(self):
+        manifest = json.loads((ART / 'manifest.json').read_text(encoding='utf-8'))
+        packs = {}
+        for descriptor in manifest['packs']:
+            pack = (ART / descriptor['file']).read_bytes()
+            self.assertEqual(len(pack), descriptor['bytes'])
+            self.assertLessEqual(len(pack), 220_000)
+            self.assertEqual(hashlib.sha256(pack).hexdigest(), descriptor['sha256'])
+            packs[descriptor['file']] = pack
+        offsets = dict.fromkeys(packs, 0)
+        for name, entry in manifest['files'].items():
+            with self.subTest(name=name):
+                self.assertEqual(entry['offset'], offsets[entry['pack']])
+                encoded = packs[entry['pack']][entry['offset']:entry['offset'] + entry['packBytes']]
+                with Image.open(BytesIO(encoded)) as converted, Image.open(ART / name) as original:
+                    self.assertEqual(converted.convert('RGBA').tobytes(), original.convert('RGBA').tobytes())
+                offsets[entry['pack']] += entry['packBytes']
+        for name, pack in packs.items():
+            self.assertEqual(offsets[name], len(pack))
 
     @unittest.skipIf(Image is None, 'Offline pixel checks: install design/lumen-pixel/requirements.txt')
     def test_actor_frames_have_hard_alpha_shared_palette_and_baseline(self):

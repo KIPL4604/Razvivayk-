@@ -171,7 +171,10 @@ def run():
                     candidate = 'https://' + matches[-1]
                 elif 'error' in line.lower():
                     errors.append(line.strip()[:180])
-            if tunnel is not None and tunnel.poll() is None and candidate and not tunnel_ready and now >= next_candidate_check:
+            # localhost.run can register a replacement hostname on the same SSH
+            # connection. Publish it as soon as it answers instead of waiting for
+            # three failures on the previous hostname and killing a healthy tunnel.
+            if tunnel is not None and tunnel.poll() is None and candidate and (not tunnel_ready or candidate != current_url) and now >= next_candidate_check:
                 next_candidate_check = now + 5
                 if health(candidate):
                     if atomic_json(URL_FILE,{'url':candidate,'updatedAt':time.time()}):

@@ -6,11 +6,25 @@ import {drawOrganism} from './organism.mjs?v=4';
 const path='/static/assets/specimen/';
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const hash=n=>{const x=Math.sin(n*127.1+311.7)*43758.5453;return x-Math.floor(x);};
-function load(src){return new Promise((resolve,reject)=>{const img=new Image();img.onload=()=>resolve(img);img.onerror=()=>reject(Error('Не удалось загрузить графику сектора.'));img.src=src;});}
+async function load(name){
+  for(let attempt=0;attempt<3;attempt++){
+    try{
+      return await new Promise((resolve,reject)=>{
+        const img=new Image();let done=false;
+        const finish=(error)=>{if(done)return;done=true;clearTimeout(timeout);img.onload=img.onerror=null;if(error)reject(error);else resolve(img);};
+        const timeout=setTimeout(()=>{finish(Error('Превышено время загрузки графики сектора.'));img.src='';},20_000);
+        img.onload=()=>finish();img.onerror=()=>finish(Error('Не удалось загрузить графику сектора.'));
+        img.src=`${path}${name}.png?v=6&attempt=${attempt}`;
+      });
+    }catch(error){if(attempt===2)throw error;}
+  }
+}
 function surfaceCanvas(w,h){const canvas=document.createElement('canvas');canvas.width=w;canvas.height=h;const c=canvas.getContext('2d');c.imageSmoothingEnabled=false;return[canvas,c];}
 
 export async function createRenderer(canvas){
-  const [atlas,people,fixtures,sector,tissue,nestArt,flamerArt]=await Promise.all(['atlas','people','fixtures','sector','tissue','nest','flamer'].map(name=>load(path+name+'.png?v=5')));
+  const sheets=[];
+  for(const name of ['atlas','people','fixtures','sector','tissue','nest','flamer'])sheets.push(await load(name));
+  const [atlas,people,fixtures,sector,tissue,nestArt,flamerArt]=sheets;
   const ctx=canvas.getContext('2d',{alpha:false});
   const [rear,bg]=surfaceCanvas(WIDTH,HEIGHT),[front,fg]=surfaceCanvas(WIDTH,HEIGHT);
   const [lightmap,lc]=surfaceCanvas(WIDTH/2,HEIGHT/2),[vignette,vc]=surfaceCanvas(1,1);

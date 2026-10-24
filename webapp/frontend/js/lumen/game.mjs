@@ -10,8 +10,6 @@ import {touchingEnemies} from './physics.mjs';
 import {CHARACTERS,WEAPON_IDS,HYBRIDS,ARTIFACTS,BOSSES,MAPS,weaponRarity,MAX_WEAPONS,MAX_ARTIFACTS} from './catalog.mjs';
 import {normalizeMeta,buyCharacter,bankCoins,recordProgress,mapAvailable} from './economy.mjs';
 
-const art = await loadArt();
-
 const clock = n => `${String(Math.floor(n/60)).padStart(2,'0')}:${String(Math.floor(n%60)).padStart(2,'0')}`;
 const roman=['','I','II','III','IV','V','VI','VII','VIII'];
 const iconIndex={spark:0,orbit:1,pulse:2,focus:3,haste:4,stride:5,magnet:6,vitality:7,repair:8,pause:9,fullscreen:10,sound:11,mute:12,gem:13,light:14,stars:15};
@@ -29,6 +27,7 @@ export function createGame(context) {
   const {getSaved,persist,navigate,telegram:tg,toast}=context;
   const $=s=>document.querySelector(s), gameMount=$('#lumenGameMount'),setupMount=$('#lumenSetupMount');
   let state=null,renderer=null,preview=null,previewState=null,raf=0,lastFrame=0,lastSave=0,lastHud=0,paused=false,screen='',character='scout',overlayKey='',resultRecorded=false;
+  let art=null,artLoading=null,waitingForStart=false;
   let pointer=null,stickOrigin=null,input={x:0,y:0},keys=new Set(),audio=null,fullscreenOwned=false;
   let terminalFrameStart=0,map='garden',menuPage='home',book='weapons',selectionLoaded=false;
   const handlers=new AbortController(),signal=handlers.signal;
@@ -73,6 +72,32 @@ export function createGame(context) {
     const target=control.disabled?control.closest('article'):control;
     if(target){if(target!==control)target.tabIndex=-1;target.focus({preventScroll:true});}
   }
+  function artFailure(){
+    if(screen!=='lumen')return;
+    const inTelegram=Boolean(tg?.initData&&typeof tg.close==='function');
+    setupMount.innerHTML='<div class="lumen-loading" role="alert">Не удалось загрузить графику.<span>'+
+      (inTelegram?'Закрой Mini App и открой её снова через бота, чтобы получить действующий адрес. Локальный забег может не перенестись между временными адресами.':'Проверь соединение и перезагрузи страницу.')+
+      '</span><button class="primary-button" data-lumen-action="reload" type="button">'+
+      (inTelegram?'Закрыть Mini App':'Перезагрузить страницу')+'</button></div>';
+  }
+  function prepareArt(){
+    if(art)return Promise.resolve(art);
+    artLoading ||= loadArt().then(loaded=>{
+      art=loaded;
+      if(screen==='lumen'&&!waitingForStart)drawPreview();
+      return loaded;
+    }).catch(error=>{artLoading=null;artFailure();throw error;});
+    return artLoading;
+  }
+  function drawPreview(){
+    const canvas=$('#lumenPreview');
+    if(!canvas||!art||screen!=='lumen')return;
+    preview?.destroy();
+    preview=new Renderer(canvas,art);preview.resize();
+    const demo=createRun({seed:17,character,map});demo.player.x=0;demo.player.y=110;demo.time=9;
+    demo.enemies=[{id:1,x:-120,y:20,kind:map==='quarry'?'shardback':'beetle',radius:15,hp:40,maxHp:40},{id:2,x:160,y:100,kind:map==='quarry'?'quartzling':'mote',radius:12,hp:20,maxHp:20}];
+    demo.gems=[{x:80,y:170,value:2,tier:1},{x:190,y:120,value:12,tier:2}];previewState=demo;preview.draw(demo,true);
+  }
   function setup(page='home',preserveScroll=false){
     if(!MENU_PAGES.includes(page))page='home';
     const scroll=$('#lumenMenuContent')?.scrollTop||0,r=record();
@@ -82,13 +107,8 @@ export function createGame(context) {
     document.documentElement.classList.add('lumen-menu-active');
     setupMount.innerHTML=renderMenu({page,book,character,map,record:record(),icon:pixelIcon,recipes:recipeBook});
     lockScreen(true);
-    const canvas=$('#lumenPreview');
-    if(canvas){
-      preview=new Renderer(canvas,art);preview.resize();
-      const demo=createRun({seed:17,character,map});demo.player.x=0;demo.player.y=110;demo.time=9;
-      demo.enemies=[{id:1,x:-120,y:20,kind:map==='quarry'?'shardback':'beetle',radius:15,hp:40,maxHp:40},{id:2,x:160,y:100,kind:map==='quarry'?'quartzling':'mote',radius:12,hp:20,maxHp:20}];
-      demo.gems=[{x:80,y:170,value:2,tier:1},{x:190,y:120,value:12,tier:2}];previewState=demo;preview.draw(demo,true);
-    }
+    drawPreview();
+    if(!art)requestAnimationFrame(()=>{if(screen==='lumen')prepareArt().catch(()=>{});});
     if(preserveScroll)$('#lumenMenuContent').scrollTop=scroll;
     else $('#lumenMenuHeading')?.focus({preventScroll:true});
   }
@@ -111,6 +131,14 @@ export function createGame(context) {
   }
   function start(){
     if(!record().meta.unlocked.includes(character)||!mapAvailable(record().meta,map))return;
+    if(!art){
+      if(waitingForStart)return;
+      waitingForStart=true;
+      const button=setupMount.querySelector('[data-lumen-action="start"]');
+      if(button){button.disabled=true;button.textContent='Загружаем графику…';}
+      prepareArt().then(()=>{waitingForStart=false;if(screen==='lumen')start();},()=>{waitingForStart=false;});
+      return;
+    }
     if(record().run&&!window.confirm('Начать заново? Текущая экспедиция будет заменена.'))return;
     state=createRun({training:record().meta.training,seed:crypto.getRandomValues(new Uint32Array(1))[0],character,map,runId:crypto.randomUUID()});state.player.y=85;resultRecorded=false;paused=false;overlayKey='';
     navigate('lumen-game');screen='lumen-game';mountRun();save();unlockAudio();
@@ -118,6 +146,13 @@ export function createGame(context) {
     lastFrame=performance.now();raf=requestAnimationFrame(frame);
   }
   function resume(){
+    if(!art){
+      if(waitingForStart)return;
+      if(screen!=='lumen')setup();
+      waitingForStart=true;
+      prepareArt().then(()=>{waitingForStart=false;if(screen==='lumen')resume();},()=>{waitingForStart=false;});
+      return;
+    }
     state=restore(record().run);
     if(!state){record().run=null;persist();setup();toast('Сохранение повреждено или устарело. Можно начать новую экспедицию.');return;}
     character=state.character;map=state.map;selectionLoaded=true;resultRecorded=false;paused=true;overlayKey='';navigate('lumen-game');screen='lumen-game';mountRun();

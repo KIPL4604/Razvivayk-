@@ -284,179 +284,311 @@
   "files": {
     "alchemist.png": {
       "bytes": 58684,
-      "sha256": "f98cae88960b1cf24afef35a0fb6be28f56c15fe6cacdd372bc3ff939c6cb2ba"
+      "sha256": "f98cae88960b1cf24afef35a0fb6be28f56c15fe6cacdd372bc3ff939c6cb2ba",
+      "offset": 0,
+      "pack": "sprites-00.pack",
+      "packBytes": 16536
     },
     "arsenal.png": {
       "bytes": 56519,
-      "sha256": "5ec82a38eaba2e0004c92104d8b082afe42124175f7fba042f5dda380074553a"
+      "sha256": "5ec82a38eaba2e0004c92104d8b082afe42124175f7fba042f5dda380074553a",
+      "offset": 16536,
+      "pack": "sprites-00.pack",
+      "packBytes": 17752
     },
     "beetle.png": {
       "bytes": 32656,
-      "sha256": "1ddc21e45d7bd9cdc9f1012bc65d343a42920f2974df09ff82fab79b6872cbef"
+      "sha256": "1ddc21e45d7bd9cdc9f1012bc65d343a42920f2974df09ff82fab79b6872cbef",
+      "offset": 34288,
+      "pack": "sprites-00.pack",
+      "packBytes": 9980
     },
     "boss-ash.png": {
       "bytes": 237341,
-      "sha256": "94e8fbe28f7cf16b3bbd0e04d0a7a39f6523e623aca20cda7339d53489435cf9"
+      "sha256": "94e8fbe28f7cf16b3bbd0e04d0a7a39f6523e623aca20cda7339d53489435cf9",
+      "offset": 44268,
+      "pack": "sprites-00.pack",
+      "packBytes": 72982
     },
     "boss-briar.png": {
       "bytes": 255448,
-      "sha256": "cc677d92debd8bc77bca0bbfbcd00a3ee007a5a9d41f47b8466fcef5ce5ef705"
+      "sha256": "cc677d92debd8bc77bca0bbfbcd00a3ee007a5a9d41f47b8466fcef5ce5ef705",
+      "offset": 117250,
+      "pack": "sprites-00.pack",
+      "packBytes": 72842
     },
     "boss-queen.png": {
       "bytes": 200638,
-      "sha256": "c1e7bb63441d4efc2416a63112f5293e2ea1cb7b53b25f4642402a3f0e924b67"
+      "sha256": "c1e7bb63441d4efc2416a63112f5293e2ea1cb7b53b25f4642402a3f0e924b67",
+      "offset": 0,
+      "pack": "sprites-01.pack",
+      "packBytes": 57674
     },
     "combat.png": {
       "bytes": 1326,
-      "sha256": "3339756b4941e091348c5623228a3c1dc6550cf67c402a7d685e0f25ad85a31d"
+      "sha256": "3339756b4941e091348c5623228a3c1dc6550cf67c402a7d685e0f25ad85a31d",
+      "offset": 57674,
+      "pack": "sprites-01.pack",
+      "packBytes": 612
     },
     "crawler.png": {
       "bytes": 51911,
-      "sha256": "006e6d0b6ec4fe050645bab2c8717f3e29d3780589e36fc51075b3af4d1bf229"
+      "sha256": "006e6d0b6ec4fe050645bab2c8717f3e29d3780589e36fc51075b3af4d1bf229",
+      "offset": 58286,
+      "pack": "sprites-01.pack",
+      "packBytes": 14322
     },
     "duelist.png": {
       "bytes": 55262,
-      "sha256": "b788461a3b1984dd2eea9ae3efb9851d47d96b98f510df62b8b5444869fe39c6"
+      "sha256": "b788461a3b1984dd2eea9ae3efb9851d47d96b98f510df62b8b5444869fe39c6",
+      "offset": 72608,
+      "pack": "sprites-01.pack",
+      "packBytes": 14218
     },
     "fx.png": {
       "bytes": 267,
-      "sha256": "6a59b5c0afc939b5d4d7bd8fd29d83e95404f18ce7605c5194949609625b2ebf"
+      "sha256": "6a59b5c0afc939b5d4d7bd8fd29d83e95404f18ce7605c5194949609625b2ebf",
+      "offset": 86826,
+      "pack": "sprites-01.pack",
+      "packBytes": 158
     },
     "garden.png": {
       "bytes": 19372,
-      "sha256": "5d5d66493fc7b84fc0c1137e23da85ba0e5300fff058cefd1c5c8d770f0f8fa3"
+      "sha256": "5d5d66493fc7b84fc0c1137e23da85ba0e5300fff058cefd1c5c8d770f0f8fa3",
+      "offset": 86984,
+      "pack": "sprites-01.pack",
+      "packBytes": 5222
     },
     "keeper.png": {
       "bytes": 49409,
-      "sha256": "9c2b3acaad551ea9f47d552b1af6488efda8422358d9a556eb6c4a4541ba5bc5"
+      "sha256": "9c2b3acaad551ea9f47d552b1af6488efda8422358d9a556eb6c4a4541ba5bc5",
+      "offset": 92206,
+      "pack": "sprites-01.pack",
+      "packBytes": 12332
     },
     "mote.png": {
       "bytes": 35281,
-      "sha256": "9b1bbc7eb563a3232a998207d07ecaa4990de670c6f51b0acbf4e61974e6309d"
+      "sha256": "9b1bbc7eb563a3232a998207d07ecaa4990de670c6f51b0acbf4e61974e6309d",
+      "offset": 104538,
+      "pack": "sprites-01.pack",
+      "packBytes": 10382
     },
     "panel.png": {
       "bytes": 152,
-      "sha256": "6a4a39d199d112204aa94882e0399d773f487f004f2ad02e656c278765cc11e4"
+      "sha256": "6a4a39d199d112204aa94882e0399d773f487f004f2ad02e656c278765cc11e4",
+      "offset": 114920,
+      "pack": "sprites-01.pack",
+      "packBytes": 104
     },
     "quarry-props.png": {
       "bytes": 13241,
-      "sha256": "bff710ed638f4e24f259dce2247b8654f4181326065cc8e5bb72eb043986b0a3"
+      "sha256": "bff710ed638f4e24f259dce2247b8654f4181326065cc8e5bb72eb043986b0a3",
+      "offset": 115024,
+      "pack": "sprites-01.pack",
+      "packBytes": 3834
     },
     "quarry-tiles.png": {
       "bytes": 5842,
-      "sha256": "1a9db097f4ffa8c2ad2961a9ea65e47a2c0b04b9f1353afadf79d04904856fa0"
+      "sha256": "1a9db097f4ffa8c2ad2961a9ea65e47a2c0b04b9f1353afadf79d04904856fa0",
+      "offset": 118858,
+      "pack": "sprites-01.pack",
+      "packBytes": 1768
     },
     "ranger.png": {
       "bytes": 52007,
-      "sha256": "2d3b1ebe321e9b822751bef9c1ab197641e7aebb88a74784fef06a69cdc3ad2b"
+      "sha256": "2d3b1ebe321e9b822751bef9c1ab197641e7aebb88a74784fef06a69cdc3ad2b",
+      "offset": 120626,
+      "pack": "sprites-01.pack",
+      "packBytes": 14590
     },
     "scout.png": {
       "bytes": 41480,
-      "sha256": "fb743ee05492395765a4d61a065afc4c5655dc0094ee0bb06450d8514c7d3cf0"
+      "sha256": "fb743ee05492395765a4d61a065afc4c5655dc0094ee0bb06450d8514c7d3cf0",
+      "offset": 135216,
+      "pack": "sprites-01.pack",
+      "packBytes": 13284
     },
     "spitter.png": {
       "bytes": 53777,
-      "sha256": "f4df82b5b74747e0af1fb97c722566d5aad76f3c5767ef8292bcab6739ca92d5"
+      "sha256": "f4df82b5b74747e0af1fb97c722566d5aad76f3c5767ef8292bcab6739ca92d5",
+      "offset": 148500,
+      "pack": "sprites-01.pack",
+      "packBytes": 16244
     },
     "stormcaller.png": {
       "bytes": 51337,
-      "sha256": "d1f9a21db6191ebb27612ad4f544578e6e0be850484ce35d836abe482b1b0b09"
+      "sha256": "d1f9a21db6191ebb27612ad4f544578e6e0be850484ce35d836abe482b1b0b09",
+      "offset": 164744,
+      "pack": "sprites-01.pack",
+      "packBytes": 13680
     },
     "tiles.png": {
       "bytes": 1164,
-      "sha256": "2a9f17e28d60de8d4bff397df48d458d64668536d4fed30a91b6f35078fa870f"
+      "sha256": "2a9f17e28d60de8d4bff397df48d458d64668536d4fed30a91b6f35078fa870f",
+      "offset": 178424,
+      "pack": "sprites-01.pack",
+      "packBytes": 472
     },
     "ui.png": {
       "bytes": 718,
-      "sha256": "4d48295c667eb50b3df91cd34285f7aaaee052f4b64ff2550cfeb6e59e36eec3"
+      "sha256": "4d48295c667eb50b3df91cd34285f7aaaee052f4b64ff2550cfeb6e59e36eec3",
+      "offset": 178896,
+      "pack": "sprites-01.pack",
+      "packBytes": 288
     },
     "wasp.png": {
       "bytes": 20626,
-      "sha256": "3658ef1fc0846f62751505016439e625fb535fcd30dffc2c08c6e7bc8724c121"
+      "sha256": "3658ef1fc0846f62751505016439e625fb535fcd30dffc2c08c6e7bc8724c121",
+      "offset": 179184,
+      "pack": "sprites-01.pack",
+      "packBytes": 6340
     },
     "weapons.png": {
       "bytes": 17831,
-      "sha256": "f5b6f173303f92753b47f65d8fe8f4470a8884e2d1a615a8a3adb0b15aacb771"
+      "sha256": "f5b6f173303f92753b47f65d8fe8f4470a8884e2d1a615a8a3adb0b15aacb771",
+      "offset": 185524,
+      "pack": "sprites-01.pack",
+      "packBytes": 5362
     },
     "wisp.png": {
       "bytes": 52323,
-      "sha256": "eea29e8b3803b13330ac4c38eb65c08681b5eb6125cb8a215c20f0116849c4bf"
+      "sha256": "eea29e8b3803b13330ac4c38eb65c08681b5eb6125cb8a215c20f0116849c4bf",
+      "offset": 190886,
+      "pack": "sprites-01.pack",
+      "packBytes": 14464
     },
     "artificer.png": {
       "bytes": 58145,
-      "sha256": "ab0d5cb75fb0bfb3d3904a3241c15aea0bf85e367425ba3ce9062dd1d4e258e3"
+      "sha256": "ab0d5cb75fb0bfb3d3904a3241c15aea0bf85e367425ba3ce9062dd1d4e258e3",
+      "offset": 0,
+      "pack": "sprites-02.pack",
+      "packBytes": 14884
     },
     "sentinel.png": {
       "bytes": 47539,
-      "sha256": "19c19b50184e2898600af43932bffe418f9a33fc54447b8290f53c9899fc18d8"
+      "sha256": "19c19b50184e2898600af43932bffe418f9a33fc54447b8290f53c9899fc18d8",
+      "offset": 14884,
+      "pack": "sprites-02.pack",
+      "packBytes": 11668
     },
     "quartzling.png": {
       "bytes": 64267,
-      "sha256": "52d348d2545dfb3175e2ca67f648e215ae4c52b92da5806bbb64fcffa0a115a1"
+      "sha256": "52d348d2545dfb3175e2ca67f648e215ae4c52b92da5806bbb64fcffa0a115a1",
+      "offset": 26552,
+      "pack": "sprites-02.pack",
+      "packBytes": 16548
     },
     "shardback.png": {
       "bytes": 58350,
-      "sha256": "6cc4f0d111103332442a176a832136c5836a4ee97afef7851fd8fe45649db888"
+      "sha256": "6cc4f0d111103332442a176a832136c5836a4ee97afef7851fd8fe45649db888",
+      "offset": 43100,
+      "pack": "sprites-02.pack",
+      "packBytes": 13682
     },
     "moonmoth.png": {
       "bytes": 49561,
-      "sha256": "5b9aee224eeece52df1ebcaff3c7f352362be2edca296782b48bb89ba08824c6"
+      "sha256": "5b9aee224eeece52df1ebcaff3c7f352362be2edca296782b48bb89ba08824c6",
+      "offset": 56782,
+      "pack": "sprites-02.pack",
+      "packBytes": 13402
     },
     "expedition.png": {
       "bytes": 26890,
-      "sha256": "6b7edf3f2dc2c8a1350953e5aa2ae47ac57b0091c0493c2b932a298946cf3c63"
+      "sha256": "6b7edf3f2dc2c8a1350953e5aa2ae47ac57b0091c0493c2b932a298946cf3c63",
+      "offset": 70184,
+      "pack": "sprites-02.pack",
+      "packBytes": 7492
     },
     "tinkerer.png": {
       "bytes": 53292,
-      "sha256": "c3aa784c15a1c63f9182987ec7b48599a2acb479cf9f30234bbff3295541abb0"
+      "sha256": "c3aa784c15a1c63f9182987ec7b48599a2acb479cf9f30234bbff3295541abb0",
+      "offset": 77676,
+      "pack": "sprites-02.pack",
+      "packBytes": 13286
     },
     "cantor.png": {
       "bytes": 45739,
-      "sha256": "45a482a4dfb560a9c09dd9c72a8afd85e0931bb36f95d17d37f84975bbb89b63"
+      "sha256": "45a482a4dfb560a9c09dd9c72a8afd85e0931bb36f95d17d37f84975bbb89b63",
+      "offset": 90962,
+      "pack": "sprites-02.pack",
+      "packBytes": 11746
     },
     "astronomer.png": {
       "bytes": 51486,
-      "sha256": "4862dea2367664ca29963caa00fd1e12b0310b2a64b0c0b3b045228d5a1ae076"
+      "sha256": "4862dea2367664ca29963caa00fd1e12b0310b2a64b0c0b3b045228d5a1ae076",
+      "offset": 102708,
+      "pack": "sprites-02.pack",
+      "packBytes": 13120
     },
     "heliarch.png": {
       "bytes": 40785,
-      "sha256": "805f000a7c3ed79ada3ba32a88989963c1fcf613d414d8da03b7f642496620c2"
+      "sha256": "805f000a7c3ed79ada3ba32a88989963c1fcf613d414d8da03b7f642496620c2",
+      "offset": 115828,
+      "pack": "sprites-02.pack",
+      "packBytes": 10108
     },
     "expansion-items.png": {
       "bytes": 37506,
-      "sha256": "823c98a8f6f6b4f33ca8a7e1241645078fe121e00bd0d9c7ebcb47cbfd008d48"
+      "sha256": "823c98a8f6f6b4f33ca8a7e1241645078fe121e00bd0d9c7ebcb47cbfd008d48",
+      "offset": 125936,
+      "pack": "sprites-02.pack",
+      "packBytes": 10908
     },
     "boss-carapace.png": {
       "bytes": 251743,
-      "sha256": "4523e268010e5c75d85372f0d9dced26fbee193c4dbd9abc1588b611482a1c59"
+      "sha256": "4523e268010e5c75d85372f0d9dced26fbee193c4dbd9abc1588b611482a1c59",
+      "offset": 136844,
+      "pack": "sprites-02.pack",
+      "packBytes": 63846
     },
     "boss-tempest.png": {
       "bytes": 158007,
-      "sha256": "08d527efa1732855014c27faba4f51b20089540019bb9d5198371476ce31f156"
+      "sha256": "08d527efa1732855014c27faba4f51b20089540019bb9d5198371476ce31f156",
+      "offset": 0,
+      "pack": "sprites-03.pack",
+      "packBytes": 41488
     },
     "boss-matriarch.png": {
       "bytes": 229505,
-      "sha256": "7f522b3bb1982e786aa61261669c972ade2e54618c32fe05e0db077353b498a3"
+      "sha256": "7f522b3bb1982e786aa61261669c972ade2e54618c32fe05e0db077353b498a3",
+      "offset": 41488,
+      "pack": "sprites-03.pack",
+      "packBytes": 63236
     },
     "arena-tick.png": {
       "bytes": 54037,
-      "sha256": "ae16f0cdec00edefc630ce0c868fab76bb93021d5e28d5d1f24231b7c3b1c0ce"
+      "sha256": "ae16f0cdec00edefc630ce0c868fab76bb93021d5e28d5d1f24231b7c3b1c0ce",
+      "offset": 104724,
+      "pack": "sprites-03.pack",
+      "packBytes": 13406
     },
     "mega-chest.png": {
       "bytes": 41565,
-      "sha256": "1427c85c421538fd1edc1b74989c01b5d0ca62e33a4b464e507d742d82cb5242"
+      "sha256": "1427c85c421538fd1edc1b74989c01b5d0ca62e33a4b464e507d742d82cb5242",
+      "offset": 118130,
+      "pack": "sprites-03.pack",
+      "packBytes": 12128
     },
     "crater-tiles.png": {
       "bytes": 12247,
-      "sha256": "99360c34f94c611420c72923a00462804f18c8032cdd3170333aab4aecfbad49"
+      "sha256": "99360c34f94c611420c72923a00462804f18c8032cdd3170333aab4aecfbad49",
+      "offset": 130258,
+      "pack": "sprites-03.pack",
+      "packBytes": 2620
     },
     "crater-props.png": {
       "bytes": 21005,
-      "sha256": "122ab08d54853423cc4a41377092b4ebe9488593fd18a1ef10e8c06f35f127c2"
+      "sha256": "122ab08d54853423cc4a41377092b4ebe9488593fd18a1ef10e8c06f35f127c2",
+      "offset": 132878,
+      "pack": "sprites-03.pack",
+      "packBytes": 5584
     },
     "arena-fx.png": {
       "bytes": 79090,
-      "sha256": "8e1af35fd19cec16f2c95bc176a23ee79268d2fdebcaf3459e1df0316579a008"
+      "sha256": "8e1af35fd19cec16f2c95bc176a23ee79268d2fdebcaf3459e1df0316579a008",
+      "offset": 138462,
+      "pack": "sprites-03.pack",
+      "packBytes": 26368
     }
   },
   "actors": {
@@ -1530,5 +1662,28 @@
       "#090404",
       "#040101"
     ]
-  }
+  },
+  "packs": [
+    {
+      "file": "sprites-00.pack",
+      "bytes": 190092,
+      "sha256": "27fefa36a65e0aa3c718d1c2856dc347ab7f1c7aea73fd5e9837844e5a10dd30"
+    },
+    {
+      "file": "sprites-01.pack",
+      "bytes": 205350,
+      "sha256": "daf64b2df59e0edfcef44052752b49ab26ca674d3f7834826c03e87cd53a2db6"
+    },
+    {
+      "file": "sprites-02.pack",
+      "bytes": 200690,
+      "sha256": "0e71a292205b2a4cacef1bb11f6c9ae0a88b94c51de542de64ca33e0369af9eb"
+    },
+    {
+      "file": "sprites-03.pack",
+      "bytes": 164830,
+      "sha256": "527c1d08700121b2cd5d13156347a23d7a41d16539989a0789aa2eb1e96a5052"
+    }
+  ],
+  "packFormat": "image/webp"
 }
