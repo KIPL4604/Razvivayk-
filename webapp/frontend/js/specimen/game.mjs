@@ -1,5 +1,5 @@
 import {createRun,step,serialize,restore,interaction,objective,currentRoom,ROOMS,FORMS,formFor} from './engine.mjs';
-import {createRenderer} from './renderer.mjs?v=6';
+import {createRenderer} from './renderer.mjs?v=7';
 
 const icons={pause:'<path d="M8 5v14M16 5v14"/>',full:'<path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5"/>',aim:'<circle cx="12" cy="12" r="6"/><path d="M12 2v5m0 10v5M2 12h5m10 0h5"/>',burst:'<path d="m5 4 8 8-8 8m8-16 8 8-8 8"/>',sound:'<path d="M11 4 5 9H2v6h3l6 5Zm4 4a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14"/>'};
 const icon=id=>`<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">${icons[id]}</svg>`;
@@ -18,7 +18,7 @@ export async function createGame(context){
   let active=false,mode='menu',state=null,preview=null,last=0,raf=0,lastSave=0,lastHud=0,lastDraw=0,lastEvent=-1,lastCheckpoint=-1,audio=null,fullscreenOwned=false,portraitAllowed=false,helpReturn='menu',frameTimes=[];
   const $=s=>mount.querySelector(s);
   $('.sp-pause').setAttribute('aria-label','Пауза');$('.sp-burst').setAttribute('aria-label','Рывок');
-  function record(){const root=context.getSaved();if(!root.specimen||typeof root.specimen!=='object'||Array.isArray(root.specimen))root.specimen={};const r=root.specimen;r.version=3;r.settings={sound:r.settings?.sound===true};return r;}
+  function record(){const root=context.getSaved();if(!root.specimen||typeof root.specimen!=='object'||Array.isArray(root.specimen))root.specimen={};const r=root.specimen;r.version=4;r.settings={sound:r.settings?.sound===true};return r;}
   function save(checkpoint=false){if(!state||state.status!=='playing')return;const r=record();r.run=serialize(state);if(checkpoint)r.checkpoint=serialize(state);r.lastTouchedAt=Date.now();context.persist();lastSave=performance.now();}
   function resetInput(){keys.clear();pointers.clear();Object.assign(input,{x:0,y:0,grabbing:false,burst:false,interact:false});for(const stick of mount.querySelectorAll('.sp-stick')){stick.style.setProperty('--stick-x','0px');stick.style.setProperty('--stick-y','0px');stick.classList.remove('held');}}
   function introPreview(){preview=restore({...serialize(createRun()),mass:100,x:542,y:556});preview.nodes.forEach((n,i)=>{n.x=542-(i%5)*19;n.y=542+Math.floor(i/5)*18+(i%2)*10;n.px=n.x;n.py=n.y;});preview.x=542;preview.y=556;}
@@ -116,5 +116,5 @@ export async function createGame(context){
   for(const event of ['pointerup','pointercancel','lostpointercapture'])canvas.addEventListener(event,()=>{input.grabbing=false;});
   canvas.addEventListener('contextmenu',e=>e.preventDefault());
   introPreview();showPanel();
-  return{enter,action,onScreen,back,snapshot:()=>state?{...serialize(state),mode,pointers:pointers.size,grab:state.grab?{...state.grab}:null,input:{...input},nodes:state.nodes.map(n=>({...n})),limbs:state.limbs.map(l=>({...l,anchor:l.anchor?{...l.anchor}:null,target:l.target?{...l.target}:null,tip:{...l.tip}})),metrics:{...renderer.metrics(),meanWorkMs:frameTimes.reduce((a,b)=>a+b,0)/(frameTimes.length||1)}}:{mode}};
+  return{enter,action,onScreen,back,snapshot:()=>state?{...serialize(state),mode,pointers:pointers.size,grab:state.grab?{...state.grab}:null,input:{...input},effects:{particles:state.particles.length,fragments:state.fragments.length,flashes:state.flashes.length},nodes:state.nodes.map(n=>({...n})),limbs:state.limbs.map(l=>({...l,anchor:l.anchor?{...l.anchor}:null,target:l.target?{...l.target}:null,tip:{...l.tip}})),metrics:{...renderer.metrics(),meanWorkMs:frameTimes.reduce((a,b)=>a+b,0)/(frameTimes.length||1)}}:{mode}};
 }

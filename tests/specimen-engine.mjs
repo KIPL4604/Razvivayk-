@@ -40,7 +40,7 @@ test('bullets and a burst can break lamps',()=>{
 test('v1 and v2 saves migrate their progress to the rebuilt human laboratory',()=>{
   const raw=JSON.parse(readFileSync(new URL('./fixtures/specimen-v2.json',import.meta.url)));
   for(const version of [1,2]){const saved=structuredClone(raw);saved.version=version;if(version===1)saved.rooms.forEach(r=>r.objects=r.objects.filter(o=>!o.id.includes(':lamp')));
-    const copy=restore(saved);assert.ok(copy);assert.equal(copy.version,3);assert.equal(copy.room,1);assert.equal(copy.mass,80);assert.equal(currentRoom(copy).objects[0].bank,32);assert.equal(copy.rooms[0].enemies[0].eaten,true);assert.deepEqual([copy.x,copy.y],ROOMS[1].spawn);
+    const copy=restore(saved);assert.ok(copy);assert.equal(copy.version,4);assert.equal(copy.room,1);assert.equal(copy.mass,80);assert.equal(currentRoom(copy).objects[0].bank,32);assert.equal(copy.rooms[0].enemies[0].eaten,true);assert.deepEqual([copy.x,copy.y],ROOMS[1].spawn);
   }
   const invalid=serialize(createRun());delete invalid.rooms[0].objects.at(-1).broken;assert.equal(restore(invalid),null);
 });

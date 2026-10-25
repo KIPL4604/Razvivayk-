@@ -9,6 +9,8 @@ async(page)=>{
  async function checkBody(name){
    const result=await p.evaluate(async()=>{
      const m=await import('/static/js/specimen/engine.mjs'),s=SpecimenMode.snapshot();let penetrations=0,invalid=0;
+     // Saves omit immutable object kind/size; collision probes need the room definitions too.
+     s.rooms=s.rooms.map((r,i)=>({...r,objects:r.objects.map(o=>({...m.ROOMS[i].objects.find(v=>v.id===o.id),...o}))}));
      for(const n of s.nodes)for(let j=0;j<32;j++){const a=j/32*Math.PI*2;if(m.blocked(s,n.x+Math.cos(a)*(n.r-.08),n.y+Math.sin(a)*(n.r-.08)))penetrations++;}
      for(const l of s.limbs.filter(l=>l.anchor)){const n=s.nodes[l.root];if(!n||!m.blocked(s,l.anchor.x,l.anchor.y)||Math.hypot(n.x-l.anchor.x,n.y-l.anchor.y)>l.reach+.02)invalid++;}
      return {penetrations,invalid,x:s.x,y:s.y,mass:s.mass,contacts:s.limbs.filter(l=>l.anchor).length};

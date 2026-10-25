@@ -34,7 +34,7 @@ test('without support, released input preserves and gradually damps momentum',()
   // A temporary empty room isolates unsupported flight without mocking the integrator.
   const cells=ROOMS[0].cells,saved=cells.slice();cells.fill(0);
   try{
-    const raw={...serialize(createRun()),x:384,y:216};raw.rooms[0].gateOpen=true;
+    const raw={...serialize(createRun()),x:384,y:216};raw.rooms[0].gateOpen=true;raw.rooms[0].objects.filter(o=>o.id.endsWith('glass')||o.id.endsWith('panel')).forEach(o=>{o.broken=true;o.hp=0;});
     const s=restore(raw);for(const n of s.nodes)n.px=n.x-100*H;
     const x=s.x;step(s,H);assert.equal(s.limbs.filter(l=>l.anchor).length,0);
     assert.ok(s.x-x>90*H&&s.x-x<100*H,`momentum lost: ${(s.x-x)/H}`);
