@@ -1,5 +1,5 @@
 import {createRun,step,serialize,restore,interaction,objective,currentRoom,ROOMS,FORMS,formFor} from './engine.mjs';
-import {createRenderer} from './renderer.mjs?v=8';
+import {createRenderer} from './renderer.mjs?v=9';
 import {SOUND_CUES} from './presentation.mjs';
 
 const icons={pause:'<path d="M8 5v14M16 5v14"/>',full:'<path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5"/>',aim:'<circle cx="12" cy="12" r="6"/><path d="M12 2v5m0 10v5M2 12h5m10 0h5"/>',burst:'<path d="m5 4 8 8-8 8m8-16 8 8-8 8"/>',sound:'<path d="M11 4 5 9H2v6h3l6 5Zm4 4a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14"/>'};
@@ -15,13 +15,23 @@ export async function createGame(context){
     <div class="sp-rotate" hidden><b>Поверни телефон</b><p>В альбомном положении лучше видны лаборатория и оба щупальца управления.</p>${button('portrait','Играть вертикально','sp-secondary')}</div>
   </div>`;
   const shell=mount.querySelector('.sp-shell'),canvas=mount.querySelector('canvas'),panel=mount.querySelector('.sp-panel'),panelWrap=mount.querySelector('.sp-panel-wrap');
-  const renderer=await createRenderer(canvas),keys=new Set(),pointers=new Map(),input={x:0,y:0,aimX:1,aimY:0,grabbing:false,burst:false,interact:false};
+  const renderer=await createRenderer(canvas),keys=new Set(),pointers=new Map(),input={x:0,y:0,aimX:1,aimY:0,grabbing:false,burst:false,interact:false,echo:false};
   let active=false,mode='menu',state=null,preview=null,last=0,raf=0,lastSave=0,lastHud=0,lastDraw=0,lastEvent=-1,lastSoundEvent=0,lastCheckpoint=-1,audio=null,fullscreenOwned=false,portraitAllowed=false,helpReturn='menu',frameTimes=[];
   const $=s=>mount.querySelector(s);
+  const echoButton=document.createElement('button');echoButton.type='button';echoButton.className='sp-echo';echoButton.dataset.spAction='echo';echoButton.hidden=true;echoButton.innerHTML='<kbd>R</kbd><span>Эхолокация</span>';echoButton.setAttribute('aria-label','Эхолокация: обнаружить пищу');$('.sp-controls').append(echoButton);
+  canvas.setAttribute('aria-label',canvas.getAttribute('aria-label')+' R — эхолокация после открытия.');
   $('.sp-pause').setAttribute('aria-label','Пауза');$('.sp-burst').setAttribute('aria-label','Рывок');
-  function record(){const root=context.getSaved();if(!root.specimen||typeof root.specimen!=='object'||Array.isArray(root.specimen))root.specimen={};const r=root.specimen;r.version=4;r.settings={sound:r.settings?.sound===true};return r;}
+  function record(){
+    const root=context.getSaved();if(!root.specimen||typeof root.specimen!=='object'||Array.isArray(root.specimen))root.specimen={};const r=root.specimen;
+    if(r.version!==5&&r.completed===true&&!r.run&&r.checkpoint?.version<5){
+      const old=r.checkpoint,rooms=Array.isArray(old.rooms)?old.rooms.map((room,i)=>i===5?{...room,gateOpen:true}:room):old.rooms;
+      const continuation=restore({...old,room:5,status:'won',visited:[...(Array.isArray(old.visited)?old.visited:[]),5],rooms});
+      if(continuation){r.run=serialize(continuation);r.checkpoint=serialize(continuation);r.completed=false;r.version=5;context.persist();}
+    }
+    r.version=5;r.settings={sound:r.settings?.sound===true};return r;
+  }
   function save(checkpoint=false){if(!state||state.status!=='playing')return;const r=record();r.run=serialize(state);if(checkpoint)r.checkpoint=serialize(state);r.lastTouchedAt=Date.now();context.persist();lastSave=performance.now();}
-  function resetInput(){keys.clear();pointers.clear();Object.assign(input,{x:0,y:0,grabbing:false,burst:false,interact:false});for(const stick of mount.querySelectorAll('.sp-stick')){stick.style.setProperty('--stick-x','0px');stick.style.setProperty('--stick-y','0px');stick.classList.remove('held');}}
+  function resetInput(){keys.clear();pointers.clear();Object.assign(input,{x:0,y:0,grabbing:false,burst:false,interact:false,echo:false});for(const stick of mount.querySelectorAll('.sp-stick')){stick.style.setProperty('--stick-x','0px');stick.style.setProperty('--stick-y','0px');stick.classList.remove('held');}}
   function introPreview(){preview=restore({...serialize(createRun()),mass:100,x:542,y:556});preview.nodes.forEach((n,i)=>{n.x=542-(i%5)*19;n.y=542+Math.floor(i/5)*18+(i%2)*10;n.px=n.x;n.py=n.y;});preview.x=542;preview.y=556;}
   function sound(kind){if(!record().settings.sound)return;try{audio||=new AudioContext();if(audio.state!=='running')return;const [from,to,duration,volume]=SOUND_CUES[kind]||[94,46,.16,.045],o=audio.createOscillator(),g=audio.createGain(),now=audio.currentTime;o.type='triangle';o.frequency.setValueAtTime(from,now);o.frequency.exponentialRampToValueAtTime(to,now+duration*.8);g.gain.setValueAtTime(volume,now);g.gain.exponentialRampToValueAtTime(.0001,now+duration);o.connect(g);g.connect(audio.destination);o.onended=()=>{o.disconnect();g.disconnect();};o.start();o.stop(now+duration+.01);}catch{record().settings.sound=false;}}
   function title(name,kicker='СЕКТОР 7 / БИОКОНТРОЛЬ'){return `<p class="sp-kicker">${kicker}</p><h1 id="spPanelTitle">${name}</h1>`;}
@@ -32,12 +42,12 @@ export async function createGame(context){
     if(mode==='menu'){
       const resumable=!!restore(record().run);
       const recoverable=!resumable&&!record().completed&&!!restore(record().checkpoint);
-      panel.innerHTML=title('Нулевой<br><em>образец</em>')+`<p class="sp-intro">Тебя создали в изоляции.<br>Теперь лаборатория — твой путь наружу.</p><p class="sp-edition">ПЕРВЫЙ ПРОТОТИП · 6 ПОМЕЩЕНИЙ · 3 ЭТАЖА</p><div class="sp-actions">${button(resumable?'resume':recoverable?'retry':'start',resumable?'Продолжить побег':recoverable?'Восстановить образец':'Начать побег','sp-primary')}${resumable||recoverable?button('new','Новый побег','sp-secondary'):''}${button('help','Как управлять','sp-secondary')}</div>`+settings()+button('exit','← В каталог','sp-exit');
+      panel.innerHTML=title('Нулевой<br><em>образец</em>')+`<p class="sp-intro">Тебя создали в изоляции.<br>Теперь лаборатория — твой путь наружу.</p><p class="sp-edition">ПЕРВЫЙ ПРОТОТИП · 8 ПОМЕЩЕНИЙ · 3 ЭТАЖА</p><div class="sp-actions">${button(resumable?'resume':recoverable?'retry':'start',resumable?'Продолжить побег':recoverable?'Восстановить образец':'Начать побег','sp-primary')}${resumable||recoverable?button('new','Новый побег','sp-secondary'):''}${button('help','Как управлять','sp-secondary')}</div>`+settings()+button('exit','← В каталог','sp-exit');
     }else if(mode==='paused')panel.innerHTML=title('Связь<br><em>приостановлена</em>')+`<p class="sp-intro">${ROOMS[state.room].title}<br>${objective(state)}</p><div class="sp-actions">${button('continue','Продолжить','sp-primary')}${button('help','Управление','sp-secondary')}${button('title','В меню игры','sp-secondary')}</div>`+settings();
     else if(mode==='dead')panel.innerHTML=title('Образец<br><em>потерян</em>')+'<p class="sp-intro">Охрана уничтожила активную биомассу.<br>Контрольная точка сохранилась.</p><div class="sp-actions">'+button('retry','Восстановить образец','sp-primary')+button('title','В меню игры','sp-secondary')+'</div>';
     else if(mode==='won')panel.innerHTML=title('Контакт<br><em>оборван</em>','СЕКТОР 7 / ШЛЮЗ ОТКРЫТ')+`<p class="sp-intro">Образец покинул лабораторный сектор.<br>За шлюзом обнаружены другие источники тепла.</p><p class="sp-edition">ПРОТОТИП ПРОЙДЕН · ${Math.floor(state.time/60)}:${String(Math.floor(state.time%60)).padStart(2,'0')} · ПОГЛОЩЕНО ${state.kills}</p><div class="sp-actions">${button('start','Пройти ещё раз','sp-primary')}${button('title','В меню игры','sp-secondary')}</div>`;
     else if(mode==='new')panel.innerHTML=title('Новый<br><em>побег</em>')+'<p class="sp-intro">Начать с изолятора? Текущий побег и контрольная точка будут заменены.</p><div class="sp-actions">'+button('start','Начать заново','sp-primary')+button('title','Вернуться','sp-secondary')+'</div>';
-    else if(mode==='help')panel.innerHTML=title('Почувствуй<br><em>каждый отросток</em>','УПРАВЛЕНИЕ ОБРАЗЦОМ')+`<dl class="sp-help"><div><dt>Двигайся</dt><dd>Левый джойстик или WASD / стрелки. Щупальца сами цепляются за стены, галереи и потолок и перехватываются при движении.</dd></div><div><dt>Хватай</dt><dd>Правым джойстиком направляй щупальце. Удерживай, чтобы притянуть и поглотить человека. Отпусти захваченный ящик — он полетит по прицелу, отскочит от стен и собьёт человека. На компьютере — удерживай левую кнопку мыши. Так же можно сорвать подвесную лампу.</dd></div><div><dt>Меняй массу</dt><dd>Подойди к резервуару и нажми «Оставить массу». Вернись к нему, чтобы забрать её.</dd></div><div><dt>Пробивай путь</dt><dd>Большая форма разрушает перегородку рывком: кнопка со стрелками или пробел.</dd></div><div><dt>Взаимодействуй</dt><dd>Рычаг и терминал: потяни захватом или нажми E. Зелёное живое ядро в стене сохраняет побег при сближении. Escape — пауза.</dd></div></dl>`+button('help-back','Понятно','sp-primary');
+    else if(mode==='help')panel.innerHTML=title('Почувствуй<br><em>каждый отросток</em>','УПРАВЛЕНИЕ ОБРАЗЦОМ')+`<dl class="sp-help"><div><dt>Двигайся</dt><dd>Левый джойстик или WASD / стрелки. Щупальца сами цепляются за стены, галереи и потолок и перехватываются при движении.</dd></div><div><dt>Хватай</dt><dd>Правым джойстиком направляй щупальце. Удерживай, чтобы притянуть и поглотить человека. Отпусти захваченный ящик — он полетит по прицелу, отскочит от стен и собьёт человека. На компьютере — удерживай левую кнопку мыши. Так же можно сорвать подвесную лампу.</dd></div><div><dt>Меняй массу</dt><dd>Подойди к резервуару и нажми «Оставить массу». Вернись к нему, чтобы забрать её.</dd></div><div><dt>Пробивай путь</dt><dd>Большая форма разрушает перегородку рывком: кнопка со стрелками или пробел.</dd></div><div><dt>Взаимодействуй</dt><dd>Рычаг и терминал: потяни захватом или нажми E. Зелёное живое ядро в стене сохраняет побег при сближении. R или кнопка эхолокации — кратко обнаружить пищу после открытия в секторе персонала. Escape — пауза.</dd></div></dl>`+button('help-back','Понятно','sp-primary');
     panel.focus({preventScroll:true});
   }
   function setMode(next){resetInput();mode=next;last=performance.now();showPanel();updateRotation();}
@@ -66,13 +76,14 @@ export async function createGame(context){
     else if(id==='portrait'){portraitAllowed=true;updateRotation();canvas.focus({preventScroll:true});}
     else if(id==='use'&&mode==='playing')input.interact=true;
     else if(id==='burst'&&mode==='playing')input.burst=true;
+    else if(id==='echo'&&mode==='playing')input.echo=true;
   }
   function frame(now){
     if(!active)return;
     const dt=Math.min(.1,(now-last)/1000);last=now;const drawingStart=performance.now();
     if(mode==='playing'&&$('.sp-rotate').hidden){
       const kx=(keys.has('d')||keys.has('ArrowRight')?1:0)-(keys.has('a')||keys.has('ArrowLeft')?1:0),ky=(keys.has('s')||keys.has('ArrowDown')?1:0)-(keys.has('w')||keys.has('ArrowUp')?1:0),ticks=state.ticks;
-      step(state,dt,{...input,x:kx||input.x,y:ky||input.y});if(state.ticks!==ticks){input.burst=false;input.interact=false;}
+      step(state,dt,{...input,x:kx||input.x,y:ky||input.y});if(state.ticks!==ticks){input.burst=false;input.interact=false;input.echo=false;}
       if(state.checkpointEvent!==lastCheckpoint&&state.status==='playing'){save(true);lastCheckpoint=state.checkpointEvent;}
       if((state.soundEvent||0)!==lastSoundEvent){lastSoundEvent=state.soundEvent||0;sound(state.soundKind);}
       if(state.event!==lastEvent){lastEvent=state.event;sound();}
@@ -92,6 +103,7 @@ export async function createGame(context){
     $('#spForm').textContent=FORMS[formFor(state.mass)].name+' форма';$('#spSector').textContent=ROOMS[state.room].title;$('#spObjective').textContent=objective(state);
     const use=interaction(state),useButton=$('.sp-use');useButton.disabled=!use;useButton.hidden=use?.object.kind==='nest';useButton.querySelector('span').textContent=use?.label||'Подойди к объекту';
     $('.sp-burst').disabled=state.dashCooldown>0;$('.sp-message').textContent=state.messageTime>0?state.message:'';
+    echoButton.hidden=!state.abilities.echo;echoButton.disabled=state.echoCooldown>0;echoButton.querySelector('span').textContent=state.echoCooldown>0?'Импульс · '+Math.ceil(state.echoCooldown)+'с':'Эхолокация';echoButton.setAttribute('aria-label','Эхолокация'+(state.echoCooldown>0?': восстановление '+Math.ceil(state.echoCooldown)+' секунд':': готова'));
   }
   function pausedByLifecycle(){if(active&&mode==='playing'){save();setMode('paused');}}
   function onScreen(name){if(name==='specimen'||!active)return;active=false;save();cancelAnimationFrame(raf);resetInput();leaveFullscreen();}
@@ -101,7 +113,7 @@ export async function createGame(context){
     if(key==='Escape'){event.preventDefault();if(event.repeat)return;if(mode==='playing')action('pause');else if(mode==='paused')action('continue');else back();return;}
     if(mode!=='playing'||!$('.sp-rotate').hidden)return;
     if(key===' '&&event.target.closest?.('button'))return;
-    if(['w','a','s','d','ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' ','e'].includes(key)){event.preventDefault();keys.add(key);if(!event.repeat){if(key===' ')input.burst=true;if(key==='e')input.interact=true;}}
+    if(['w','a','s','d','ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' ','e','r'].includes(key)){event.preventDefault();keys.add(key);if(!event.repeat){if(key===' ')input.burst=true;if(key==='e')input.interact=true;if(key==='r')input.echo=true;}}
   });
   document.addEventListener('keyup',event=>keys.delete(event.key.length===1?event.key.toLowerCase():event.key));
   window.addEventListener('blur',pausedByLifecycle);document.addEventListener('visibilitychange',()=>{if(document.hidden)pausedByLifecycle();});window.addEventListener('pagehide',()=>{save();resetInput();});window.addEventListener('resize',()=>{resetInput();updateRotation();});
@@ -118,5 +130,5 @@ export async function createGame(context){
   for(const event of ['pointerup','pointercancel','lostpointercapture'])canvas.addEventListener(event,()=>{input.grabbing=false;});
   canvas.addEventListener('contextmenu',e=>e.preventDefault());
   introPreview();showPanel();
-  return{enter,action,onScreen,back,snapshot:()=>state?{...serialize(state),mode,pointers:pointers.size,grab:state.grab?{...state.grab}:null,tendril:state.tendril?{...state.tendril}:null,impact:state.impact,perception:currentRoom(state).enemies.map(e=>({id:e.id,behavior:e.behavior,visible:e.visible,memory:e.memory,lastSeen:e.lastSeen?{...e.lastSeen}:null,dir:e.dir})),input:{...input},effects:{particles:state.particles.length,fragments:state.fragments.length,flashes:state.flashes.length},nodes:state.nodes.map(n=>({...n})),limbs:state.limbs.map(l=>({...l,anchor:l.anchor?{...l.anchor}:null,target:l.target?{...l.target}:null,tip:{...l.tip}})),metrics:{...renderer.metrics(),meanWorkMs:frameTimes.reduce((a,b)=>a+b,0)/(frameTimes.length||1)}}:{mode}};
+  return{enter,action,onScreen,back,snapshot:()=>state?{...serialize(state),mode,pointers:pointers.size,grab:state.grab?{...state.grab}:null,tendril:state.tendril?{...state.tendril}:null,impact:state.impact,echoTime:state.echoTime,echoTargets:state.echoTargets.map(t=>({...t})),perception:currentRoom(state).enemies.map(e=>({id:e.id,behavior:e.behavior,visible:e.visible,memory:e.memory,lastSeen:e.lastSeen?{...e.lastSeen}:null,dir:e.dir,activity:e.activity,station:e.station,walking:e.walking,climbing:e.climbing,alone:e.alone,threatForm:e.threatForm,route:(e.route||[]).map(n=>({x:n.x,y:n.y,kind:n.kind}))})),input:{...input},effects:{particles:state.particles.length,fragments:state.fragments.length,flashes:state.flashes.length},nodes:state.nodes.map(n=>({...n})),limbs:state.limbs.map(l=>({...l,anchor:l.anchor?{...l.anchor}:null,target:l.target?{...l.target}:null,tip:{...l.tip}})),metrics:{...renderer.metrics(),meanWorkMs:frameTimes.reduce((a,b)=>a+b,0)/(frameTimes.length||1)}}:{mode}};
 }

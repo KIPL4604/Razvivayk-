@@ -3,6 +3,9 @@ import {currentRoom,blocked,targetFor,flameClear} from './engine.mjs';
 import {SCENES,VISUAL_LIMITS} from './presentation.mjs';
 import {drawOrganism} from './organism.mjs?v=5';
 import {BLOOD} from './tuning.mjs';
+import {drawLabProp,drawStaff,drawEcho} from './life-renderer.mjs';
+import {biomeBackground,biomeTerrain,structures,waterIn} from './biomes.mjs';
+import {isScientist} from './props.mjs';
 
 const path='/static/assets/specimen/';
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
@@ -24,8 +27,8 @@ function surfaceCanvas(w,h){const canvas=document.createElement('canvas');canvas
 
 export async function createRenderer(canvas){
   const sheets=[];
-  for(const name of ['atlas','people','fixtures','sector','tissue','nest','flamer'])sheets.push(await load(name));
-  const [atlas,people,fixtures,sector,tissue,nestArt,flamerArt]=sheets;
+  for(const name of ['atlas','fixtures','sector','tissue','nest','lab-life','staff-life','wetlands'])sheets.push(await load(name));
+  const [atlas,fixtures,sector,tissue,nestArt,labKit,staffArt,wetlands]=sheets;
   const ctx=canvas.getContext('2d',{alpha:false});
   const [rear,bg]=surfaceCanvas(WIDTH,HEIGHT),[front,fg]=surfaceCanvas(WIDTH,HEIGHT);
   const [lightmap,lc]=surfaceCanvas(WIDTH/2,HEIGHT/2),[vignette,vc]=surfaceCanvas(1,1);
@@ -87,7 +90,7 @@ export async function createRenderer(canvas){
       bg.fillStyle='#1d272c';bg.fillRect(650,70,16,160);bg.fillRect(650,265,16,176);bg.fillRect(650,480,16,192);
       bg.fillStyle='#8a8877';for(let y=76;y<670;y+=36){if(y>160&&y<248)continue;bg.fillRect(652,y,12,2);}
     }
-    const names=['OBSERVATION / 01','MAINTENANCE / 02','PERSONNEL / 03','FREIGHT / 04','PUMP CONTROL / 05','EMERGENCY / 06'];
+    const names=['OBSERVATION / 01','MAINTENANCE / 02','PERSONNEL / 03','FREIGHT / 04','PUMP CONTROL / 05','EMERGENCY / 06','ROOT COLLECTOR / 07','OUTER MARSH / 08'];
     for(const [floor,name]of [[240,'L2'],[456,'L1'],[672,'L0']]){
       bg.fillStyle='#8b968c';bg.font='8px monospace';bg.fillText(name,58,floor-36);
       bg.fillStyle='#c39653';bg.fillRect(58,floor-29,13,2);
@@ -104,14 +107,14 @@ export async function createRenderer(canvas){
     bg.fillStyle='#08081066';bg.fillRect(49,49,670,HEIGHT-97);
     for(let x=78;x<WIDTH-45;x+=96){bg.fillStyle='#302936';bg.fillRect(x,50,5,HEIGHT-98);bg.fillStyle='#090911';bg.fillRect(x+5,50,6,HEIGHT-98);bg.fillStyle='#65505b';bg.fillRect(x,50,1,HEIGHT-98);}
     for(let y=82;y<HEIGHT-48;y+=72){bg.fillStyle='#382d35';bg.fillRect(48,y,672,4);bg.fillStyle='#09080e';bg.fillRect(48,y+4,672,5);}
-    bg.globalAlpha=.78;for(const [i,x,bottom,w,h]of scene.props)steel(bg,i,x-w/2,bottom-h,w,h);bg.globalAlpha=1;
+    bg.globalAlpha=.78;for(const [i,x,bottom,w,h]of scene.props)if(i!==12)steel(bg,i,x-w/2,bottom-h,w,h);bg.globalAlpha=1;
     for(const [x,y,size]of scene.fans){
       const g=bg.createRadialGradient(x,y,5,x,y,size*.8);g.addColorStop(0,'#ffe4c966');g.addColorStop(1,'#b796a000');bg.fillStyle=g;bg.fillRect(x-size,y-size,size*2,size*2);
       bg.fillStyle='#f2dfca';bg.beginPath();bg.arc(x,y,size*.43,0,Math.PI*2);bg.fill();steel(bg,4,x-size/2,y-size/2,size);
     }
     // Workbenches and shelves stay on their human-accessible platforms.
     bg.globalAlpha=.62;
-    for(const [i,x,bottom,w,h]of r.decor){if([2,3,6,8,11].includes(i))continue;if(i===0)steel(bg,7,x-w/2,bottom-h,w,h);else fixture(bg,i,x-w/2,bottom-h,w,h);}
+    for(const [i,x,bottom,w,h]of r.decor){if([1,2,3,5,6,8,11].includes(i))continue;if(i===0)steel(bg,7,x-w/2,bottom-h,w,h);else fixture(bg,i,x-w/2,bottom-h,w,h);}
     bg.globalAlpha=1;
     for(const [x,y,w,h]of r.walls){
       // Air ducts have sheet-metal casings, not walkable-gallery railings or support furniture.
@@ -121,16 +124,12 @@ export async function createRenderer(canvas){
       for(let rx=left;rx<left+w*TILE;rx+=48){if(r.ladders.some(([lx,ly])=>ly===top&&Math.abs(lx-rx-24)<50))continue;steel(bg,8,rx,top-23,48,24);}
       steel(bg,10,left,top+30,Math.min(144,w*TILE),42);
     }
-    for(const [x,top,bottom]of r.ladders){
-      bg.fillStyle='#151019';bg.fillRect(x-12,top,25,bottom-top);
-      for(let y=top+5;y<bottom;y+=48)fixture(bg,4,x-8,y,16,Math.min(48,bottom-y));
-      bg.fillStyle='#9f8588';bg.fillRect(x-12,top-5,2,13);bg.fillRect(x+11,top-5,2,13);
-    }
     industrial(r);
     wire(bg,58,58,705,58,48,'#3b2a30',3);wire(bg,58,62,705,62,39,'#6a4d48',1);
     wire(bg,68,204,280,209,38,'#594248',2);wire(bg,438,204,695,192,40,'#3d2935',2);
     if(scene.moss)for(const x of [70,198,360,462,618])steel(bg,13,x,364,64,21);
     for(const v of r.vines){bg.globalAlpha=.6;flesh(bg,2,v.x,v.y,v.w,v.h);flesh(bg,7,v.x+8,v.y-45,v.w*.7,v.h*.8);}bg.globalAlpha=1;
+    biomeBackground(bg,r,wetlands);structures(bg,r,labKit);
     const at=(x,y)=>x<0||x>=COLS||y<0||y>=ROWS?1:r.cells[y*COLS+x];
     for(let y=0;y<ROWS;y++)for(let x=0;x<COLS;x++)if(at(x,y)){
       const px=x*TILE,py=y*TILE,top=!at(x,y-1),bottom=!at(x,y+1),left=!at(x-1,y),right=!at(x+1,y),edge=top||bottom||left||right;
@@ -141,6 +140,7 @@ export async function createRenderer(canvas){
       if(left){fg.fillStyle='#ab9295';fg.fillRect(px,py,1,TILE);fg.fillStyle='#3e2e3d';fg.fillRect(px+2,py,2,TILE);}
       if(right){fg.fillStyle='#816b7c';fg.fillRect(px+TILE-2,py,2,TILE);}
     }
+    biomeTerrain(fg,r,wetlands);
     if(r.vent){const v=r.vent;fg.strokeStyle='#9b8997';fg.lineWidth=2;fg.strokeRect(v.x-2,v.y-2,v.w+4,v.h+4);for(const x of [v.x-5,v.x+v.w-4]){fg.fillStyle='#6f6572';fg.fillRect(x,v.y-7,9,5);fg.fillRect(x,v.y+v.h+2,9,5);}fg.fillStyle='#c6bd9c';fg.font='8px monospace';fg.fillText('ВЕНТИЛЯЦИЯ / Ø 24',v.x,v.y-12);}
     for(const p of Object.values(r.portals).filter(Boolean)){
       const x=p.x===0?19:733;fg.strokeStyle='#8b7b80';fg.lineWidth=3;fg.strokeRect(x,p.y-3,16,99);steel(fg,14,x-7,p.y-8,30,13);
@@ -152,14 +152,14 @@ export async function createRenderer(canvas){
     const points=[];
     for(let i=0;i<VISUAL_LIMITS.rays;i++){
       const a=i/VISUAL_LIMITS.rays*Math.PI*2,dx=Math.cos(a),dy=Math.sin(a);let d=4;
-      for(;d<VISUAL_LIMITS.lightRadius;d+=VISUAL_LIMITS.lightStep)if(blocked(s,x+dx*d,y+dy*d))break;
+      for(;d<VISUAL_LIMITS.lightRadius;d+=VISUAL_LIMITS.lightStep)if(blocked(s,x+dx*d,y+dy*d,false,false,null,true))break;
       points.push([x+dx*d,y+dy*d]);
     }return points;
   }
   function illuminate(s){
-    const room=currentRoom(s),key=s.room+':'+room.gateOpen+':'+formFor(s.mass)+':'+room.objects.filter(o=>['lamp','glass','panel'].includes(o.kind)).map(o=>o.broken?'0':'1').join('');
+    const room=currentRoom(s),key=s.room+':'+room.gateOpen+':'+formFor(s.mass)+':'+room.objects.map(o=>o.broken?'0':'1').join('');
     if(key===visibilityKey){ctx.save();ctx.globalCompositeOperation='multiply';ctx.drawImage(lightmap,0,0,WIDTH,HEIGHT);ctx.restore();return;}
-    const sources=[...room.objects.filter(o=>o.kind==='lamp'&&!o.broken).map(o=>({x:o.x,y:o.y,color:'#fff3da'})),...room.objects.filter(o=>o.kind==='nest').map(o=>({x:o.x+10,y:o.y,color:'#b8edb1'})),...SCENES[s.room].fans.map(([x,y])=>({x,y,color:'#fff0dd'}))];
+    const sources=[...room.objects.filter(o=>o.kind==='lamp'&&!o.broken).map(o=>({x:o.x,y:o.y,color:'#fff3da'})),...room.objects.filter(o=>o.kind==='monitor'&&!o.broken).map(o=>({x:o.x,y:o.y-16,color:'#a4cfbd'})),...room.objects.filter(o=>o.kind==='nest').map(o=>({x:o.x+10,y:o.y,color:'#b8edb1'})),...SCENES[s.room].fans.map(([x,y])=>({x,y,color:'#fff0dd'}))];
     contacts=sources.map(o=>({...o,points:rayPolygon(s,o.x,o.y)}));visibilityKey=key;
     lc.setTransform(1,0,0,1,0,0);lc.globalCompositeOperation='source-over';lc.fillStyle=SCENES[s.room].ambient;lc.fillRect(0,0,WIDTH/2,HEIGHT/2);lc.scale(.5,.5);
     lc.globalCompositeOperation='lighten';
@@ -176,6 +176,7 @@ export async function createRenderer(canvas){
   function props(s){
     for(const o of currentRoom(s).objects){
       if(o.kind==='nest')continue;
+      if(drawLabProp(ctx,o,labKit))continue;
       if(o.kind==='crate'){
         // Axis-aligned collision matches the visible 32px steel crate exactly.
         sprite(ctx,13,o.x-16,o.y-16,32);ctx.strokeStyle='#819087';ctx.lineWidth=1;ctx.strokeRect(Math.round(o.x)-15.5,Math.round(o.y)-15.5,31,31);continue;
@@ -201,19 +202,12 @@ export async function createRenderer(canvas){
   }
   function peopleIn(s){
     const target=targetFor(s);
-    for(const e of currentRoom(s).enemies){if(e.eaten)continue;const moving=e.walking,frame=e.dead||e.knock>0?5:e.hurt>0?4:e.windup>.1||e.fireTime>0?3:moving?1+Math.floor(s.time*9)%2:0;
-      if(e.pose){
-        const absorb=s.grab?.id===e.id?s.grab.absorb||0:0;ctx.save();ctx.globalAlpha=1-absorb*.85;
-        const [head,torso,hip,feet]=e.pose,sheet=e.kind==='flamer'?flamerArt:people,row=e.kind==='guard'?64:0;
-        // Segments use the original pixel uniform, each aligned to its physical link.
-        const part=(a,b,sy,sh,anchor)=>{ctx.save();ctx.translate(Math.round(a.x),Math.round(a.y));ctx.rotate(-Math.atan2(b.x-a.x,b.y-a.y));ctx.scale(e.dir<0?-1:1,1);ctx.drawImage(sheet,0,row+sy,64,sh,-32,anchor,64,sh);ctx.restore();};
-        part(head,torso,0,23,-12);part(torso,hip,23,20,-10);part(hip,feet,43,21,-4);ctx.restore();continue;
-      }
-      ctx.save();ctx.translate(Math.round(e.x),Math.round(e.y+26));ctx.scale(e.dir<0?-1:1,1);ctx.drawImage(e.kind==='flamer'?flamerArt:people,frame*64,(e.kind==='guard'?1:0)*64,64,64,-32,-58,64,64);ctx.restore();
-      if(e.hurt>0&&!e.dead){ctx.fillStyle='#271821';ctx.fillRect(e.x-14,e.y-38,28,3);ctx.fillStyle='#e9b58a';ctx.fillRect(e.x-14,e.y-38,28*e.hp/(e.kind==='tech'?3:e.kind==='flamer'?6:5),3);}
+    for(const e of currentRoom(s).enemies){if(e.eaten)continue;
+      drawStaff(ctx,s,e,staffArt,reduced.matches);
+      if(e.hurt>0&&!e.dead){ctx.fillStyle='#271821';ctx.fillRect(e.x-14,e.y-38,28,3);ctx.fillStyle='#e9b58a';ctx.fillRect(e.x-14,e.y-38,28*e.hp/(isScientist(e)?3:e.kind==='flamer'?6:5),3);}
       if(!e.dead&&e.alert>0){ctx.fillStyle='#e8ad78';ctx.fillRect(e.x-1,e.y-42,2,6);ctx.fillRect(e.x-1,e.y-34,2,2);}
       else if(!e.dead&&e.memory>0){ctx.fillStyle='#b4c9ca';ctx.font='10px monospace';ctx.fillText('?',e.x-3,e.y-35);}
-      if(e.windup>0){ctx.strokeStyle='#ed9d6866';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(e.x,e.y-5);ctx.lineTo(s.x,s.y);ctx.stroke();}
+      if(e.windup>0&&e.lastSeen){ctx.strokeStyle='#ed9d6866';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(e.x,e.y-5);ctx.lineTo(e.lastSeen.x,e.lastSeen.y);ctx.stroke();}
       if(target?.id===e.id){ctx.strokeStyle='#efd2b2';ctx.lineWidth=1;ctx.strokeRect(Math.round(e.x)-17,Math.round(e.y)-28,34,51);}
     }
     if(target?.type==='object'){const o=currentRoom(s).objects.find(o=>o.id===target.id);if(o?.kind==='lamp'){ctx.strokeStyle='#efd2b2';ctx.lineWidth=1;ctx.strokeRect(Math.round(o.x)-13,Math.round(o.y)-18,26,36);}}
@@ -257,14 +251,14 @@ export async function createRenderer(canvas){
       if(d.run){ctx.fillStyle=dry>.5?'#491323':'#8e2038';ctx.globalAlpha=.75;ctx.fillRect(0,0,1+Math.floor(d.size/5),Math.round(d.run));ctx.fillRect(-1,Math.round(d.run),3,2);}
       ctx.rotate(Math.atan2(d.ny??-1,d.nx??0)+Math.PI/2);ctx.globalAlpha=.78-dry*.32;flesh(ctx,6,-d.size*1.5,-4,d.size*3,8);ctx.restore();
     }
-    props(s);peopleIn(s);fire(s);creature(s);
+    waterIn(ctx,s,ROOMS[s.room],reduced.matches);props(s);peopleIn(s);fire(s);creature(s);
     for(const b of s.bullets){ctx.strokeStyle='#ffdf9d';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(b.x,b.y);ctx.lineTo(b.x-b.vx*.018,b.y-b.vy*.018);ctx.stroke();}
     for(const p of s.particles){ctx.fillStyle=p.color;ctx.globalAlpha=(p.life/p.max)*(p.kind==='smoke'?.28:1);const size=p.kind==='smoke'||p.kind==='steam'?5:2;ctx.fillRect(Math.round(p.x),Math.round(p.y),size,size);}ctx.globalAlpha=1;
     for(const f of s.fragments){ctx.save();ctx.translate(Math.round(f.x),Math.round(f.y));ctx.rotate(f.angle);ctx.globalAlpha=Math.min(1,f.life);ctx.fillStyle=f.color;ctx.fillRect(-f.r,-1,f.r*2,2);ctx.restore();}
     ctx.drawImage(front,0,0);nests(s);
     const room=currentRoom(s),gate=ROOMS[s.room].gate;
     if(gate){if(!room.gateOpen){steel(ctx,7,gate.x-7,gate.y,38,gate.h);ctx.fillStyle='#e74347';ctx.fillRect(gate.x+10,gate.y+12,2,gate.h-24);}else{steel(ctx,14,gate.x-8,gate.y-6,40,12);ctx.fillStyle='#aecab0';ctx.fillRect(gate.x+8,gate.y-3,8,2);}}
-    illuminate(s);atmosphere(s);
+    illuminate(s);atmosphere(s);drawEcho(ctx,s,reduced.matches);
     if(!reduced.matches)for(const f of s.flashes){ctx.save();ctx.globalCompositeOperation='screen';ctx.globalAlpha=f.life/f.max*.24;ctx.fillStyle=f.color;ctx.beginPath();ctx.arc(f.x,f.y,f.radius,0,Math.PI*2);ctx.fill();ctx.restore();}
     ctx.restore();ctx.drawImage(vignette,0,0);
   }

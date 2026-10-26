@@ -1,5 +1,6 @@
 import {TENDRIL as P} from './tuning.mjs';
 import {tickFilament} from './filament.mjs';
+import {isCargo} from './props.mjs';
 // One offensive appendage, independent of planted locomotion supports.
 // Sweep in <=2px steps: the first wall or target always wins.
 export function tickTendril(s,held,targets,solid,dt){
@@ -15,7 +16,7 @@ export function tickTendril(s,held,targets,solid,dt){
       const x=t.x+t.dx*advance/count,y=t.y+t.dy*advance/count;
       if(solid(s,x,y)||Math.hypot(x-s.x,y-s.y)>reach){t.phase='retract';t.wall=true;break;}
       t.x=x;t.y=y;t.travel+=advance/count;
-      hit=targets.find(o=>Math.hypot(o.x-x,o.y-y)<P.radius+(o.type==='enemy'?P.humanRadius:o.kind==='crate'?P.crateRadius:P.objectRadius));
+      hit=targets.find(o=>Math.hypot(o.x-x,o.y-y)<P.radius+(o.type==='enemy'?P.humanRadius:isCargo(o)?Math.max(o.w||32,o.h||32)/2:P.objectRadius));
       if(hit){t.phase='retract';break;}
     }
     if(t.travel>=reach-.01)t.phase='retract';

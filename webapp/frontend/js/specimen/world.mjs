@@ -1,7 +1,18 @@
 // Original laboratory: doors have landings; floor levels and shafts serve human staff.
+import {makeProp,PROP_TYPES,propBounds,propRects} from './props.mjs';
 export const TILE=24,COLS=32,ROWS=30,WIDTH=COLS*TILE,HEIGHT=ROWS*TILE;
 export const LEGACY_LAYOUT=Object.freeze({enemies:[1,0,4,1,0,2],objects:[4,2,3,4,3,4],lamps:[5,4,5,5,5,5]});
-function room(id,title,subtitle,{entry=672,exit=672,walls=[],ladders=[],decor=[],lights=[],vent=null,gate=null,people=[],props=[],extras=[],spawn=null}={}){
+const LAB_LAYOUT=[
+  [[596,240,'computer'],[316,672,'sample']],
+  [[596,672,'computer'],[120,240,'sample']],
+  [[350,240,'computer'],[620,456,'sample'],[190,672,'computer']],
+  [[290,240,'computer']],
+  [[182,672,'sample'],[360,240,'computer']],
+  [[160,456,'computer']],
+  [[300,456,'sample']],
+  [[348,456,'computer']]
+];
+function room(id,title,subtitle,{entry=672,exit=672,walls=[],ladders=[],stairs=[],bridges=[],decor=[],lights=[],vent=null,gate=null,people=[],props=[],extras=[],spawn=null,biome='lab',water=[]}={}){
   const cells=new Uint8Array(COLS*ROWS);
   const fill=(x,y,w,h,value)=>{for(let j=y;j<y+h;j++)for(let i=x;i<x+w;i++)cells[j*COLS+i]=value;};
   for(let y=0;y<ROWS;y++)for(let x=0;x<COLS;x++)if(x<2||x>29||y<2||y>=ROWS-2)cells[y*COLS+x]=1;
@@ -12,6 +23,13 @@ function room(id,title,subtitle,{entry=672,exit=672,walls=[],ladders=[],decor=[]
   if(door)fill(door.x/TILE,door.y/TILE,1,4,0);
   if(vent)fill(vent.x/TILE,vent.y/TILE,vent.w/TILE,1,0);
   for(const [x,top]of ladders){const col=Math.floor(x/TILE);fill(col-1,top/TILE,3,1,0);}
+  const treads=stairs.flatMap(a=>Array.from({length:a.count},(_,i)=>({x:a.x+i*a.run,y:a.base-(i+1)*a.rise,w:a.run,h:6,material:a.material||'metal'})));
+  for(const a of stairs){
+    const top=a.base-a.count*a.rise,end=a.x+(a.count-1)*a.run;
+    if(top%TILE===0)fill(Math.floor((end-96)/TILE),top/TILE,6,1,0);
+  }
+  for(const b of bridges)treads.push({...b,material:b.material||'metal'});
+  const rungs=ladders.flatMap(([x,top,bottom])=>Array.from({length:Math.ceil((bottom-top)/12)},(_,i)=>({x:x-12,y:top+i*12,w:24,h:3})));
   const objects=props.map((p,i)=>({id:`${id}:o${i}`,kind:p[0],x:p[1],y:p[2],...(p[0]==='tank'?{bank:0}:{}),...(p[0]==='crate'?{vx:0,vy:0,spin:0,angle:0,thrown:false}:{}),...(p[0]==='nest'?{lit:false}: {})}));
   for(let i=0;i<lights.length;i++){
     const [x,y]=lights[i];let mountY=48;
@@ -20,16 +38,47 @@ function room(id,title,subtitle,{entry=672,exit=672,walls=[],ladders=[],decor=[]
   }
   const v3Objects=objects.length;
   for(const extra of extras)objects.push({...extra,id:`${id}:${extra.id}`,broken:false,hp:extra.kind==='glass'?1:3});
-  return Object.freeze({id,title,subtitle,cells,portals,spawn:spawn||[92,entry-40],walls,ladders,decor,v3Objects,
+  const v4Objects=objects.length,stations=[];
+  for(const [index,[x,floor,mode]] of LAB_LAYOUT[id].entries()){
+    const prefix=id+':lab'+index+'-',desk=objects.find(o=>o.kind==='desk'&&Math.abs(o.x-x)<2&&Math.abs(o.y-(floor-26))<2);
+    if(!desk)objects.push(makeProp(prefix+'desk','desk',x,floor-26));
+    else Object.assign(desk,{...PROP_TYPES.desk,kind:'desk',hp:3,broken:false});
+    objects.push(makeProp(prefix+'chair','chair',x-44,floor-18));
+    const tool=mode==='computer'?'monitor':'microscope';
+    objects.push(makeProp(prefix+tool,tool,x+10,floor-50),makeProp(prefix+'tubes','tubes',x-18,floor-43));
+    stations.push({id:prefix+'job',x:x-44,y:floor-26,floor,mode,prop:prefix+tool,chair:prefix+'chair'});
+  }
+  const woodPositions=[[[520,672],[600,456]],[[190,672],[270,672]],[[320,672],[390,672]],[[430,672],[620,672]],[[340,672],[460,672]],[[326,456],[390,456]],[[190,672],[270,672]],[[160,456],[540,456]]][id];
+  for(const [index,kind]of ['woodbox','woodlong'].entries()){
+    const [px,pf]=woodPositions[index];let placed=null;
+    for(const floor of [pf,672,456,240]){
+      for(const shift of [0,72,-72,144,-144,216,-216,288,-288]){
+        const o=makeProp(id+(index?':wood-long':':wood-square'),kind,px+shift,floor-16),b=propBounds(o);
+        if(b.x<50||b.x+b.w>718)continue;
+        const overlap=a=>b.x<a.x+a.w&&b.x+b.w>a.x&&b.y<a.y+a.h&&b.y+b.h>a.y;
+        let hit=objects.some(other=>propRects(other).some(overlap))||treads.some(overlap)||ladders.some(([x,top,bottom])=>Math.abs(o.x-x)<b.w/2+18&&b.y+b.h>top&&b.y<bottom);
+        for(let y=Math.floor(b.y/TILE);y<=Math.floor((b.y+b.h-.1)/TILE)&&!hit;y++)for(let x=Math.floor(b.x/TILE);x<=Math.floor((b.x+b.w-.1)/TILE);x++)if(cells[y*COLS+x])hit=true;
+        const support=cells[Math.floor(floor/TILE)*COLS+Math.floor(o.x/TILE)]||treads.some(a=>a.y===floor&&o.x>a.x&&o.x<a.x+a.w);
+        if(!hit&&support){placed=o;break;}
+      }
+      if(placed)break;
+    }
+    if(!placed)throw Error('No supported wooden cargo position in sector '+id);
+    objects.push(placed);
+  }
+  if(id===2||id===6)objects.push(makeProp(id+':reagent-cabinet','cabinet',110,427));
+  return Object.freeze({id,title,subtitle,cells,portals,spawn:spawn||[92,entry-40],walls,ladders,stairs,treads,rungs,bridges,decor,v3Objects,v4Objects,stations,biome,water,
     legacyObjects:LEGACY_LAYOUT.objects[id],vent:vent?{...vent,h:24}:null,gate:door,
     vines:objects.filter(o=>o.kind==='nest').map(o=>({x:o.x-32,y:o.y-96,w:112,h:190})),
-    enemies:people.map((p,i)=>({id:`${id}:e${i}`,kind:p[0],x:p[1],y:(p[2]||672)-26,dir:-1,home:p[1],hp:p[0]==='tech'?3:p[0]==='flamer'?6:5})),objects});
+    enemies:people.map((p,i)=>({id:`${id}:e${i}`,kind:p[0]==='tech'?'scientist':p[0],x:p[1],y:(p[2]||672)-26,dir:-1,home:p[1],hp:p[0]==='tech'?3:p[0]==='flamer'?6:5})),objects});
 }
 export const ROOMS=Object.freeze([
   room(0,'01 / Изолятор','Поднимись к посту наблюдения. Рычаг открывает дверь на среднем этаже.',{
     spawn:[184,620],exit:456,
     walls:[[2,10,9,1],[15,10,15,1],[2,19,10,1],[17,19,13,1],[27,2,1,26]],
-    ladders:[[252,240,456],[492,456,672]],
+    ladders:[[252,240,456],[492,456,672],[132,456,672]],
+    stairs:[{x:300,base:456,count:18,run:12,rise:12}],
+    bridges:[{x:264,y:456,w:48,h:6},{x:516,y:240,w:48,h:6}],
     decor:[[0,104,240,43,94],[1,176,240,47,80],[5,412,456,100,48],[2,350,672,70,169],[2,438,672,70,169],[6,610,240,43,79]],
     lights:[[112,100],[390,100],[620,294],[130,510],[560,510]],
     gate:{id:'isolation',kind:'lever',x:648,floor:456},people:[['tech',396,672]],
@@ -47,6 +96,8 @@ export const ROOMS=Object.freeze([
   room(2,'03 / Персонал','Посты охраны на разных этажах. Ящик сбивает человека, огонь перекрывает прямой путь.',{
     entry:240,exit:672,
     walls:[[2,10,28,1],[2,19,28,1]],ladders:[[252,240,456],[492,456,672],[636,240,456]],
+    stairs:[{x:300,base:456,count:18,run:12,rise:12}],
+    bridges:[{x:516,y:240,w:48,h:6}],
     decor:[[0,102,240,43,94],[1,170,240,45,86],[1,398,240,45,86],[5,378,456,120,48],[6,680,240,42,80],[1,158,672,59,133],[5,412,672,144,65]],
     lights:[[120,100],[336,294],[616,294],[160,510],[478,510]],
     people:[['tech',328,240],['tech',462,456],['tech',560,672],['guard',664,672],['flamer',584,456]],
@@ -56,6 +107,8 @@ export const ROOMS=Object.freeze([
     entry:672,exit:456,
     walls:[[2,10,17,1],[24,10,6,1],[2,19,8,1],[17,19,13,1],[23,2,1,26],[11,22,7,1]],
     ladders:[[132,240,456],[492,456,672],[636,240,456]],
+    stairs:[{x:240,base:672,count:12,run:12,rise:12}],
+    bridges:[{x:240,y:528,w:48,h:6},{x:384,y:528,w:48,h:6}],
     gate:{id:'cargo',kind:'heavy',x:552,floor:456},
     decor:[[0,84,240,41,84],[6,260,240,50,85],[9,340,672,160,106],[9,472,672,116,166],[0,666,240,42,86],[3,108,672,84,130]],
     lights:[[108,98],[338,294],[628,98],[285,510],[650,510]],
@@ -80,7 +133,27 @@ export const ROOMS=Object.freeze([
     lights:[[114,100],[352,294],[604,104],[194,510],[556,510]],
     people:[['guard',396,672],['guard',582,456],['flamer',360,240]],
     props:[['crate',306,646],['crate',488,430],['terminal',610,214],['nest',76,608]],
-    extras:[{id:'escape-relay',kind:'panel',x:552,y:204,w:20,h:72,relay:true},{id:'escape-feed',kind:'feed',x:404,y:430,w:32,h:48},{id:'escape-supply',kind:'supply',x:454,y:227,w:22,h:26}]})
+    extras:[{id:'escape-relay',kind:'panel',x:552,y:204,w:20,h:72,relay:true},{id:'escape-feed',kind:'feed',x:404,y:430,w:32,h:48},{id:'escape-supply',kind:'supply',x:454,y:227,w:22,h:26}]}),
+  room(6,'07 / Органический коллектор','За шлюзом корни проросли в коллектор. Нижние мостки ведут к наружному контуру.',{
+    entry:240,exit:672,biome:'cavern',water:[{x:390,y:612,w:270,h:60}],
+    walls:[[2,10,10,1],[18,10,12,1],[2,19,15,1],[23,19,7,1],[10,25,5,1],[20,23,5,1]],
+    ladders:[[252,240,456],[540,456,672],[660,240,456]],
+    stairs:[{x:300,base:456,count:18,run:12,rise:12}],
+    bridges:[{x:408,y:456,w:144,h:6,material:'wood'},{x:516,y:240,w:48,h:6}],
+    lights:[[140,110],[340,310],[620,520]],
+    people:[['tech',230,456],['guard',620,672]],
+    props:[['nest',76,610],['tank',144,646],['crate',500,646]],
+    decor:[]}),
+  room(7,'08 / Топь','Полевая станция над водой. Обойди дозор, поднимись по мосткам и выйди из периметра.',{
+    entry:672,exit:240,biome:'swamp',water:[{x:58,y:600,w:650,h:72}],
+    walls:[[2,10,12,1],[21,10,9,1],[2,19,10,1],[18,19,12,1],[12,25,5,1]],
+    ladders:[[228,456,672],[492,240,456],[636,456,672]],
+    stairs:[{x:300,base:456,count:18,run:12,rise:12}],
+    bridges:[{x:288,y:456,w:144,h:6,material:'wood'},{x:336,y:240,w:84,h:6,material:'wood'},{x:516,y:240,w:48,h:6,material:'wood'}],
+    lights:[[150,110],[600,300],[330,550]],
+    people:[['tech',220,456],['guard',600,240],['flamer',570,456]],
+    props:[['nest',76,610],['feed',120,646],['crate',468,646]],
+    decor:[]})
 ]);
 export const FORMS=Object.freeze([
   {name:'Малая',nodes:6,r:9,speed:142,reach:136},
@@ -88,4 +161,4 @@ export const FORMS=Object.freeze([
   {name:'Большая',nodes:16,r:13,speed:105,reach:178}
 ]);
 export const formFor=mass=>mass<=36?0:mass<=68?1:2;
-export function freshRoom(r){return {enemies:r.enemies.map((e,i)=>({...e,senseSlot:i,behavior:'idle',memory:0,visible:false,dead:false,eaten:false,alert:0,windup:0,cooldown:.8,hurt:0,knock:0,vx:0,vy:0,fireTime:0})),objects:r.objects.map(o=>({...o})),gateOpen:false};}
+export function freshRoom(r){return {enemies:r.enemies.map((e,i)=>({...e,senseSlot:i,behavior:'idle',memory:0,visible:false,dead:false,eaten:false,alert:0,windup:0,cooldown:.8,hurt:0,knock:0,vx:0,vy:0,fireTime:0,workPhase:i*.7,activity:null,route:[]})),objects:r.objects.map(o=>({...o})),gateOpen:false,navRevision:0};}

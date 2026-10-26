@@ -1,5 +1,5 @@
 {
-  "version": 4,
+  "version": 5,
   "origin": "Original imagegen artwork, normalized from retained source atlases",
   "tileSize": 64,
   "environmentSlots": 16,
@@ -77,6 +77,30 @@
         384,
         64
       ]
+    },
+    "lab-life.png": {
+      "bytes": 2804,
+      "sha256": "1294a57eff4d391bc126d916343d0ecb47fc7de260e3bf3a60c22c82911a8ca8",
+      "size": [
+        256,
+        192
+      ]
+    },
+    "staff-life.png": {
+      "bytes": 17639,
+      "sha256": "9b12b73922b295c427b1f3a6cd3c178b7fdddcd26f185dcb095e32afa4943779",
+      "size": [
+        512,
+        704
+      ]
+    },
+    "wetlands.png": {
+      "bytes": 9001,
+      "sha256": "5a53214b6e70bb503126fa08195dd068e273dbc7f62bac9d92fd7bbedcc5734b",
+      "size": [
+        256,
+        256
+      ]
     }
   },
   "sectorSlots": 16,
@@ -84,5 +108,12 @@
   "sectorTileSize": 128,
   "tissueTileSize": 96,
   "nestFrames": 4,
-  "flamerFrames": 6
+  "flamerFrames": 6,
+  "life": {
+    "origin": "Original hand-authored pixel primitives; build-life.py",
+    "staffFrames": 8,
+    "staffRows": 11,
+    "frameSize": 64,
+    "propSlots": 12
+  }
 }

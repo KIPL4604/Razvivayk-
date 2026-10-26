@@ -2,7 +2,7 @@
 export const EFFECT_LIMITS=Object.freeze({particles:120,fragments:36,decals:64,flashes:8});
 import {BLOOD} from './tuning.mjs';
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
-const MATERIALS=Object.freeze({metal:{bounce:.38,drag:.985,friction:.72,life:5,color:'#9ba8a9'},glass:{bounce:.55,drag:.991,friction:.76,life:4,color:'#b2d7d7'},tissue:{bounce:.07,drag:.97,friction:.58,life:3,color:'#ab2639'}});
+const MATERIALS=Object.freeze({metal:{bounce:.38,drag:.985,friction:.72,life:5,color:'#9ba8a9'},wood:{bounce:.19,drag:.976,friction:.64,life:5,color:'#b89a69'},plastic:{bounce:.3,drag:.983,friction:.7,life:4,color:'#77968a'},glass:{bounce:.55,drag:.991,friction:.76,life:4,color:'#b2d7d7'},tissue:{bounce:.07,drag:.97,friction:.58,life:3,color:'#ab2639'}});
 export function surfaceMark(s,x,y,nx=0,ny=-1,size=5){
   s.decals.push({room:s.room,x,y,nx,ny,size:clamp(size,2,12),age:0,run:0});
   if(s.decals.length>EFFECT_LIMITS.decals)s.decals.shift();

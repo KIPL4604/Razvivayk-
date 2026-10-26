@@ -2,12 +2,12 @@
 const SpecimenMode=(()=>{
   let controller=null,loading=null,generation=0;
   const art=()=>'<img class="game-art specimen-art" src="/static/assets/specimen/cover.png?v=3" alt="" width="384" height="240" loading="lazy">';
-  function catalog(){return '<button class="campaign-card specimen-catalog" type="button" data-sp-action="open" '+(gameFilter!=="Все"?'hidden':'')+' aria-label="Нулевой образец. Пиксельный экшен. Первый прототип">'+art()+'<span class="campaign-card-copy"><span class="campaign-category">Прототип · Экшен</span><strong>Нулевой образец</strong><span class="campaign-card-progress"><span>Побег из лаборатории · 6 комнат</span>'+uiIcon('arrow')+'</span></span></button>';}
+  function catalog(){return '<button class="campaign-card specimen-catalog" type="button" data-sp-action="open" '+(gameFilter!=="Все"?'hidden':'')+' aria-label="Нулевой образец. Пиксельный экшен. Первый прототип">'+art()+'<span class="campaign-card-copy"><span class="campaign-category">Прототип · Экшен</span><strong>Нулевой образец</strong><span class="campaign-card-progress"><span>Побег из лаборатории · 8 комнат</span>'+uiIcon('arrow')+'</span></span></button>';}
   async function enter(){
     const ticket=++generation;showScreen('specimen');const mount=document.querySelector('#specimenMount');
     if(!controller)mount.innerHTML='<div class="sp-loading" role="status">Устанавливаем связь с образцом…</div>';
     try{
-      loading||=import('/static/js/specimen/game.mjs?v=8').then(m=>m.createGame({getSaved:()=>saved,persist:saveState,navigate:showScreen,telegram:tg,toast:showToast})).catch(e=>{loading=null;throw e;});
+      loading||=import('/static/js/specimen/game.mjs?v=9').then(m=>m.createGame({getSaved:()=>saved,persist:saveState,navigate:showScreen,telegram:tg,toast:showToast})).catch(e=>{loading=null;throw e;});
       controller=await loading;if(ticket!==generation||activeScreen!=='specimen')return;controller.enter();
     }catch{
       if(ticket!==generation||activeScreen!=='specimen')return;
