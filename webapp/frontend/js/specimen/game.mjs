@@ -1,5 +1,6 @@
 import {createRun,step,serialize,restore,interaction,objective,currentRoom,ROOMS,FORMS,formFor} from './engine.mjs';
-import {createRenderer} from './renderer.mjs?v=7';
+import {createRenderer} from './renderer.mjs?v=8';
+import {SOUND_CUES} from './presentation.mjs';
 
 const icons={pause:'<path d="M8 5v14M16 5v14"/>',full:'<path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5"/>',aim:'<circle cx="12" cy="12" r="6"/><path d="M12 2v5m0 10v5M2 12h5m10 0h5"/>',burst:'<path d="m5 4 8 8-8 8m8-16 8 8-8 8"/>',sound:'<path d="M11 4 5 9H2v6h3l6 5Zm4 4a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14"/>'};
 const icon=id=>`<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">${icons[id]}</svg>`;
@@ -15,14 +16,14 @@ export async function createGame(context){
   </div>`;
   const shell=mount.querySelector('.sp-shell'),canvas=mount.querySelector('canvas'),panel=mount.querySelector('.sp-panel'),panelWrap=mount.querySelector('.sp-panel-wrap');
   const renderer=await createRenderer(canvas),keys=new Set(),pointers=new Map(),input={x:0,y:0,aimX:1,aimY:0,grabbing:false,burst:false,interact:false};
-  let active=false,mode='menu',state=null,preview=null,last=0,raf=0,lastSave=0,lastHud=0,lastDraw=0,lastEvent=-1,lastCheckpoint=-1,audio=null,fullscreenOwned=false,portraitAllowed=false,helpReturn='menu',frameTimes=[];
+  let active=false,mode='menu',state=null,preview=null,last=0,raf=0,lastSave=0,lastHud=0,lastDraw=0,lastEvent=-1,lastSoundEvent=0,lastCheckpoint=-1,audio=null,fullscreenOwned=false,portraitAllowed=false,helpReturn='menu',frameTimes=[];
   const $=s=>mount.querySelector(s);
   $('.sp-pause').setAttribute('aria-label','Пауза');$('.sp-burst').setAttribute('aria-label','Рывок');
   function record(){const root=context.getSaved();if(!root.specimen||typeof root.specimen!=='object'||Array.isArray(root.specimen))root.specimen={};const r=root.specimen;r.version=4;r.settings={sound:r.settings?.sound===true};return r;}
   function save(checkpoint=false){if(!state||state.status!=='playing')return;const r=record();r.run=serialize(state);if(checkpoint)r.checkpoint=serialize(state);r.lastTouchedAt=Date.now();context.persist();lastSave=performance.now();}
   function resetInput(){keys.clear();pointers.clear();Object.assign(input,{x:0,y:0,grabbing:false,burst:false,interact:false});for(const stick of mount.querySelectorAll('.sp-stick')){stick.style.setProperty('--stick-x','0px');stick.style.setProperty('--stick-y','0px');stick.classList.remove('held');}}
   function introPreview(){preview=restore({...serialize(createRun()),mass:100,x:542,y:556});preview.nodes.forEach((n,i)=>{n.x=542-(i%5)*19;n.y=542+Math.floor(i/5)*18+(i%2)*10;n.px=n.x;n.py=n.y;});preview.x=542;preview.y=556;}
-  function sound(){if(!record().settings.sound)return;try{audio||=new AudioContext();if(audio.state!=='running')return;const o=audio.createOscillator(),g=audio.createGain(),now=audio.currentTime;o.type='triangle';o.frequency.setValueAtTime(94,now);o.frequency.exponentialRampToValueAtTime(46,now+.12);g.gain.setValueAtTime(.045,now);g.gain.exponentialRampToValueAtTime(.0001,now+.16);o.connect(g);g.connect(audio.destination);o.start();o.stop(now+.17);}catch{record().settings.sound=false;}}
+  function sound(kind){if(!record().settings.sound)return;try{audio||=new AudioContext();if(audio.state!=='running')return;const [from,to,duration,volume]=SOUND_CUES[kind]||[94,46,.16,.045],o=audio.createOscillator(),g=audio.createGain(),now=audio.currentTime;o.type='triangle';o.frequency.setValueAtTime(from,now);o.frequency.exponentialRampToValueAtTime(to,now+duration*.8);g.gain.setValueAtTime(volume,now);g.gain.exponentialRampToValueAtTime(.0001,now+duration);o.connect(g);g.connect(audio.destination);o.onended=()=>{o.disconnect();g.disconnect();};o.start();o.stop(now+duration+.01);}catch{record().settings.sound=false;}}
   function title(name,kicker='СЕКТОР 7 / БИОКОНТРОЛЬ'){return `<p class="sp-kicker">${kicker}</p><h1 id="spPanelTitle">${name}</h1>`;}
   function settings(){return `<div class="sp-settings">${button('sound',icon('sound')+`Звук: ${record().settings.sound?'вкл':'выкл'}`)}${button('fullscreen',icon('full')+(document.fullscreenElement||context.telegram?.isFullscreen?'В оконный режим':'Во весь экран'))}</div>`;}
   function showPanel(){
@@ -73,6 +74,7 @@ export async function createGame(context){
       const kx=(keys.has('d')||keys.has('ArrowRight')?1:0)-(keys.has('a')||keys.has('ArrowLeft')?1:0),ky=(keys.has('s')||keys.has('ArrowDown')?1:0)-(keys.has('w')||keys.has('ArrowUp')?1:0),ticks=state.ticks;
       step(state,dt,{...input,x:kx||input.x,y:ky||input.y});if(state.ticks!==ticks){input.burst=false;input.interact=false;}
       if(state.checkpointEvent!==lastCheckpoint&&state.status==='playing'){save(true);lastCheckpoint=state.checkpointEvent;}
+      if((state.soundEvent||0)!==lastSoundEvent){lastSoundEvent=state.soundEvent||0;sound(state.soundKind);}
       if(state.event!==lastEvent){lastEvent=state.event;sound();}
       if(state.status==='dead'){record().run=null;context.persist();setMode('dead');}
       else if(state.status==='won'){const r=record();r.run=null;r.completed=true;context.persist();setMode('won');}
@@ -116,5 +118,5 @@ export async function createGame(context){
   for(const event of ['pointerup','pointercancel','lostpointercapture'])canvas.addEventListener(event,()=>{input.grabbing=false;});
   canvas.addEventListener('contextmenu',e=>e.preventDefault());
   introPreview();showPanel();
-  return{enter,action,onScreen,back,snapshot:()=>state?{...serialize(state),mode,pointers:pointers.size,grab:state.grab?{...state.grab}:null,input:{...input},effects:{particles:state.particles.length,fragments:state.fragments.length,flashes:state.flashes.length},nodes:state.nodes.map(n=>({...n})),limbs:state.limbs.map(l=>({...l,anchor:l.anchor?{...l.anchor}:null,target:l.target?{...l.target}:null,tip:{...l.tip}})),metrics:{...renderer.metrics(),meanWorkMs:frameTimes.reduce((a,b)=>a+b,0)/(frameTimes.length||1)}}:{mode}};
+  return{enter,action,onScreen,back,snapshot:()=>state?{...serialize(state),mode,pointers:pointers.size,grab:state.grab?{...state.grab}:null,tendril:state.tendril?{...state.tendril}:null,impact:state.impact,perception:currentRoom(state).enemies.map(e=>({id:e.id,behavior:e.behavior,visible:e.visible,memory:e.memory,lastSeen:e.lastSeen?{...e.lastSeen}:null,dir:e.dir})),input:{...input},effects:{particles:state.particles.length,fragments:state.fragments.length,flashes:state.flashes.length},nodes:state.nodes.map(n=>({...n})),limbs:state.limbs.map(l=>({...l,anchor:l.anchor?{...l.anchor}:null,target:l.target?{...l.target}:null,tip:{...l.tip}})),metrics:{...renderer.metrics(),meanWorkMs:frameTimes.reduce((a,b)=>a+b,0)/(frameTimes.length||1)}}:{mode}};
 }

@@ -2,7 +2,11 @@ import {TILE,COLS,ROWS,WIDTH,HEIGHT,ROOMS,FORMS,formFor,freshRoom,LEGACY_LAYOUT}
 import {updateAnchors,constrainAnchors,validateAnchors,supportTraction} from './locomotion.mjs';
 import {throwCargo,tickCargo} from './cargo.mjs';
 import {EFFECT_LIMITS,emit,flash,fragments,impact,tickEffects} from './effects.mjs';
-import {tickHumanMotion,dragHuman,launchHuman} from './humans.mjs';
+import {tickHumanMotion,holdHuman,launchHuman} from './humans.mjs';
+import {tickTendril} from './tendril.mjs';
+import {tickFilament} from './filament.mjs';
+import {noise,tickNoises,perceive,humanIntent} from './perception.mjs';
+import {TENDRIL,BODY,SENSE,BLOOD} from './tuning.mjs';
 export {ROOMS,FORMS,formFor};
 export const VERSION=4, LIMITS=Object.freeze({nodes:16,limbs:10,bullets:40,...EFFECT_LIMITS});
 const H=1/60,clamp=(v,a,b)=>Math.max(a,Math.min(b,v)),hyp=Math.hypot;
@@ -22,7 +26,7 @@ function resize(s){
 export function createRun(){
   const s={version:VERSION,room:0,rooms:ROOMS.map(freshRoom),nodes:[],limbs:[],x:ROOMS[0].spawn[0],y:ROOMS[0].spawn[1],mass:32,time:0,ticks:0,accumulator:0,
     status:'playing',visited:[0],grab:null,grabTime:0,aimX:1,aimY:0,dash:0,dashCooldown:0,invulnerable:0,
-    bullets:[],particles:[],decals:[],fragments:[],flashes:[],kills:0,event:0,checkpointEvent:0,message:'Ты проснулся. Найди выход из изолятора.',messageTime:6};
+    bullets:[],particles:[],decals:[],fragments:[],flashes:[],noises:[],tendril:null,impact:0,kills:0,event:0,checkpointEvent:0,message:'Ты проснулся. Найди выход из изолятора.',messageTime:6};
   resize(s);updateAnchors(s,0,0,blocked,H);return s;
 }
 function rectPush(n,b){
@@ -94,7 +98,7 @@ function particles(s,x,y,color,count=8){
 }
 export function breakLamp(s,o){
   if(o.kind!=='lamp'||o.broken)return false;o.broken=true;o.fallV=0;
-  emit(s,'spark',o.x,o.y,0,1,14);fragments(s,'glass',o.x,o.y,0,1,6);fragments(s,'metal',o.x,o.y,0,1,3);flash(s,o.x,o.y);s.checkpointEvent++;notice(s,'Лампа разбита. Свет погас.');return true;
+  emit(s,'spark',o.x,o.y,0,1,14);fragments(s,'glass',o.x,o.y,0,1,6);fragments(s,'metal',o.x,o.y,0,1,3);flash(s,o.x,o.y);noise(s,o.x,o.y,.8,'glass');s.checkpointEvent++;notice(s,'Лампа разбита. Свет погас.');return true;
 }
 export function damageObject(s,o,damage,vx=0,vy=-80){
   if(o.kind==='lamp')return breakLamp(s,o);
@@ -102,7 +106,7 @@ export function damageObject(s,o,damage,vx=0,vy=-80){
   o.hp=Math.max(0,o.hp-damage);const speed=hyp(vx,vy)||1;
   emit(s,o.kind==='glass'?'dust':'spark',o.x,o.y,vx/speed,vy/speed,8);
   if(o.hp>0)return false;
-  o.broken=true;fragments(s,o.kind==='glass'?'glass':'metal',o.x,o.y,vx/speed,vy/speed,9);
+  o.broken=true;noise(s,o.x,o.y,1.1,o.kind);fragments(s,o.kind==='glass'?'glass':'metal',o.x,o.y,vx/speed,vy/speed,9);
   if(o.kind==='panel'){flash(s,o.x,o.y);emit(s,'smoke',o.x,o.y,0,-1,7);}
   s.checkpointEvent++;notice(s,o.relay?'Аварийная цепь разомкнута. Терминал доступен.':o.kind==='glass'?'Стекло разбито. Проход открыт.':'Панель сорвана.');return true;
 }
@@ -140,28 +144,44 @@ function candidate(s){
 }
 export function targetFor(s){return candidate(s);}
 function updateGrab(s,input){
-  if(!input.grabbing){if(s.grab){const room=currentRoom(s),o=(s.grab.type==='enemy'?room.enemies:room.objects).find(o=>o.id===s.grab.id);if(o?.kind==='crate'&&s.grabTime>.07)throwCargo(s,o);else if(s.grab.type==='enemy'&&o&&s.grabTime>.07)launchHuman(o,s.aimX*300,s.aimY*260-65);s.grab=null;s.grabTime=0;}return;}
-  if(!s.grab){s.grab=candidate(s);s.grabTime=0;}
+  const room=currentRoom(s);
+  s.attackReach=FORMS[formFor(s.mass)].reach;
+  const targets=[...room.enemies.filter(e=>!e.eaten).map(e=>({...e,type:'enemy'})),...room.objects.filter(o=>['crate','lever','terminal','lamp'].includes(o.kind)&&!o.broken&&!(o.regrab>0)).map(o=>({...o,type:'object'}))];
+  const contact=tickTendril(s,input.grabbing,targets,blocked,H);
+  if(!input.grabbing){if(s.grab){const o=(s.grab.type==='enemy'?room.enemies:room.objects).find(o=>o.id===s.grab.id);if(o?.kind==='crate'&&s.grabTime>.07)throwCargo(s,o);else if(s.grab.type==='enemy'&&o&&s.grabTime>.07)launchHuman(o,(o.vx||0)+s.aimX*300,(o.vy||0)+s.aimY*260-65);s.grab=null;s.grabTime=0;}return;}
+  const touched=contact&&targets.find(o=>o.id===contact.id);
+  if(!s.grab&&touched&&lineClear(s,s.x,s.y,touched.x,touched.y)){
+    s.grab={...contact,absorb:0,path:s.tendril?.path};s.tendril=null;s.grabTime=0;noise(s,s.x,s.y,.45,'grab');
+  }
   if(!s.grab)return;
-  const room=currentRoom(s),o=(s.grab.type==='enemy'?room.enemies:room.objects).find(v=>v.id===s.grab.id);
+  const o=(s.grab.type==='enemy'?room.enemies:room.objects).find(v=>v.id===s.grab.id);
   if(!o||o.eaten||hyp(o.x-s.x,o.y-s.y)>FORMS[formFor(s.mass)].reach+35||!lineClear(s,s.x,s.y,o.x,o.y)){s.grab=null;return;}
   s.grabTime+=H;
   if(o.kind==='lever'||o.kind==='terminal'){if(s.grabTime>.18){activate(s,o);s.grab=null;s.grabTime=0;}return;}
   if(o.kind==='lamp'){if(s.grabTime>.24){breakLamp(s,o);s.grab=null;s.grabTime=0;}return;}
-  const distance=s.grab.type==='enemy'?18:52,tx=s.x+s.aimX*distance,ty=s.y+s.aimY*distance;
+  const distance=s.grab.type==='enemy'?TENDRIL.rest:TENDRIL.crateRest,tx=s.x+s.aimX*distance,ty=s.y+s.aimY*distance;
   const dx=(tx-o.x)*.1,dy=(ty-o.y)*.1;
   if(o.kind==='crate'){const body={x:o.x,y:o.y,r:16,hw:16,hh:16};moveNode(s,body,dx,dy);o.vx=(body.x-o.x)/H;o.vy=(body.y-o.y)/H;o.x=body.x;o.y=body.y;o.thrown=false;}
-  else dragHuman(s,o,dx,dy,moveNode);
+  else {
+    const load=holdHuman(s,o,tx,ty,H,moveNode,blocked),head=s.nodes[0];
+    const rx=clamp(-load.x*TENDRIL.recoil,-TENDRIL.maxRecoil,TENDRIL.maxRecoil)*H,ry=clamp(-load.y*TENDRIL.recoil,-TENDRIL.maxRecoil,TENDRIL.maxRecoil)*H;
+    head.px-=rx;head.py-=ry;
+  }
+  s.grab.tension=clamp(hyp(o.x-s.x,o.y-s.y)/s.attackReach,0,1);
+  tickFilament(s,s.grab,s.nodes[0],o,s.grab.tension,blocked,H);
   if(s.grab.type==='enemy'){
     o.hurt=.15;o.alert=3;
-    if(s.grabTime>.55&&hyp(o.x-s.x,o.y-s.y)<34){o.dead=true;o.eaten=true;s.mass=Math.min(100,s.mass+(o.kind==='guard'?28:22));s.kills++;resize(s);emit(s,'absorb',o.x,o.y,s.x-o.x,s.y-o.y,8);impact(s,o.x,o.y,s.aimX*80,s.aimY*80,2);s.grab=null;s.grabTime=0;notice(s,'Поглощение · масса растёт.');}
+    const close=s.grabTime>TENDRIL.absorbDelay&&hyp(o.x-s.x,o.y-s.y)<TENDRIL.absorbDistance;
+    s.grab.absorb=close?Math.min(1,s.grab.absorb+H/TENDRIL.absorbTime):Math.max(0,s.grab.absorb-H/TENDRIL.absorbTime);
+    if(close&&s.ticks%8===0)emit(s,'absorb',o.x,o.y,s.x-o.x,s.y-o.y,2);
+    if(s.grab.absorb>=1){o.dead=true;o.eaten=true;s.mass=Math.min(100,s.mass+(o.kind==='guard'?28:22));s.kills++;resize(s);emit(s,'absorb',o.x,o.y,s.x-o.x,s.y-o.y,8);impact(s,o.x,o.y,s.aimX*80,s.aimY*80,2);s.grab=null;s.grabTime=0;notice(s,'Поглощение · масса растёт.');}
   }
 }
-function hurt(s,amount){if(s.invulnerable>0)return;s.mass=Math.max(0,s.mass-amount);s.invulnerable=.22;resize(s);particles(s,s.x,s.y,'#ffb286',6);s.event++;if(s.mass<=0){s.status='dead';notice(s,'Связь с образцом потеряна.');}}
+function hurt(s,amount,dx=-s.aimX,dy=-s.aimY){if(s.invulnerable>0)return;s.mass=Math.max(0,s.mass-amount);s.invulnerable=.22;s.impact=1;s.impactNX=dx;s.impactNY=dy;for(const n of s.nodes){n.px-=dx*BODY.recoil*H;n.py-=dy*BODY.recoil*H;}resize(s);particles(s,s.x,s.y,'#ffb286',6);s.event++;if(s.mass<=0){s.status='dead';notice(s,'Связь с образцом потеряна.');}}
 export function hitEnemy(s,e,damage,vx,vy){
   if(e.eaten)return;e.hp=Math.max(0,e.hp-damage);e.hurt=.3;e.alert=3;
   launchHuman(e,clamp(vx*.45,-190,190),Math.min(-65,vy*.35-55));
-  if(e.hp===0)e.dead=true;impact(s,e.x,e.y,vx,vy,damage);
+  if(e.hp===0)e.dead=true;impact(s,e.x,e.y,vx,vy,damage);noise(s,e.x,e.y,.8,'human');
 }
 export function flameClear(s,x,y,tx,ty){
   if(!lineClear(s,x,y,tx,ty))return false;
@@ -173,22 +193,21 @@ function tickAI(s){
   const room=currentRoom(s);
   for(const e of room.enemies){
     tickHumanMotion(s,e,H,moveNode,blocked,hitEnemy);if(e.eaten||s.grab?.id===e.id||e.dead||e.knock>0||e.pose)continue;
-    const d=hyp(e.x-s.x,e.y-s.y),sees=d<320&&lineClear(s,e.x,e.y-6,s.x,s.y);
     e.alert=Math.max(0,e.alert-H);e.cooldown=Math.max(0,e.cooldown-H);
-    if(sees)e.alert=3;
+    e.walking=false;const {d,sees}=perceive(s,e,room,lineClear,H);humanIntent(s,e,blocked,H);
     if(e.kind==='tech'){
-      if(e.alert>0){e.dir=Math.sign(e.x-s.x)||1;const nx=clamp(e.x+e.dir*58*H,66,702);if(!blocked(s,nx+e.dir*14,e.y)&&blocked(s,nx+e.dir*14,e.y+28))e.x=nx;}
+      e.windup=0;
     }else if(e.kind==='flamer'){
       e.fireTime=Math.max(0,e.fireTime-H);
       if(e.fireTime>0){
         const ox=e.x+e.dir*18,oy=e.y-6;
-        if(s.nodes.some(n=>{const dx=n.x-ox,dy=n.y-oy,dist=hyp(dx,dy);return dist<160+n.r&&dist>0&&(dx*e.fireX+dy*e.fireY)/dist>.88&&flameClear(s,ox,oy,n.x,n.y);}))hurt(s,3);
+        if(s.nodes.some(n=>{const dx=n.x-ox,dy=n.y-oy,dist=hyp(dx,dy);return dist<160+n.r&&dist>0&&(dx*e.fireX+dy*e.fireY)/dist>.88&&flameClear(s,ox,oy,n.x,n.y);}))hurt(s,3,e.fireX,e.fireY);
         if(s.ticks%5===0){emit(s,'fire',ox+e.fireX*28,oy+e.fireY*28,e.fireX,e.fireY,2);emit(s,'smoke',ox+e.fireX*110,oy+e.fireY*110,0,-1,1);}
-      }else if(sees&&d<240&&e.cooldown<=0){
-        e.dir=Math.sign(s.x-e.x)||1;e.windup+=H;
+      }else if(sees&&e.reaction===0&&d<240&&e.cooldown<=0){
+        e.dir=Math.sign(s.x-e.x)||1;if(e.windup===0)noise(s,e.x,e.y,.35,'warning');e.windup+=H;
         if(e.windup>=.65){const dx=s.x-e.x,dy=s.y-(e.y-6),dist=hyp(dx,dy)||1;e.fireX=dx/dist;e.fireY=dy/dist;e.fireTime=.8;e.cooldown=2.1;e.windup=0;}
       }else e.windup=Math.max(0,e.windup-H*2);
-    }else if(sees){
+    }else if(sees&&e.reaction===0){
       e.dir=Math.sign(s.x-e.x)||1;
       if(e.cooldown<=0){e.windup+=H;if(e.windup>=.48){const dx=s.x-e.x,dy=s.y-e.y,dist=hyp(dx,dy)||1;
         if(s.bullets.length<LIMITS.bullets)s.bullets.push({x:e.x,y:e.y-5,vx:dx/dist*310,vy:dy/dist*310,life:2});
@@ -205,22 +224,23 @@ function tickBullets(s){
       if(lamp){breakLamp(s,lamp);hit=true;}
       else if(destructible){damageObject(s,destructible,1,b.vx,b.vy);hit=true;}
       else if(blocked(s,b.x,b.y)||currentRoom(s).objects.some(o=>o.kind==='crate'&&Math.abs(b.x-o.x)<17&&Math.abs(b.y-o.y)<18)){hit=true;particles(s,b.x,b.y,'#d1ba85',2);}
-      else if(s.nodes.some(n=>hyp(n.x-b.x,n.y-b.y)<n.r+2)){hurt(s,7);hit=true;}}
+      else if(s.nodes.some(n=>hyp(n.x-b.x,n.y-b.y)<n.r+2)){hurt(s,7,b.vx/310,b.vy/310);hit=true;}}
     if(hit||b.life<=0)s.bullets.splice(i,1);
   }
 }
 function changeRoom(s,delta){
   if(s.room===5&&delta===1){if(currentRoom(s).gateOpen){s.status='won';notice(s,'Образец вышел из сектора. Продолжение следует.');}return;}
   const next=s.room+delta;if(next<0||next>=ROOMS.length)return;
-  s.room=next;s.x=delta>0?82:686;s.y=(delta>0?ROOMS[next].portals.entry:ROOMS[next].portals.exit).floor-40;s.grab=null;s.nestTouch=null;s.bullets.length=0;s.particles.length=0;s.fragments.length=0;s.flashes.length=0;s.dash=0;s.invulnerable=1;
+  s.room=next;s.x=delta>0?82:686;s.y=(delta>0?ROOMS[next].portals.entry:ROOMS[next].portals.exit).floor-40;s.grab=null;s.tendril=null;s.noises.length=0;s.nestTouch=null;s.bullets.length=0;s.particles.length=0;s.fragments.length=0;s.flashes.length=0;s.dash=0;s.invulnerable=1;
   s.nodes=[];s.limbs=[];resize(s);updateAnchors(s,0,0,blocked,H);if(!s.visited.includes(next))s.visited.push(next);notice(s,ROOMS[next].subtitle);s.checkpointEvent++;
 }
 function tick(s,input){
   s.time+=H;s.ticks++;s.messageTime=Math.max(0,s.messageTime-H);s.invulnerable=Math.max(0,s.invulnerable-H);s.dashCooldown=Math.max(0,s.dashCooldown-H);s.dash=Math.max(0,s.dash-H);
+  tickNoises(s,H);s.impact=Math.max(0,s.impact-BODY.impactDecay*H);s.impactCooldown=Math.max(0,(s.impactCooldown||0)-H);
   let ix=Number.isFinite(input.x)?input.x:0,iy=Number.isFinite(input.y)?input.y:0,len=hyp(ix,iy);if(len>1){ix/=len;iy/=len;len=1;}
   if(finite(input.aimX,-1,1)&&finite(input.aimY,-1,1)&&hyp(input.aimX,input.aimY)>.1){const a=hyp(input.aimX,input.aimY);s.aimX=input.aimX/a;s.aimY=input.aimY/a;}
   else if(len>.1&&!input.grabbing){s.aimX=ix/(len||1);s.aimY=iy/(len||1);}
-  if(input.burst&&s.dashCooldown<=0){s.dash=.22;s.dashCooldown=1.3;s.dashX=len>.1?ix:s.aimX;s.dashY=len>.1?iy:s.aimY;particles(s,s.x,s.y,'#f39870',9);}
+  if(input.burst&&s.dashCooldown<=0){s.dash=.22;s.dashCooldown=1.3;s.dashX=len>.1?ix:s.aimX;s.dashY=len>.1?iy:s.aimY;particles(s,s.x,s.y,'#f39870',9);noise(s,s.x,s.y,.9,'dash');}
   const head=s.nodes[0];
   const room=ROOMS[s.room],gate=room.gate;
   if(s.dash>0&&gate?.kind==='heavy'&&!currentRoom(s).gateOpen&&Math.abs(head.x-gate.x)<70&&(gate.x-head.x)*s.dashX>0&&head.y>gate.y-20&&head.y<gate.y+gate.h+20){
@@ -240,22 +260,26 @@ function tick(s,input){
     const acceleration=1000*(1-.3*s.mass/100),amount=Math.min(1,acceleration/(hyp(ax,ay)||1));
     // In free flight only intent adds force; releasing input leaves exponential air drag.
     vx+=(supports?ax:ix*90)*amount*H;vy+=(supports?ay:iy*90)*amount*H;
-    if(!supports)vy+=170*H;
+    if(!supports)vy+=BODY.gravity*H;
     const velocity=hyp(vx,vy),max=s.moveSpeed*1.15;if(velocity>max){vx*=max/velocity;vy*=max/velocity;}
   }
   moveNode(s,head,vx*H,vy*H);
+  const lossX=vx-(head.x-oldX)/H,lossY=vy-(head.y-oldY)/H,impactSpeed=hyp(lossX,lossY);
+  if(impactSpeed>BODY.impactSpeed&&s.impactCooldown===0){s.impact=Math.min(1,impactSpeed/BODY.impactScale);s.impactNX=-lossX/impactSpeed;s.impactNY=-lossY/impactSpeed;s.impactCooldown=BODY.impactCooldown;noise(s,head.x,head.y,.55,'body');}
   head.px=oldX;head.py=oldY;
   for(let i=1;i<s.nodes.length;i++){
     const n=s.nodes[i],p=s.nodes[n.parent],rest=(n.r+p.r)*.8,angle=s.bodyAngle+(i<4?0:(i%2?.55:-.55));
     limitVelocity(n,s.moveSpeed*3.2*H);
     // A bounded elastic bias turns the rear around the front instead of pushing a rigid pile.
     const ax=clamp((p.x-Math.cos(angle)*rest-n.x)*40*H*H,-.3,.3),ay=clamp((p.y-Math.sin(angle)*rest-n.y)*40*H*H,-.3,.3);
-    const damping=.78+s.mass*.001,vx=(n.x-n.px)*damping+ax,vy=(n.y-n.py)*damping+ay;n.px=n.x;n.py=n.y;moveNode(s,n,vx,vy);
+    const damping=.78+s.mass*.001,vx=(n.x-n.px)*damping+ax,vy=(n.y-n.py)*damping+ay+(!supports?BODY.peripheralGravity*H*H:0);n.px=n.x;n.py=n.y;moveNode(s,n,vx,vy);
   }
   constrainAnchors(s,moveNode);solveBody(s);
   for(const n of s.nodes)limitVelocity(n,s.moveSpeed*(s.dash>0?3.2:1.4)*H);
   validateAnchors(s,blocked);
   s.x=head.x;s.y=head.y;
+  if(len>.1&&supports&&hyp(head.x-oldX,head.y-oldY)>.5&&s.time>=(s.nextMoveNoise||0)){noise(s,s.x,s.y,.25,'crawl');s.nextMoveNoise=s.time+SENSE.stepNoise;}
+  for(const l of s.limbs)tickFilament(s,l,s.nodes[l.root],l.anchor||l.tip,l.tension||0,blocked,H);
   if(input.interact){const item=interaction(s);if(item)activate(s,item.object);else notice(s,'Подойди ближе к рычагу, резервуару или терминалу.');}
   updateGrab(s,input);tickAI(s);tickBullets(s);
   validateAnchors(s,blocked);
@@ -318,7 +342,7 @@ export function restore(raw){
   }
   if(raw.version===4&&raw.decals!=null){
     if(!Array.isArray(raw.decals)||raw.decals.length>LIMITS.decals||raw.decals.some(d=>!d||!Number.isInteger(d.room)||d.room<0||d.room>=6||!finite(d.x,0,WIDTH)||!finite(d.y,0,HEIGHT)||!finite(d.size,2,12)||!finite(d.nx,-1,1)||!finite(d.ny,-1,1)))return null;
-    s.decals=raw.decals.map(({room,x,y,size,nx,ny})=>({room,x,y,size,nx,ny}));
+    s.decals=raw.decals.map(({room,x,y,size,nx,ny,age,run})=>({room,x,y,size,nx,ny,age:finite(age,0,BLOOD.dryTime*2)?age:0,run:finite(run,0,BLOOD.dripLength)?run:0}));
   }
   const radius=FORMS[formFor(s.mass)].r*1.12;
   const clear=(x,y)=>{for(let j=0;j<32;j++)if(blocked(s,x+Math.cos(j*Math.PI/16)*(radius+.1),y+Math.sin(j*Math.PI/16)*(radius+.1)))return false;return !blocked(s,x,y);};

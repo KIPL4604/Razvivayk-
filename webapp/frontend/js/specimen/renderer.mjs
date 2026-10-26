@@ -1,7 +1,8 @@
 import {TILE,COLS,ROWS,WIDTH,HEIGHT,ROOMS,formFor} from './world.mjs';
 import {currentRoom,blocked,targetFor,flameClear} from './engine.mjs';
 import {SCENES,VISUAL_LIMITS} from './presentation.mjs';
-import {drawOrganism} from './organism.mjs?v=4';
+import {drawOrganism} from './organism.mjs?v=5';
+import {BLOOD} from './tuning.mjs';
 
 const path='/static/assets/specimen/';
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
@@ -200,16 +201,18 @@ export async function createRenderer(canvas){
   }
   function peopleIn(s){
     const target=targetFor(s);
-    for(const e of currentRoom(s).enemies){if(e.eaten)continue;const moving=e.kind==='tech'&&e.alert>0,frame=e.dead||e.knock>0?5:e.hurt>0?4:e.windup>.1||e.fireTime>0?3:moving?1+Math.floor(s.time*9)%2:0;
+    for(const e of currentRoom(s).enemies){if(e.eaten)continue;const moving=e.walking,frame=e.dead||e.knock>0?5:e.hurt>0?4:e.windup>.1||e.fireTime>0?3:moving?1+Math.floor(s.time*9)%2:0;
       if(e.pose){
+        const absorb=s.grab?.id===e.id?s.grab.absorb||0:0;ctx.save();ctx.globalAlpha=1-absorb*.85;
         const [head,torso,hip,feet]=e.pose,sheet=e.kind==='flamer'?flamerArt:people,row=e.kind==='guard'?64:0;
         // Segments use the original pixel uniform, each aligned to its physical link.
         const part=(a,b,sy,sh,anchor)=>{ctx.save();ctx.translate(Math.round(a.x),Math.round(a.y));ctx.rotate(-Math.atan2(b.x-a.x,b.y-a.y));ctx.scale(e.dir<0?-1:1,1);ctx.drawImage(sheet,0,row+sy,64,sh,-32,anchor,64,sh);ctx.restore();};
-        part(head,torso,0,23,-12);part(torso,hip,23,20,-10);part(hip,feet,43,21,-4);continue;
+        part(head,torso,0,23,-12);part(torso,hip,23,20,-10);part(hip,feet,43,21,-4);ctx.restore();continue;
       }
       ctx.save();ctx.translate(Math.round(e.x),Math.round(e.y+26));ctx.scale(e.dir<0?-1:1,1);ctx.drawImage(e.kind==='flamer'?flamerArt:people,frame*64,(e.kind==='guard'?1:0)*64,64,64,-32,-58,64,64);ctx.restore();
       if(e.hurt>0&&!e.dead){ctx.fillStyle='#271821';ctx.fillRect(e.x-14,e.y-38,28,3);ctx.fillStyle='#e9b58a';ctx.fillRect(e.x-14,e.y-38,28*e.hp/(e.kind==='tech'?3:e.kind==='flamer'?6:5),3);}
       if(!e.dead&&e.alert>0){ctx.fillStyle='#e8ad78';ctx.fillRect(e.x-1,e.y-42,2,6);ctx.fillRect(e.x-1,e.y-34,2,2);}
+      else if(!e.dead&&e.memory>0){ctx.fillStyle='#b4c9ca';ctx.font='10px monospace';ctx.fillText('?',e.x-3,e.y-35);}
       if(e.windup>0){ctx.strokeStyle='#ed9d6866';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(e.x,e.y-5);ctx.lineTo(s.x,s.y);ctx.stroke();}
       if(target?.id===e.id){ctx.strokeStyle='#efd2b2';ctx.lineWidth=1;ctx.strokeRect(Math.round(e.x)-17,Math.round(e.y)-28,34,51);}
     }
@@ -249,7 +252,11 @@ export async function createRenderer(canvas){
     const tx=viewW>=WIDTH?WIDTH/2:clamp(s.x,viewW/2,WIDTH-viewW/2),ty=viewH>=HEIGHT?HEIGHT/2:clamp(s.y,viewH/2,HEIGHT-viewH/2),ease=reduced.matches?1:1-Math.exp(-dt*9);
     camX+=(tx-camX)*ease;camY+=(ty-camY)*ease;
     ctx.fillStyle='#09070e';ctx.fillRect(0,0,viewW,viewH);ctx.save();ctx.translate(Math.round(viewW/2-camX),Math.round(viewH/2-camY));ctx.drawImage(rear,0,0);fans(s);
-    for(const d of s.decals)if(d.room===s.room){ctx.save();ctx.translate(Math.round(d.x),Math.round(d.y));ctx.rotate(Math.atan2(d.ny??-1,d.nx??0)+Math.PI/2);ctx.globalAlpha=.78;flesh(ctx,6,-d.size*1.5,-4,d.size*3,8);ctx.restore();}
+    for(const d of s.decals)if(d.room===s.room){
+      const dry=Math.min(1,(d.age||0)/BLOOD.dryTime);ctx.save();ctx.translate(Math.round(d.x),Math.round(d.y));
+      if(d.run){ctx.fillStyle=dry>.5?'#491323':'#8e2038';ctx.globalAlpha=.75;ctx.fillRect(0,0,1+Math.floor(d.size/5),Math.round(d.run));ctx.fillRect(-1,Math.round(d.run),3,2);}
+      ctx.rotate(Math.atan2(d.ny??-1,d.nx??0)+Math.PI/2);ctx.globalAlpha=.78-dry*.32;flesh(ctx,6,-d.size*1.5,-4,d.size*3,8);ctx.restore();
+    }
     props(s);peopleIn(s);fire(s);creature(s);
     for(const b of s.bullets){ctx.strokeStyle='#ffdf9d';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(b.x,b.y);ctx.lineTo(b.x-b.vx*.018,b.y-b.vy*.018);ctx.stroke();}
     for(const p of s.particles){ctx.fillStyle=p.color;ctx.globalAlpha=(p.life/p.max)*(p.kind==='smoke'?.28:1);const size=p.kind==='smoke'||p.kind==='steam'?5:2;ctx.fillRect(Math.round(p.x),Math.round(p.y),size,size);}ctx.globalAlpha=1;

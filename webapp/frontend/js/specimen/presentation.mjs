@@ -9,3 +9,5 @@ export const SCENES=Object.freeze([
   {ambient:'#989fa2',mist:'#d6a298',fans:[[318,550,110]],props:[[5,528,672,140,181],[15,176,672,65,128],[12,365,240,180,100]],moss:false}
 ]);
 export const VISUAL_LIMITS=Object.freeze({dust:24,rays:64,lightStep:6,lightRadius:170});
+// Short synthesized cues use the existing opt-in audio setting; no ambient loop.
+export const SOUND_CUES=Object.freeze({crawl:[63,38,.07,.018],dash:[160,45,.16,.04],body:[78,28,.13,.045],grab:[190,52,.1,.035],human:[240,90,.13,.035],call:[540,390,.18,.025],warning:[660,300,.18,.025],glass:[690,125,.1,.025],panel:[120,32,.16,.04]});

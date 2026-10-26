@@ -3,6 +3,28 @@ export const ORGANISM_LIMITS=Object.freeze({patches:7,vineSamples:128,windings:3
 const TAU=Math.PI*2,clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const average=(nodes)=>({x:nodes.reduce((v,n)=>v+n.x,0)/nodes.length,y:nodes.reduce((v,n)=>v+n.y,0)/nodes.length});
 const vineCache=new WeakMap();
+function filamentGeometry(path,base,phase=0){
+  const points=[];let arc=0;
+  for(let i=1;i<path.length;i++){
+    const a=path[i-1],b=path[i],dx=b.x-a.x,dy=b.y-a.y,d=Math.hypot(dx,dy)||1,count=Math.max(1,Math.min(Math.floor(ORGANISM_LIMITS.vineSamples/(path.length-1)),Math.ceil(d/2)));
+    for(let j=i===1?0:1;j<=count;j++){
+      const t=(i-1+j/count)/(path.length-1),x=a.x+dx*j/count,y=a.y+dy*j/count;
+      if(points.length)arc+=Math.hypot(x-points.at(-1).x,y-points.at(-1).y);
+      points.push({x,y,t,nx:-dy/d,ny:dx/d,radius:(.8+(base-.8)*Math.pow(1-t,.65))*.5,arc});
+    }
+  }
+  const strands=Array.from({length:ORGANISM_LIMITS.windings},(_,k)=>points.map(p=>{
+    const a=p.arc/12*TAU+phase+k*TAU/ORGANISM_LIMITS.windings,offset=Math.sin(a)*(p.radius+.35)*Math.min(1,(1-p.t)*12);
+    return{x:p.x+p.nx*offset,y:p.y+p.ny*offset,front:Math.cos(a)>=0};
+  }));
+  return {points,strands,length:arc};
+}
+function displayedFilament(s,id,path,base,phase=0){
+  let cache=vineCache.get(s);if(!cache){cache=new Map();vineCache.set(s,cache);}
+  const key=base+','+phase+','+path.map(p=>Math.round(p.x*8)+':'+Math.round(p.y*8)).join(','),saved=cache.get(id);
+  if(saved?.key===key)return saved.geometry;
+  const geometry=filamentGeometry(path,base,phase);cache.set(id,{key,geometry});return geometry;
+}
 function displayedVine(s,id,start,end,options){
   let cache=vineCache.get(s);if(!cache){cache=new Map();vineCache.set(s,cache);}
   const key=[start.x,start.y,end.x,end.y,options.bend,options.base,options.normal?.x||0,options.normal?.y||0].map(v=>Math.round(v*8)).join(',');
@@ -70,6 +92,14 @@ export function paintVine(ctx,geometry){
 
 export function drawBodyWeave(ctx,s,flesh,reduced=false){
   const weave=bodyWeave(s,reduced);ctx.save();ctx.globalAlpha=s.invulnerable>0&&Math.floor(s.time*18)%2?.68:1;
+  // Dense, dark tissue follows each collision-resolved lobe. The peripheral coils
+  // stay open; no invariant circular mask hides the motion of the physical nodes.
+  for(let i=Math.min(s.nodes.length-1,6);i>=0;i--){
+    const n=s.nodes[i],impact=s.impact||0,angle=impact?Math.atan2(s.impactNY||0,s.impactNX||0):s.bodyAngle||0;
+    const speed=Math.hypot(n.x-n.px,n.y-n.py),stretch=Math.min(.18,speed*.04),pulse=reduced?1:1+Math.sin(s.time*2.7+i*1.3)*.025;
+    ctx.save();ctx.translate(n.x,n.y);ctx.rotate(angle);ctx.fillStyle=i<3?'#380c1b':'#681225';ctx.strokeStyle='#9e2038';ctx.lineWidth=1;
+    ctx.beginPath();ctx.ellipse(0,0,n.r*(1+stretch-impact*.25)*pulse,n.r*(.85-stretch+impact*.24)*pulse,0,0,TAU);ctx.fill();ctx.stroke();ctx.restore();
+  }
   // Narrow inter-node tendons support the texture without painting a solid volume.
   ctx.lineWidth=3;ctx.strokeStyle='#700f26';ctx.beginPath();
   for(let i=1;i<s.nodes.length;i++){const n=s.nodes[i],p=s.nodes[n.parent];ctx.moveTo(n.x,n.y);ctx.quadraticCurveTo((n.x+p.x)/2+weave.r*.25,(n.y+p.y)/2-weave.r*.3,p.x,p.y);}ctx.stroke();
@@ -82,8 +112,9 @@ export function drawOrganism(ctx,s,flesh,room,reduced=false){
   for(let i=0;i<s.limbs.length;i++){
     const l=s.limbs[i],root=s.nodes[l.root],tip=l.anchor||l.tip,d=Math.hypot(tip.x-root.x,tip.y-root.y);
     const bend=(l.planted?Math.min(16,Math.max(2,(l.reach-d)*.085)):21)*(i%2?1:-1);
-    paintVine(ctx,displayedVine(s,i,root,tip,{base:3.7+stage*1.2,bend,normal:l.anchor?{x:l.anchor.nx,y:l.anchor.ny}:null,phase:i*1.7,pitch:11+stage*1.2}));
+    paintVine(ctx,l.path?displayedFilament(s,'limb-'+i,l.path,3.7+stage*1.2,i*1.7):displayedVine(s,i,root,tip,{base:3.7+stage*1.2,bend,normal:l.anchor?{x:l.anchor.nx,y:l.anchor.ny}:null,phase:i*1.7,pitch:11+stage*1.2}));
   }
+  if(s.tendril?.path)paintVine(ctx,displayedFilament(s,'attack',s.tendril.path,5+stage,1.3));
   drawBodyWeave(ctx,s,flesh,reduced);
-  if(s.grab){const target=(s.grab.type==='enemy'?room.enemies:room.objects).find(o=>o.id===s.grab.id);if(target)paintVine(ctx,displayedVine(s,'grab',s.nodes[0],target,{base:5+stage,bend:14,phase:1.3,pitch:12}));}
+  if(s.grab){const target=(s.grab.type==='enemy'?room.enemies:room.objects).find(o=>o.id===s.grab.id);if(target)paintVine(ctx,s.grab.path?displayedFilament(s,'physical-grab',s.grab.path,5+stage,1.3):displayedVine(s,'grab',s.nodes[0],target,{base:5+stage,bend:14,phase:1.3,pitch:12}));}
 }

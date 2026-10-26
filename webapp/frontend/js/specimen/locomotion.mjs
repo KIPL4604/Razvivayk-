@@ -1,4 +1,5 @@
 // Limbs belong to the simulation: fixed contacts, reach constraints and traction.
+import {LIMB as P} from './tuning.mjs';
 const TAU=Math.PI*2;
 const distance=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
 const angleDifference=(a,b)=>Math.abs(Math.atan2(Math.sin(a-b),Math.cos(a-b)));
@@ -16,7 +17,7 @@ function surface(s,n,angle,reach,solid){
 }
 function visibleContact(s,n,a,solid){if(solid(s,n.x,n.y))return false;const d=distance(n,a);for(let t=2;t<d-.08;t+=2)if(solid(s,n.x+(a.x-n.x)*t/d,n.y+(a.y-n.y)*t/d))return false;return true;}
 function reachable(s,n,a,reach,solid){return distance(n,a)<=reach+.01&&solid(s,a.x,a.y)&&visibleContact(s,n,a,solid);}
-function release(l){l.anchor=null;l.target=null;l.planted=false;l.age=0;l.cooldown=.09;}
+function release(l){l.anchor=null;l.target=null;l.planted=false;l.age=0;l.cooldown=.09;l.tension=0;l.restLength=null;}
 function findContact(s,n,index,count,reach,ix,iy,solid){
   const base=index/count*TAU+.3,moving=Math.hypot(ix,iy)>.1;let best=null,score=Infinity;
   for(let j=0;j<16;j++){
@@ -29,7 +30,7 @@ function findContact(s,n,index,count,reach,ix,iy,solid){
   return best;
 }
 export function updateAnchors(s,ix,iy,solid,dt){
-  const stage=s.mass<=36?0:s.mass<=68?1:2,count=6+stage*2,reach=200+stage*28,initial=!s.limbs?.length;
+  const stage=s.mass<=36?0:s.mass<=68?1:2,count=6+stage*2,reach=P.reach+stage*P.stageReach;
   s.limbs||=[];s.limbs.length=Math.min(s.limbs.length,count);
   while(s.limbs.length<count)s.limbs.push({root:0,anchor:null,target:null,tip:{x:s.x,y:s.y},age:0,planted:false,reach});
   for(let i=0;i<count;i++){
@@ -44,13 +45,17 @@ export function updateAnchors(s,ix,iy,solid,dt){
         release(l);
       }
     }
-    if(!l.anchor&&!l.target&&!l.cooldown){l.target=findContact(s,n,i,count,l.reach,ix,iy,solid);if(initial&&i%2===0&&l.target){l.anchor=l.target;l.target=null;l.tip={x:l.anchor.x,y:l.anchor.y};l.planted=true;l.age=0;}}
+    if(!l.anchor&&!l.target&&!l.cooldown)l.target=findContact(s,n,i,count,l.reach,ix,iy,solid);
     if(l.target){
       if(!reachable(s,n,l.target,l.reach,solid)){release(l);continue;}
-      const d=distance(l.tip,l.target),amount=Math.min(1,460*dt/(d||1));l.tip.x+=(l.target.x-l.tip.x)*amount;l.tip.y+=(l.target.y-l.tip.y)*amount;
+      const d=distance(l.tip,l.target),amount=Math.min(1,P.extend*dt/(d||1));l.tip.x+=(l.target.x-l.tip.x)*amount;l.tip.y+=(l.target.y-l.tip.y)*amount;
       if(amount===1){l.anchor=l.target;l.target=null;l.planted=true;l.tip={x:l.anchor.x,y:l.anchor.y};l.age=0;}
     }else if(l.anchor){l.tip.x=l.anchor.x;l.tip.y=l.anchor.y;}
-    else{const amount=Math.min(1,360*dt/(distance(l.tip,n)||1));l.tip.x+=(n.x-l.tip.x)*amount;l.tip.y+=(n.y-l.tip.y)*amount;}
+    else{const amount=Math.min(1,P.retract*dt/(distance(l.tip,n)||1));l.tip.x+=(n.x-l.tip.x)*amount;l.tip.y+=(n.y-l.tip.y)*amount;}
+    if(l.anchor){const d=distance(n,l.anchor);l.restLength??=d;const forward=(l.anchor.x-n.x)*ix+(l.anchor.y-n.y)*iy;
+      if(forward>P.forwardThreshold)l.restLength=Math.max(n.r*2,l.restLength-P.spool*dt);else l.restLength=Math.min(l.reach,l.restLength+P.spool*dt);
+      l.tension=Math.max(0,Math.min(1,(d-l.restLength)/P.tensionDistance));
+    }else l.tension=0;
   }
   return s.limbs.filter(l=>l.planted&&l.anchor).length;
 }
@@ -69,5 +74,6 @@ export function supportTraction(s,ix,iy){
 }
 export function constrainAnchors(s,move){
   for(const l of s.limbs){if(!l.anchor||!l.planted)continue;const n=s.nodes[l.root],dx=l.anchor.x-n.x,dy=l.anchor.y-n.y,d=Math.hypot(dx,dy);
-    if(d>l.reach*.92){const pull=Math.min(.45,(d-l.reach*.92)*.12)/(d||1),ox=n.x,oy=n.y;move(s,n,dx*pull,dy*pull);n.px+=n.x-ox;n.py+=n.y-oy;}}
+    const excess=Math.max(0,d-(l.restLength??l.reach)),pull=Math.min(P.pullRate/60,excess*P.pullStiffness/60+Math.max(0,d-l.reach*.92)*.12)/(d||1);
+    if(pull){const ox=n.x,oy=n.y;move(s,n,dx*pull,dy*pull);n.px+=n.x-ox;n.py+=n.y-oy;}}
 }

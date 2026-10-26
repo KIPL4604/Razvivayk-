@@ -88,4 +88,4 @@ export const FORMS=Object.freeze([
   {name:'Большая',nodes:16,r:13,speed:105,reach:178}
 ]);
 export const formFor=mass=>mass<=36?0:mass<=68?1:2;
-export function freshRoom(r){return {enemies:r.enemies.map(e=>({...e,dead:false,eaten:false,alert:0,windup:0,cooldown:.8,hurt:0,knock:0,vx:0,vy:0,fireTime:0})),objects:r.objects.map(o=>({...o})),gateOpen:false};}
+export function freshRoom(r){return {enemies:r.enemies.map((e,i)=>({...e,senseSlot:i,behavior:'idle',memory:0,visible:false,dead:false,eaten:false,alert:0,windup:0,cooldown:.8,hurt:0,knock:0,vx:0,vy:0,fireTime:0})),objects:r.objects.map(o=>({...o})),gateOpen:false};}

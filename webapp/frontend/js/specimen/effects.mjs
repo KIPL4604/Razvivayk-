@@ -1,9 +1,10 @@
 // Deterministic, bounded simulation effects. Rendering never advances these bodies.
 export const EFFECT_LIMITS=Object.freeze({particles:120,fragments:36,decals:64,flashes:8});
+import {BLOOD} from './tuning.mjs';
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const MATERIALS=Object.freeze({metal:{bounce:.38,drag:.985,friction:.72,life:5,color:'#9ba8a9'},glass:{bounce:.55,drag:.991,friction:.76,life:4,color:'#b2d7d7'},tissue:{bounce:.07,drag:.97,friction:.58,life:3,color:'#ab2639'}});
 export function surfaceMark(s,x,y,nx=0,ny=-1,size=5){
-  s.decals.push({room:s.room,x,y,nx,ny,size:clamp(size,2,12)});
+  s.decals.push({room:s.room,x,y,nx,ny,size:clamp(size,2,12),age:0,run:0});
   if(s.decals.length>EFFECT_LIMITS.decals)s.decals.shift();
 }
 export function emit(s,kind,x,y,dx=0,dy=-1,count=12){
@@ -31,6 +32,13 @@ export function impact(s,x,y,vx,vy,damage=1){
   emit(s,'blood',x,y,dx,dy,10+Math.min(14,damage*3));fragments(s,'tissue',x,y,dx,dy,Math.min(4,damage));
 }
 export function tickEffects(s,dt,move,solid){
+  for(const d of s.decals){
+    d.age=Math.min(BLOOD.dryTime*2,(d.age||0)+dt);d.run||=0;
+    if(d.room===s.room&&d.nx&&d.age<BLOOD.dripTime&&d.run<BLOOD.dripLength){
+      const next=d.run+dt*BLOOD.dripLength/BLOOD.dripTime;
+      if(solid(s,d.x-d.nx*2,d.y+next)&&!solid(s,d.x+d.nx*2,d.y+next))d.run=next;
+    }
+  }
   for(let i=s.particles.length-1;i>=0;i--){
     const p=s.particles[i];p.life-=dt;
     if(p.kind==='blood'){
