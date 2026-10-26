@@ -88,7 +88,7 @@ function renderCatalog(){
   const chess='<button class="campaign-card" type="button" data-chess-action="setup" '+(gameFilter!=="Все"&&gameFilter!=="Логика"?"hidden":"")+' aria-label="Шахматы. Играть против компьютера">'+gameArt("chess")+'<span class="campaign-card-copy"><span class="campaign-category">Логика · против компьютера</span><strong>Шахматы</strong><span class="campaign-card-progress"><span>6 уровней сложности</span>'+uiIcon("arrow")+'</span></span></button>';
   const poker='<button class="campaign-card" type="button" data-poker-action="setup" '+(gameFilter!=="Все"&&gameFilter!=="Мышление"?"hidden":"")+' aria-label="Математический покер. Играть с ботом или другом">'+PokerCards.art()+'<span class="campaign-card-copy"><span class="campaign-category">Мышление · вероятности</span><strong>Математический покер</strong><span class="campaign-card-progress"><span>С ботом или другом</span>'+uiIcon("arrow")+'</span></span></button>';
   const lumen='<button class="campaign-card lumen-catalog" type="button" data-lumen-action="open" '+(gameFilter!=="Все"?"hidden":"")+' aria-label="Люмен: последний маяк. Одиночный survival-экшен">'+LumenMode.art()+'<span class="campaign-card-copy"><span class="campaign-category">Новое · Survival</span><strong>Люмен<span>Последний маяк</span></strong><span class="campaign-card-progress"><span>2 карты · цель 30 / 35</span>'+uiIcon("arrow")+'</span></span></button>';
-  $("#campaignCards").innerHTML=SpecimenMode.catalog()+lumen+poker+chess+GAME_ORDER.map(game=>{
+  $("#campaignCards").innerHTML=SpecimenMode.catalog()+lumen+PixelHopMode.catalog(gameFilter)+poker+chess+GAME_ORDER.map(game=>{
     const d=GAME_CATALOG[game],p=currentCampaign(game),run=saved.runs[game],resume=run&&!run.completed;
     return '<button class="campaign-card" type="button" data-campaign="'+game+'" '+(gameFilter!=="Все"&&d.category!==gameFilter?"hidden":"")+' aria-label="'+escapeHtml(d.name)+'. '+(resume?'Есть сохранённая партия. ':'')+'Открыть кампанию">'+gameArt(game)+'<span class="campaign-card-copy"><span class="campaign-category">'+escapeHtml(d.category)+'</span><strong>'+escapeHtml(d.name)+'</strong><span class="campaign-card-progress"><span>'+(resume?"Есть сохранение":p.complete?"100 / 100 · пройдено":"Уровень "+p.unlockedLevel+" / 100")+'</span>'+uiIcon("arrow")+'</span>'+(p.completedCount?'<span class="xp-track"><span style="width:'+p.completedCount+'%"></span></span>':'')+'</span></button>';
   }).join("");
@@ -151,10 +151,10 @@ function renderHome(){
 function selectCampaign(game){if(!GAME_NAMES[game])return;saved.selectedCampaign=game;saveState();showScreen("levels");}
 function showScreen(name){
   pauseGame();clearTimeout(revealHandle);if(saved.current?.revealing){saved.current.revealing=false;saved.current.ready=false;saveState();}
-  activeScreen=name;$("#app").classList.toggle("is-playing",["game","chess-game","poker-game","lumen-game","specimen"].includes(name));$$("#main .screen").forEach(s=>s.classList.toggle("active",s.dataset.screen===name));$("#main").scrollTop=0;
+  activeScreen=name;$("#app").classList.toggle("is-playing",["game","chess-game","poker-game","lumen-game","specimen","pixel-hop"].includes(name));$$("#main .screen").forEach(s=>s.classList.toggle("active",s.dataset.screen===name));$("#main").scrollTop=0;
   $$(".bottom-nav button").forEach(b=>{b.classList.toggle("active",b.dataset.screenLink===name);b.setAttribute("aria-current",b.dataset.screenLink===name?"page":"false");});
   if(name==="home")renderHome();else if(name==="profile"||name==="levels")updateProfileUI();
-  $("#app").classList.toggle("is-poker",name==="poker-game");PokerMode.onScreen(name);ChessMode.onScreen(name);Platform.onScreen(name);LumenMode.onScreen(name);SpecimenMode.onScreen(name);hydrateIcons();
+  $("#app").classList.toggle("is-poker",name==="poker-game");PokerMode.onScreen(name);ChessMode.onScreen(name);Platform.onScreen(name);LumenMode.onScreen(name);SpecimenMode.onScreen(name);PixelHopMode.onScreen(name);hydrateIcons();
   if(hasTelegramIdentity&&tg?.isVersionAtLeast?.("6.1")&&tg?.BackButton){if(name==="home")tg.BackButton.hide();else tg.BackButton.show();}
   const heading=$(`.screen[data-screen="${name}"] h1,.screen[data-screen="${name}"] h2`);if(heading){heading.tabIndex=-1;heading.focus({preventScroll:true});}
 }
@@ -374,11 +374,12 @@ function configureTelegram(){
   if(tg.isVersionAtLeast?.("7.7"))call(()=>tg.disableVerticalSwipes());
   if(tg.isVersionAtLeast?.("6.2"))call(()=>tg.enableClosingConfirmation());
   const safeArea=()=>{const top=(tg.safeAreaInset?.top||0)+(tg.contentSafeAreaInset?.top||0),bottom=(tg.safeAreaInset?.bottom||0)+(tg.contentSafeAreaInset?.bottom||0);document.documentElement.style.setProperty("--app-safe-top",`${top}px`);document.documentElement.style.setProperty("--app-safe-bottom",`${bottom}px`);};
-  safeArea();call(()=>tg.onEvent("safeAreaChanged",safeArea));call(()=>tg.onEvent("contentSafeAreaChanged",safeArea));call(()=>tg.BackButton.onClick(()=>{if(activeScreen==="specimen"){SpecimenMode.back();return;}if(["lumen","lumen-game"].includes(activeScreen)){LumenMode.back();return;}showScreen(activeScreen==="poker-game"?"poker":activeScreen==="chess-game"?"chess":activeScreen==="game"?"levels":"home");}));
+  safeArea();call(()=>tg.onEvent("safeAreaChanged",safeArea));call(()=>tg.onEvent("contentSafeAreaChanged",safeArea));call(()=>tg.BackButton.onClick(()=>{if(activeScreen==="specimen"){SpecimenMode.back();return;}if(activeScreen==="pixel-hop"){showScreen("home");return;}if(["lumen","lumen-game"].includes(activeScreen)){LumenMode.back();return;}showScreen(activeScreen==="poker-game"?"poker":activeScreen==="chess-game"?"chess":activeScreen==="game"?"levels":"home");}));
 }
 document.addEventListener("click",event=>{
   const target=event.target.closest("button");if(!target||target.disabled)return;
   if(target.hasAttribute("data-restart-verified")){const c=saved.current;startGame(c.type,c.difficulty,c.levelNumber,true);return;}
+  if(PixelHopMode.click(target,event)){if(target.dataset.pixelHopAction==="open")showScreen("pixel-hop");return;}
   if(PokerMode.click(target))return;
   if(ChessMode.click(target))return;
   if(LumenMode.click(target))return;

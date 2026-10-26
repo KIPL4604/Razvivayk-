@@ -111,3 +111,21 @@ Sources, prompts, whole-sheet corrections and the offline normalizer are in
 `design/lumen-quarry/`. Runtime actors use 48px frames, binary alpha and their
 own palettes. No third-party equipment/character pack or runtime dependency
 was added. The existing Tektur/OFL attribution continues to apply.
+
+## Pixel Hop Twins
+
+`games/pixel-hop-twins/` contains a local copy of Pixel Hop Twins by stm1978,
+source repository `https://github.com/stm1978/retro-platformer`, pinned to commit
+`9835295888c7cb8afa795ca2a31707a65167c2ea`. The source code is MIT licensed;
+the original sprites, music, and level designs are released as CC0 according to
+the upstream README. The complete MIT text is preserved in
+`games/pixel-hop-twins/LICENSE`.
+
+The local copy changes the canvas sizing for the Mini App viewport, translates
+HUD/end-state text and level names into Russian, moves both player starts above
+the floor tile, moves the first patrol in each level farther from the spawn,
+and gives the player two seconds of invulnerability on a fresh start.
+The Teramont catalog art, iframe shell, mobile controls, and navigation are
+separate original integration code.
+The upstream game uses only browser Canvas 2D, Web Audio, ES modules, and its two
+local JSON level files; no game API or external runtime library is loaded.
