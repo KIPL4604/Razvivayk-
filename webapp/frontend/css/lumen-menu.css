@@ -43,6 +43,9 @@
 }
 @media(max-height:500px) and (min-width:701px){.lumen-menu-header{padding-top:10px;padding-bottom:10px}.lumen-menu-brand{margin:10px 0}.lumen-menu-brand h1{font-size:28px}.lumen-menu-nav{gap:0;padding-top:0;padding-bottom:6px}.lumen-menu-nav button{padding-block:6px;min-height:44px;font-size:18px}.lumen-menu-footer{padding-block:10px}.lumen-menu-content{padding:24px}.lumen-title-screen{padding-top:0}.lumen-title-screen .lumen-menu-heading h2{font-size:38px}.lumen-home-actions{margin-block:16px}.lumen-title-screen .lumen-menu-save-note{margin-top:16px}}
 @media(max-width:700px){.lumen-shell[data-page=play] .lumen-map-art{min-height:120px}.lumen-shell[data-page=play] .lumen-map-art>div{position:absolute;right:10px;bottom:8px;margin:0;align-items:flex-end;background:#14232ee8;padding:8px 10px}.lumen-shell[data-page=play] .lumen-menu-heading{margin-bottom:18px}.lumen-shell[data-page=play] .lumen-map-beacon{top:-26px}}
+.lumen-map-art[data-map=castle]{background-color:#39271f;background-image:url('../assets/lumen/castle-tiles.png');background-size:512px 64px;border-color:#a47a43}
+.lumen-map-art[data-map=castle] .lumen-map-beacon{background-image:url('../assets/lumen/boss-monarch.png');background-size:1536px 1280px;background-position:0 0;width:256px;height:256px;right:0;top:20px}
+@media(max-width:700px){.lumen-map-art[data-map=castle] .lumen-map-beacon{width:192px;height:192px;background-size:1152px 960px;top:-20px;right:0}}
 @media(prefers-reduced-motion:reduce){.lumen-shell button{transition:none}}
 
 .lumen-shell .lumen-maps{grid-template-columns:repeat(3,minmax(0,1fr))}

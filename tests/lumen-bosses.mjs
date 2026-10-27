@@ -9,8 +9,8 @@ const state=()=>({player:{x:180,y:0,hp:150,maxHp:150,radius:13,invulnerable:0},e
 const hooks={limits:{projectiles:100,effects:80},effect:(s,kind,x,y,radius,life)=>s.effects.push({kind,x,y,radius,life,maxLife:life}),hurt:(s,damage)=>{s.player.hp-=damage;return true;}};
 const advance=(s,e,seconds)=>{for(let i=0;i<Math.round(seconds/dt);i++)updateBossAttacks(s,e,dt,hooks);};
 
-test('three original boss variants have immutable distinct attack sequences',()=>{
-  assert.deepEqual(Object.keys(BOSS_VARIANTS),['carapace','tempest','matriarch']);
+test('original and castle boss variants have immutable distinct attack sequences',()=>{
+  assert.deepEqual(Object.keys(BOSS_VARIANTS),['carapace','tempest','matriarch','conductor','gatekeeper','monarch']);
   for(const [id,v]of Object.entries(BOSS_VARIANTS)){
     assert(v.name&&v.sprite===`boss-${id}`);assert(Object.isFrozen(v)&&Object.isFrozen(v.attacks));
     assert(v.attacks.length>=3);for(const a of v.attacks)assert(Object.isFrozen(a)&&a.windup>=.6&&a.cooldown<=4);

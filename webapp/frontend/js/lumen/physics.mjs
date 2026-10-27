@@ -6,6 +6,8 @@ const EPS = 1e-6;
 const CELL = 96; // Largest possible body diameter is 90.
 export function bodyRadius(entity) {
   if (!entity.kind || entity.kind === 'hero') return PLAYER_BODY;
+  if(entity.kind==='castle-prop')return entity.radius;
+  if(entity.kind==='arena-boss'&&entity.bossType==='monarch')return entity.radius;
   if(entity.kind==='arena-tick')return entity.radius+2;
   const padding = entity.kind === 'guardian' ? 9 : entity.elite ? 8
     : ['wasp','wisp','moonmoth'].includes(entity.kind) ? 10 : 12;
@@ -41,7 +43,7 @@ export function movePlayer(player, enemies, dx, dy) {
 }
 
 const mass = e => e.kind === 'guardian' ? 5 : e.elite ? 3
-  : ['beetle','shardback'].includes(e.kind) ? 2 : 1;
+  : ['beetle','shardback','palace-guard'].includes(e.kind) ? 2 : 1;
 function direction(a,b) {
   const dx=a.x-b.x,dy=a.y-b.y,d=Math.hypot(dx,dy);
   if(d>EPS)return [dx/d,dy/d,d];

@@ -2,8 +2,9 @@
 export const MAX_WEAPON_STAGE=8;
 export const MAPS=Object.freeze({
   garden:{name:'Биосад',sector:'БИОСАД 07 / СЕКТОР МАЯКА',goal:30,next:'quarry',hp:1,tiles:'tiles',props:'garden',accent:'#83cda4'},
-  quarry:{name:'Лунный карьер',sector:'ЛУННЫЙ КАРЬЕР / МИНЕРАЛЬНЫЙ РАЗЛОМ',goal:35,next:'crater',hp:1.2,tiles:'quarry-tiles',props:'quarry-props',accent:'#d7b8ef'},
+  quarry:{name:'Лунный карьер',sector:'ЛУННЫЙ КАРЬЕР / МИНЕРАЛЬНЫЙ РАЗЛОМ',goal:35,next:'castle',hp:1.2,tiles:'quarry-tiles',props:'quarry-props',accent:'#d7b8ef'},
   crater:{name:'Кратер роя',sector:'КРАТЕР РОЯ / ЗАМКНУТОЕ ГНЕЗДО',goal:40,next:null,hp:1.35,tiles:'crater-tiles',props:'crater-props',accent:'#e5b783',bossGoal:true},
+  castle:{name:'Замок угасшего света',sector:'ЗАМОК / КРАСНАЯ ГАЛЕРЕЯ',goal:45,next:null,hp:1.35,tiles:'castle-tiles',props:'castle-props',accent:'#dfbb76',bossGoal:true},
 });
 export const CHARACTERS=Object.freeze({
   scout:{name:'Следопыт',hp:110,speed:160,weapon:'spark',price:0,accent:'#efbe7c',story:'Медный фонарь ищет ближайшую цель.'},
@@ -76,7 +77,7 @@ export const ARTIFACTS=Object.freeze({
   compass:{title:'Попутный ветер',short:'Ветер',color:'#a1d9d2',description:'При полном здоровье скорость движения +5% за ранг.',max:3,index:8},
   hourglass:{title:'Песочные часы',short:'Часы',color:'#e4c98c',description:'После полученного или блокированного удара оружие на 2 с срабатывает на 20% чаще за ранг.',max:3,index:9},
 });
-export const ENEMIES=Object.freeze(['mote','beetle','wasp','crawler','spitter','wisp','quartzling','shardback','moonmoth']);
+export const ENEMIES=Object.freeze(['mote','beetle','wasp','crawler','spitter','wisp','quartzling','shardback','moonmoth','palace-guard','wax-servant','paper-moth']);
 export const BOSSES=Object.freeze({1:{name:'Шипоносец',sprite:'boss-briar'},2:{name:'Матка роя',sprite:'boss-queen'},3:{name:'Пепельный колосс',sprite:'boss-ash'}});
 export function weaponStats(id,stage=1){
   const level=Math.max(1,Math.min(WEAPONS[id]?.max||MAX_WEAPON_STAGE,stage)),count=1+Math.floor((level-1)/2);

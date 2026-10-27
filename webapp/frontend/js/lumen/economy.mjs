@@ -12,10 +12,10 @@ export function normalizeMeta(value){
   for(const id of WEAPON_IDS){const rank=value?.weaponBest?.[id];if(Number.isInteger(rank)&&rank>0&&rank<=MAX_WEAPON_STAGE)weaponBest[id]=rank;}
   const clearedMaps=Array.isArray(value?.clearedMaps)?Object.keys(MAPS).filter(id=>value.clearedMaps.includes(id)):[];
   if(!clearedMaps.includes('garden'))clearedMaps.length=0;
-  if(!clearedMaps.includes('quarry')&&clearedMaps.includes('crater'))clearedMaps.splice(clearedMaps.indexOf('crater'),1);
+  if(!clearedMaps.includes('quarry'))for(const id of ['crater','castle']){const index=clearedMaps.indexOf(id);if(index>=0)clearedMaps.splice(index,1);}
   return {version:3,coins:amount(value?.coins),unlocked:[...unlocked],credited,weaponBest,clearedMaps,training:normalizeTraining(value?.training)};
 }
-export const mapAvailable=(meta,id)=>Object.hasOwn(MAPS,id)&&(id==='garden'||meta.clearedMaps.includes(id==='crater'?'quarry':'garden'));
+export const mapAvailable=(meta,id)=>Object.hasOwn(MAPS,id)&&(id==='garden'||meta.clearedMaps.includes(['crater','castle'].includes(id)?'quarry':'garden'));
 export function characterRequirement(meta,id){
   const hero=Object.hasOwn(CHARACTERS,id)?CHARACTERS[id]:null;
   const best=hero?meta.weaponBest[hero.weapon]||0:0;

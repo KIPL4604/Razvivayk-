@@ -4,13 +4,15 @@ import {bodyRadius,PLAYER_BODY} from './physics.mjs';
 import {BOSS_VARIANTS} from './bosses.mjs';
 import {ARENA_HAZARD_INSET} from './arena.mjs';
 import {WeaponVFX,arenaCamera} from './weapon-vfx.mjs';
+import {CastleView} from './castle-view.mjs';
 
 const TAU = Math.PI * 2;
 const round = Math.round;
 const hash = (x, y) => ((Math.imul(x, 374761393) ^ Math.imul(y, 668265263)) >>> 0);
 const distance = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
-const spriteKey=e=>e.bossType&&BOSS_VARIANTS[e.bossType]?BOSS_VARIANTS[e.bossType].sprite:e.kind==='arena-boss'?BOSS_VARIANTS.matriarch.sprite:e.kind==='guardian'?BOSSES[e.guardianStage||1].sprite:e.kind;
-const actorSize=e=>e.kind==='arena-boss'?252:e.kind==='arena-tick'?86:e.kind==='guardian'?220:e.elite?128:({beetle:90,wasp:76,crawler:92,spitter:90,wisp:76,quartzling:86,shardback:110,moonmoth:86}[e.kind]||80);
+const castleSprites={'palace-guard':'castle-guard','wax-servant':'castle-wax','paper-moth':'castle-moth'};
+const spriteKey=e=>e.bossType&&BOSS_VARIANTS[e.bossType]?BOSS_VARIANTS[e.bossType].sprite:e.kind==='arena-boss'?BOSS_VARIANTS.matriarch.sprite:e.kind==='guardian'?BOSSES[e.guardianStage||1].sprite:castleSprites[e.kind]||e.kind;
+const actorSize=e=>e.bossType==='monarch'?620:e.bossType==='conductor'?250:e.bossType==='gatekeeper'?280:e.kind==='arena-boss'?252:e.kind==='arena-tick'?86:e.kind==='guardian'?220:e.elite?128:({'palace-guard':112,'wax-servant':108,'paper-moth':94,beetle:90,wasp:76,crawler:92,spitter:90,wisp:76,quartzling:86,shardback:110,moonmoth:86}[e.kind]||80);
 
 /** Presentation only. Simulation coordinates, collisions and save records are untouched. */
 export class Renderer {
@@ -28,6 +30,7 @@ export class Renderer {
     this.previous = { player: null, enemies: new Map(), shots: new Map(), gems: new WeakMap() };
     this.captureTick = this.captureTick.bind(this);
     this.floorPatterns={};
+    this.castleView=new CastleView(this);
     for(const [id,map] of Object.entries(MAPS)){
       const floor = document.createElement('canvas');floor.width=256;floor.height=256;
       const floorContext=floor.getContext('2d');floorContext.imageSmoothingEnabled=false;
@@ -160,6 +163,7 @@ export class Renderer {
   }
 
   ground(player) {
+    if(this.map==='castle')return this.castleView.ground(this,player);
     const c = this.ctx;
     const center=this.camera||player;
     const left = center.x - this.width / this.scale / 2 - 128;
@@ -262,9 +266,10 @@ export class Renderer {
       ? Math.min(1,state.remainder/FIXED_STEP) : 1;
     const c = this.ctx, p = {...state.player,...this.pose(state.player)}, t = state.time || 0;
     this.map=state.map||'garden';
-    this.arena=this.map==='crater'?state.arena:null;
-    const target=arenaCamera(this.width,this.height,this.baseScale,p,this.arena);
-    const transition=this.arena?.phase==='forming'&&!this.media.matches?Math.min(1,(this.arena.time||0)/.75):1;
+    this.arena=['crater','castle'].includes(this.map)?state.arena:null;
+    const bossArt=this.art.manifest.actors['boss-monarch'],heroArt=this.art.manifest.actors[state.character];
+    const target=this.map==='castle'?this.castleView.camera(this.width,this.height,this.baseScale,p,this.arena,{...this.castleInsets,bossAnchor:bossArt?.anchor?.[1]/bossArt?.frameSize||.94,heroAnchor:heroArt?.anchor?.[1]/heroArt?.frameSize||.94}):arenaCamera(this.width,this.height,this.baseScale,p,this.arena);
+    const transition=this.map!=='castle'&&this.arena?.phase==='forming'&&!this.media.matches?Math.min(1,(this.arena.time||0)/.75):1;
     const blend=transition*transition*(3-2*transition);
     this.camera={x:lerp(p.x,target.x,blend),y:lerp(p.y,target.y,blend)};
     this.scale=lerp(this.baseScale,target.scale,blend);this.zoom=this.scale*this.dpr;const z=this.zoom;
@@ -272,7 +277,7 @@ export class Renderer {
     c.setTransform(1, 0, 0, 1, 0, 0); c.imageSmoothingEnabled = false;
     c.globalAlpha = 1; c.fillStyle = '#17262e'; c.fillRect(0, 0, this.canvas.width, this.canvas.height);
     this.cx = this.canvas.width / 2 - this.camera.x * z;
-    this.cy = (this.arena ? this.canvas.height / 2 + 40*this.dpr : this.canvas.height * .49) - this.camera.y * z;
+    this.cy = (target.screenY!==undefined?target.screenY*this.dpr:this.arena?this.canvas.height/2+40*this.dpr:this.canvas.height*.49) - this.camera.y * z;
     this.view(state);
     this.vfx.observe(state);this.vfx.beginFrame();
     this.health.update(state);
@@ -282,7 +287,7 @@ export class Renderer {
     const heroSince=heroAnimation==='death'?t-(this.terminalElapsed??.6)
       :heroAnimation==='hurt'?this.health.hitSince:heroAnimation==='attack'?this.attackUntil-.375:0;
     const props = this.ground(p);
-    if(this.arena)this.arenaGround(this.arena,t);
+    if(this.arena&&this.map!=='castle')this.arenaGround(this.arena,t);
     if(state.upgrades?.collector&&!preview){
       const scan=this.media.matches?0:(t%3)/.9;
       if(scan<1){
@@ -324,13 +329,15 @@ export class Renderer {
           p.y + Math.sin(angle) * radius, 48, 48, .5);
       }
     }
-    const entities = [...props, ...(this.map==='crater'?[]:[{ kind: 'prop', index: 0, x: 0, y: 0, size: 178 }]),
+    const entities = [...props, ...(['crater','castle'].includes(this.map)?[]:[{ kind: 'prop', index: 0, x: 0, y: 0, size: 178 }]),
       ...(state.chests||[]).map(e=>({...e,kind:'chest'})),...(state.enemies || []), ...this.ghosts.map(e => ({ ...e, kind: 'dead' })), { ...p, kind: 'hero' }]
       .sort((a, b) => a.y - b.y);
     for (const entity of entities) {
       if (Math.abs(entity.x - this.camera.x) > this.width / this.scale * .6 + 180
         || Math.abs(entity.y - this.camera.y) > this.height / this.scale * .6 + 180) continue;
-      if (entity.kind === 'prop') {
+      if(entity.kind==='castle-prop'){
+        this.castleView.prop(this,entity,p,t);
+      }else if (entity.kind === 'prop') {
         c.globalAlpha = sceneryOpacity(entity,p);
         this.blit(MAPS[this.map].props, entity.index * 64, 0, 64, 64, entity.x, entity.y, entity.size);
         c.globalAlpha = 1;
@@ -353,7 +360,7 @@ export class Renderer {
         this.actor(key, entity.kind === 'dead' ? 'death' : view.animation || 'walk',
           point.x, point.y, entity.kind==='dead'?entity.size:actorSize(entity), t, view.since || 0, view.flip);
       }
-      if (!['hero', 'prop', 'dead','chest','arena-tick'].includes(entity.kind) && (['guardian','arena-boss'].includes(entity.kind) || entity.elite || entity.hp < entity.maxHp)) {
+      if (!['hero', 'prop','castle-prop', 'dead','chest','arena-tick'].includes(entity.kind) && (['guardian','arena-boss'].includes(entity.kind) || entity.elite || entity.hp < entity.maxHp)) {
         const point=this.pose(entity,'enemies');
         const [x, y] = this.at(point.x, point.y - entity.radius - 23);
         const width = round(entity.radius * 2 * z);
@@ -369,7 +376,15 @@ export class Renderer {
       c.rotate(Math.round((['cleaver','chakram','sunrise'].includes(shot.weapon)?t*9:Math.atan2(shot.vy, shot.vx)) / (TAU / 8)) * TAU / 8);
       const size=round((shot.hostile?26:48*(1+(state.upgrades.amplifier||0)*.12))*z),frame=shot.hostile?32:48;
       const index=WEAPONS[shot.weapon]?.index;
-      if(['shard','moon_shard'].includes(shot.weapon)){
+      if(shot.hostile&&this.map==='castle'){
+        const wax=shot.radius>=20&&!shot.vx&&!shot.vy;
+        const radius=wax?shot.radius*z:Math.max(3*this.dpr,size*.48),amber=wax||shot.id%3===0;
+        c.fillStyle='#291017';c.beginPath();c.arc(0,0,radius+this.dpr,0,TAU);c.fill();
+        if(wax)c.globalAlpha=.8;
+        c.fillStyle=amber?'#ef9d3c':'#ed484e';c.beginPath();c.arc(0,0,radius,0,TAU);c.fill();
+        c.fillStyle=amber?'#ffd579':'#ff9990';c.beginPath();c.arc(0,0,radius*.68,0,TAU);c.fill();
+        c.fillStyle='#fff0c1';c.fillRect(-radius*.26,-radius*.4,Math.max(this.dpr,radius*.5),Math.max(this.dpr,radius*.5));
+      }else if(['shard','moon_shard'].includes(shot.weapon)){
         c.fillStyle='#111b25';c.beginPath();c.moveTo(size*.7,0);c.lineTo(0,size*.32);c.lineTo(-size*.6,0);c.lineTo(0,-size*.32);c.closePath();c.fill();
         c.fillStyle=shot.weapon==='shard'?'#c19bec':'#82ddf3';c.beginPath();c.moveTo(size*.55,0);c.lineTo(0,size*.2);c.lineTo(-size*.4,0);c.lineTo(0,-size*.2);c.closePath();c.fill();
         c.fillStyle='#f3edff';c.fillRect(-size*.1,-this.dpr,size*.45,2*this.dpr);
@@ -388,6 +403,11 @@ export class Renderer {
     }
     this.vfx.muzzles(this,t);
     for (const effect of state.effects || []) {
+      if(this.map==='castle'&&effect.kind==='arc'&&Number.isFinite(effect.toX)){
+        const [x,y]=this.at(effect.x,effect.y),[tx,ty]=this.at(effect.toX,effect.toY);
+        c.save();c.globalAlpha=Math.min(1,effect.life/.15);c.strokeStyle='#e6a75e';c.lineWidth=Math.max(this.dpr,effect.radius*z*1.4);c.lineCap='round';c.beginPath();c.moveTo(x,y);c.lineTo(tx,ty);c.stroke();
+        c.strokeStyle='#fff0c1';c.lineWidth=Math.max(this.dpr,3*z);c.stroke();c.restore();continue;
+      }
       if(this.vfx.effect(this,effect))continue;
       const fraction = effect.life / (effect.maxLife || .5);
       if(effect.kind==='shield'){
@@ -398,7 +418,7 @@ export class Renderer {
         c.save();c.strokeStyle='#f2b9b5';c.globalAlpha=.7;c.lineWidth=2*this.dpr;c.setLineDash([7*this.dpr,6*this.dpr]);c.beginPath();c.moveTo(x,y);c.lineTo(tx,ty);c.stroke();c.setLineDash([]);c.strokeRect(tx-5*this.dpr,ty-5*this.dpr,10*this.dpr,10*this.dpr);c.restore();
       }else if(effect.kind==='shards'){
         const radius=effect.radius;
-        c.save();c.globalAlpha=Math.min(.8,fraction+.2);c.fillStyle='#d3a8ed';
+        c.save();c.globalAlpha=Math.min(.8,fraction+.2);c.fillStyle=this.map==='castle'?'#f0c474':'#d3a8ed';
         for(let i=0;i<24;i++){const a=i/24*TAU,[x,y]=this.at(effect.x+Math.cos(a)*radius,effect.y+Math.sin(a)*radius);c.fillRect(x-2*this.dpr,y-2*this.dpr,4*this.dpr,4*this.dpr);}c.restore();
       }else if(effect.kind==='chest'){
         if(effect.mega&&this.art.images['mega-chest'])this.blit('mega-chest',(3+Math.min(2,Math.floor((1-fraction)*3)))*96,0,96,96,effect.x,effect.y,154,154,.85);
@@ -425,7 +445,7 @@ export class Renderer {
       c.save();c.globalAlpha=.9;c.fillStyle='#17262e';c.fillRect(px-margin*.6,py-margin*.6,margin*1.2,margin*1.2);
       c.drawImage(this.art.images.arsenal,0,144,48,48,Math.round(px-margin*.6),Math.round(py-margin*.6),Math.round(margin*1.2),Math.round(margin*1.2));c.restore();
     }
-    if (!this.media.matches) {
+    if (!this.media.matches&&this.map!=='castle') {
       for (let i = 0; i < 12; i++) {
         const x = p.x - this.width / this.scale / 2 + (i * 179 + t * 3) % (this.width / this.scale);
         const y = p.y - this.height / this.scale / 2 + (i * 127 + Math.sin(t + i) * 5) % (this.height / this.scale);
@@ -434,6 +454,7 @@ export class Renderer {
       }
     }
     if(!preview){
+      if(this.map==='castle')this.castleView.guide(this,state);
       // Keep the essential hit cue and local HP readable even in dense combat.
       if(cue.flash>0){
         c.save();c.globalAlpha=cue.flash*.85;

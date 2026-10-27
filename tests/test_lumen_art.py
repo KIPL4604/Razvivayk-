@@ -48,7 +48,7 @@ class LumenArtTests(unittest.TestCase):
     @unittest.skipIf(Image is None, 'Offline pixel checks: install design/lumen-pixel/requirements.txt')
     def test_actor_frames_have_hard_alpha_shared_palette_and_baseline(self):
         manifest = json.loads((ART / 'manifest.json').read_text(encoding='utf-8'))
-        self.assertEqual(len(manifest['actors']), 28)
+        self.assertEqual(len(manifest['actors']), 34)
         for actor, data in manifest['actors'].items():
             palette = {tuple(bytes.fromhex(color[1:])) for color in manifest.get('palettes', {}).get(actor, manifest['palette'])}
             size=data['frameSize']; baseline=data['anchor'][1]
@@ -134,6 +134,27 @@ class LumenArtTests(unittest.TestCase):
             source = ART.parents[3] / 'design/lumen-arena/sources' / (name + '-raw.png')
             self.assertEqual(hashlib.sha256(source.read_bytes()).hexdigest(),
                              manifest['sources']['arena/' + source.name]['sha256'])
+
+
+    @unittest.skipIf(Image is None, 'Install Pillow for castle atlas checks')
+    def test_castle_approved_cast_and_environment_are_packaged(self):
+        manifest = json.loads((ART / 'manifest.json').read_text(encoding='utf-8'))
+        names = ['castle-guard', 'castle-wax', 'castle-moth', 'boss-conductor',
+                 'boss-gatekeeper', 'boss-monarch']
+        self.assertTrue(set(names).issubset(manifest['actors']))
+        for name, size in [('castle-tiles', (256, 32)), ('castle-props', (768, 128)),
+                           ('castle-floor', (512, 128))]:
+            with Image.open(ART / (name + '.png')) as image:
+                self.assertEqual(image.size, size)
+                alpha = set(image.convert('RGBA').getchannel('A').get_flattened_data())
+                self.assertEqual(alpha, {0,255} if name == 'castle-props' else {255})
+                width = 32 if name == 'castle-tiles' else 128
+                for x in range(0, image.width, width):
+                    self.assertIsNotNone(image.crop((x, 0, x + width, image.height)).getbbox())
+        for name in names + ['castle-environment', 'castle-furnishings']:
+            source = ART.parents[3] / 'design/lumen-castle/sources' / (name + '-raw.png')
+            self.assertEqual(hashlib.sha256(source.read_bytes()).hexdigest(),
+                             manifest['sources']['castle/' + source.name]['sha256'])
 
 
 if __name__ == '__main__':

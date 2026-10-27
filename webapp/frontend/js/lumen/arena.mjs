@@ -1,4 +1,5 @@
 import {BOSS_VARIANTS,updateBossAttacks,validateBossFields} from './bosses.mjs';
+import {CASTLE} from './castle.mjs';
 
 export const ARENA_RADIUS=330;
 export const ARENA_TICK_COUNT=32;
@@ -12,6 +13,7 @@ const emit=(state,effect,kind,x,y,radius,life)=>{
 };
 
 export function startArena(state,{effect}){
+  if(state.map==='castle')return startCastleArena(state,{effect});
   if(state.map!=='crater'||state.level<40||state.arena||state.status==='lost')return false;
   const p=state.player,direction=Math.hypot(p.facingX,p.facingY)||1;
   const x=p.x+(p.facingX||0)/direction*150,y=p.y+(p.facingY||0)/direction*150;
@@ -30,8 +32,29 @@ export function startArena(state,{effect}){
   emit(state,effect,'warning',x,y,ARENA_RADIUS,2.5);return true;
 }
 
+function startCastleArena(state,{effect}){
+  if(state.level<45||state.arena||state.status==='lost'||Math.hypot(state.player.x,state.player.y-CASTLE.bossY)>CASTLE.triggerRadius)return false;
+  for(const enemy of state.enemies)emit(state,effect,'dissolve',enemy.x,enemy.y,enemy.radius+8,.4);
+  state.enemies=[];state.projectiles=[];state.zones=[];state.gems=[];state.chests=[];
+  state.choices=[];state.status='playing';state.endReason='';state.remainder=0;
+  const stats=BOSS_VARIANTS.monarch,bossId=state.nextId++;
+  state.arena={kind:'castle',phase:'forming',x:0,y:CASTLE.bossY,radius:CASTLE.hallHalfHeight,time:0,bossId,rewardId:0};
+  state.castle.phase='arena';
+  state.enemies.push({id:bossId,kind:'arena-boss',bossType:'monarch',attackStage:0,x:0,y:CASTLE.bossY,
+    hp:stats.hp,maxHp:stats.hp,radius:stats.radius,speed:0,damage:stats.damage,value:0,phase:0,hitFlash:0,
+    guardianStage:0,fireTimer:.8,elite:false,slowTime:0,actionTimer:0});
+  emit(state,effect,'warning',0,CASTLE.bossY,240,2.5);
+  return true;
+}
+
 export function enforceArenaBoundary(state,{hurt}={}){
   const arena=state.arena;if(!inBattle(arena)||state.status==='lost')return false;
+  if(arena.kind==='castle'){
+    const p=state.player,margin=p.radius+24;
+    p.x=Math.max(-CASTLE.hallHalfWidth+margin,Math.min(CASTLE.hallHalfWidth-margin,p.x));
+    p.y=Math.max(CASTLE.bossY-CASTLE.hallHalfHeight+margin,Math.min(CASTLE.bossY+CASTLE.hallHalfHeight-margin,p.y));
+    return false;
+  }
   const p=state.player,dx=p.x-arena.x,dy=p.y-arena.y,distance=Math.hypot(dx,dy),safe=arena.radius-p.radius-36;
   if(arena.phase==='fighting'&&distance>=arena.radius-ARENA_HAZARD_INSET&&hurt)hurt(state,Math.max(80,p.maxHp*.45),.4);
   if(distance>safe){p.x=arena.x+dx/distance*safe;p.y=arena.y+dy/distance*safe;}
@@ -93,6 +116,7 @@ export function validateArena(value,state){
     !state.enemies.some(e=>e.kind==='arena-boss'||e.kind==='arena-tick')&&!state.chests.some(c=>c.mega);
   const number=(n,min,max)=>Number.isFinite(n)&&n>=min&&n<=max;
   const integer=(n,min,max)=>Number.isInteger(n)&&n>=min&&n<=max;
+  if(state.map==='castle')return validateCastleArena(value,state,number,integer);
   if(!value||typeof value!=='object'||Array.isArray(value)||state.map!=='crater'||state.level<40||!ARENA_PHASES.includes(value.phase)||
     !number(value.x,-1e7,1e7)||!number(value.y,-1e7,1e7)||value.radius!==ARENA_RADIUS||!number(value.time,0,3)||
     !integer(value.bossId,1,state.nextId-1)||!integer(value.rewardId,0,state.nextId-1))return false;
@@ -115,6 +139,28 @@ export function validateArena(value,state){
   }
   if(ticks.length||bosses.length||!value.rewardId)return false;
   if(value.phase==='reward')return value.time===0&&mega.length===1&&mega[0].id===value.rewardId&&mega[0].coins===800&&mega[0].boss===true&&mega[0].upgrade===true&&['playing','lost'].includes(state.status);
+  if(mega.length)return false;
+  if(value.phase==='celebrating')return value.time<3&&['playing','lost'].includes(state.status);
+  return value.time===3&&state.status==='won'&&state.endReason==='boss';
+}
+
+function validateCastleArena(value,state,number,integer){
+  if(!value||typeof value!=='object'||Array.isArray(value)||value.kind!=='castle'||state.level!==45||
+    !ARENA_PHASES.includes(value.phase)||value.x!==0||value.y!==CASTLE.bossY||value.radius!==CASTLE.hallHalfHeight||
+    !number(value.time,0,3)||!integer(value.bossId,1,state.nextId-1)||!integer(value.rewardId,0,state.nextId-1))return false;
+  const bosses=state.enemies.filter(e=>e.kind==='arena-boss'),mega=state.chests.filter(c=>c.mega);
+  if(state.enemies.some(e=>e.kind==='arena-tick'))return false;
+  if(inBattle(value)){
+    if(value.rewardId!==0||mega.length||bosses.length!==1||state.enemies.length!==1||
+      (value.phase==='forming'?value.time>2.5:value.time!==0)||!['playing','lost'].includes(state.status))return false;
+    const boss=bosses[0],stats=BOSS_VARIANTS.monarch;
+    return boss.id===value.bossId&&boss.bossType==='monarch'&&validateBossFields(boss)&&boss.maxHp===stats.hp&&
+      boss.radius===stats.radius&&boss.damage===stats.damage&&boss.value===0&&boss.guardianStage===0&&
+      boss.x===0&&boss.y===CASTLE.bossY&&boss.speed===0;
+  }
+  if(bosses.length||!value.rewardId)return false;
+  if(value.phase==='reward')return value.time===0&&mega.length===1&&mega[0].id===value.rewardId&&
+    mega[0].coins===800&&mega[0].boss===true&&mega[0].upgrade===true&&['playing','lost'].includes(state.status);
   if(mega.length)return false;
   if(value.phase==='celebrating')return value.time<3&&['playing','lost'].includes(state.status);
   return value.time===3&&state.status==='won'&&state.endReason==='boss';

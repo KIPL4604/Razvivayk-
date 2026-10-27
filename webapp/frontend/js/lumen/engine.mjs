@@ -10,6 +10,7 @@ import {CONTACT_PERIOD,movePlayer,separateCrowd,touchingEnemies,contactDamage} f
 import {normalizeTraining,validTraining} from './training.mjs';
 import {startArena,updateArena,enforceArenaBoundary,bossDeath,markArenaChestOpened,validateArena} from './arena.mjs';
 import {updateBossAttacks,validateBossFields} from './bosses.mjs';
+import {createCastle,updateCastleGoal,castleColliders,constrainCastleEntity,validateCastle,castleCreatureStats,updateCastleEnemy} from './castle.mjs';
 
 export const DURATION = 480; // Historical benchmark for older harnesses; no time limit.
 export const LIMITS = Object.freeze({ enemies: 240, projectiles: 100, gems: 220, effects: 80, zones:24, chests:12 });
@@ -68,7 +69,7 @@ export function createRun({ seed = 0x1a71be, character = 'scout',runId,map='gard
   const normalizedSeed = Number.isInteger(seed) ? seed >>> 0 : 0x1a71be;
   const selected = own(CHARACTERS, character) ? character : 'scout';
   const state = {
-    version: 8, arena:null,relicState:{shield:0,recharge:0,surge:0},archivedWeapons:{}, training:normalizeTraining(training),map:own(MAPS,map)?map:'garden',foundWeapons:[],masteredWeapons:[], seed: normalizedSeed, rngState: normalizedSeed || 0x9e3779b9,
+    version: 9, castle:map==='castle'?createCastle():null,arena:null,relicState:{shield:0,recharge:0,surge:0},archivedWeapons:{}, training:normalizeTraining(training),map:own(MAPS,map)?map:'garden',foundWeapons:[],masteredWeapons:[], seed: normalizedSeed, rngState: normalizedSeed || 0x9e3779b9,
     runId:typeof runId==='string'&&/^[a-zA-Z0-9-]{1,90}$/.test(runId)?runId:`run-${normalizedSeed.toString(16)}-${selected}`,
     character: selected, time: 0, status: 'playing', endReason: '',
     player: { x: 0, y: 0, hp: CHARACTERS[selected].hp, maxHp: CHARACTERS[selected].hp,
@@ -186,9 +187,10 @@ function spawn(state, guardianStage = 0, wave = waveAt(state.time),elite=false) 
       ? roll<.12?'quartzling':roll<.20&&wave.stage>=2?'shardback':roll<.32?'moonmoth':roll<.5?'beetle':roll<.65?'wasp':roll<.8?'crawler':roll<.9?'spitter':'mote'
       : roll<.2?'beetle':roll<.35?'wasp':roll<.5?'crawler':roll<.64&&wave.stage>=2?'spitter':roll<.76&&wave.stage>=3?'wisp':'mote';
   }
+  if(state.map==='castle'&&!guardianStage)kind=elite?'palace-guard':roll<.46?'palace-guard':roll<.76?'wax-servant':'paper-moth';
   const base = kind === 'guardian'
     ? { hp: [0, 1800, 3600, 7800][guardianStage], radius: 31, speed: 38 + guardianStage * 3, damage: 22 }
-    : creatureStats(kind,wave);
+    : state.map==='castle'?castleCreatureStats(kind,wave):creatureStats(kind,wave);
   if(elite){base.hp=700+wave.stage*150;base.radius=22;base.speed=48;base.damage=16;}
   if(wave.kind!=='harvest'||guardianStage||elite)base.hp=Math.round(base.hp*MAPS[state.map].hp);
   const value=crystalLoot(base.hp,guardianStage).value;
@@ -196,6 +198,21 @@ function spawn(state, guardianStage = 0, wave = waveAt(state.time),elite=false) 
     y: state.player.y + Math.sin(angle) * range, ...base, value, maxHp: base.hp,
     phase: random(state) * TAU, hitFlash: 0, guardianStage, fireTimer: 2.8,elite,slowTime:0,actionTimer:0 });
   if(guardianStage&&state.map==='crater')Object.assign(state.enemies.at(-1),{bossType:guardianStage===2?'tempest':'carapace',attackStage:0});
+  if(guardianStage&&state.map==='castle')Object.assign(state.enemies.at(-1),{bossType:guardianStage===2?'conductor':'gatekeeper',attackStage:0});
+  if(state.map==='castle'){
+    const enemy=state.enemies.at(-1),minimum=guardianStage?330:250;
+    constrainCastleEntity(enemy,state,30);
+    // A ring spawn can project onto the player at a wall/gate corner.
+    // Search a bounded set at the same distance, preserving an actual safe
+    // arrival gap AFTER walls and furniture have projected the candidate.
+    for(let attempt=1;distanceSquared(enemy,state.player)<minimum**2&&attempt<=16;attempt++){
+      const candidateAngle=angle+attempt/16*TAU;
+      enemy.x=state.player.x+Math.cos(candidateAngle)*range;
+      enemy.y=state.player.y+Math.sin(candidateAngle)*range;
+      constrainCastleEntity(enemy,state,30);
+    }
+    if(distanceSquared(enemy,state.player)<minimum**2){state.enemies.pop();return;}
+  }
   if (guardianStage) effect(state, 'warning', state.player.x, state.player.y, 160, 1.5);
 }
 
@@ -204,6 +221,7 @@ function creatures(state, dt) {
     if (enemy.hp <= 0) continue;
     if(['arena-boss','arena-tick'].includes(enemy.kind))continue;
     if(enemy.bossType){updateBossAttacks(state,enemy,dt,{hurt,effect,limits:LIMITS});continue;}
+    if(updateCastleEnemy(state,enemy,dt,{hurt,effect,limits:LIMITS}))continue;
     enemy.hitFlash = Math.max(0, enemy.hitFlash - dt);
     enemy.slowTime=Math.max(0,(enemy.slowTime||0)-dt);enemy.actionTimer=Math.max(0,(enemy.actionTimer||0)-dt);
     const dx = state.player.x - enemy.x;
@@ -302,13 +320,14 @@ function projectiles(state, dt) {
 }
 
 function offerUpgrade(state) {
-  if (state.status !== 'playing' || state.arena || state.xp < state.xpNext) return;
+  if (state.status !== 'playing' || state.arena || state.map==='castle'&&state.level>=45 || state.xp < state.xpNext) return;
   state.xp -= state.xpNext;
   state.level += 1;
   state.xpNext = xpForLevel(state.level);
   if(state.level>=MAPS[state.map].goal){
     state.choices=[];state.remainder=0;
-    if(MAPS[state.map].bossGoal)startArena(state,{effect});else{state.status='won';state.endReason='level';}
+    if(state.map==='castle')state.xp=0;
+    if(MAPS[state.map].bossGoal){updateCastleGoal(state);startArena(state,{effect});}else{state.status='won';state.endReason='level';}
     return;
   }
   const candidates = UPGRADES.filter(u=>availableUpgrade(state,u.id)&&(u.id!=='repair'||state.player.hp<state.player.maxHp||state.level>35)).map(u=>u.id);
@@ -343,7 +362,7 @@ function collect(state, dt) {
     const dx = state.player.x - crystal.x;
     const dy = state.player.y - crystal.y;
     const distance = Math.hypot(dx, dy);
-    if (distance < state.player.radius + 8) { state.xp += crystal.value; continue; }
+    if (distance < state.player.radius + 8) { if(state.map!=='castle'||state.level<45)state.xp += crystal.value; continue; }
     if (distance < state.pickupRadius) {
       const movement = Math.min(distance, (230 + (state.pickupRadius - distance) * 3) * dt);
       crystal.x += dx / distance * movement;
@@ -368,6 +387,7 @@ function collect(state, dt) {
 }
 
 function tick(state, input, dt) {
+  updateCastleGoal(state);
   if(state.level>=MAPS[state.map].goal&&!MAPS[state.map].bossGoal){state.status='won';state.endReason='level';state.choices=[];return;}
   if(state.level>=MAPS[state.map].goal&&MAPS[state.map].bossGoal&&!state.arena)startArena(state,{effect});
   state.time += dt;
@@ -384,7 +404,12 @@ function tick(state, input, dt) {
   state.effects = state.effects.filter((event) => event.life > 0);
   if(state.arena){updateArena(state,dt,{hit,hurt,effect,limits:LIMITS});if(state.status!=='playing')return;enforceArenaBoundary(state,{hurt,effect});if(state.status!=='playing')return;}
   const wind=player.hp>=player.maxHp?1+rank(state,'compass')*.05:1;
-  movePlayer(player,state.enemies,input.x*player.speed*dt*wind,input.y*player.speed*dt*wind);
+  const bodies=state.map==='castle'?[...state.enemies,...castleColliders(player.y-180,player.y+180)]:state.enemies;
+  movePlayer(player,bodies,input.x*player.speed*dt*wind,input.y*player.speed*dt*wind);
+  if(state.map==='castle'){
+    constrainCastleEntity(player,state);
+    if(state.level>=45&&!state.arena)startArena(state,{effect});
+  }
   if(state.arena){enforceArenaBoundary(state,{hurt,effect});if(state.status!=='playing')return;}
   if (Math.hypot(input.x, input.y) > 0.01) { player.facingX = input.x; player.facingY = input.y; }
   if(!state.arena){
@@ -406,6 +431,10 @@ function tick(state, input, dt) {
   if(!state.arena||state.arena.phase==='fighting')updateWeapons(state, dt, {hit,effect,limits:LIMITS});
   creatures(state, dt);
   separateCrowd(state.enemies,player);
+  if(state.map==='castle'){
+    constrainCastleEntity(player,state);
+    for(const e of state.enemies)if(e.kind!=='arena-boss')constrainCastleEntity(e,state,Math.min(45,e.radius+12));
+  }
   const contacts=state.arena?.phase==='forming'?[]:touchingEnemies(state);
   if(state.contactTimer<=0&&contacts.length&&hurt(state,contactDamage(contacts),.2)){
     state.contactTimer=CONTACT_PERIOD;
@@ -521,7 +550,8 @@ export function restore(snapshot) {
     if(object(snapshot)&&snapshot.version===5)snapshot={...snapshot,version:6,training:normalizeTraining()};
     if(object(snapshot)&&snapshot.version===6)snapshot=migrateLoadout(snapshot);
     if(object(snapshot)&&snapshot.version===7)snapshot={...snapshot,version:8,arena:null};
-    if (!object(snapshot) || snapshot.version !== 8 || !own(snapshot,'arena')||!validTraining(snapshot.training)||!own(MAPS,snapshot.map)||!own(CHARACTERS, snapshot.character) ||
+    if(object(snapshot)&&snapshot.version===8)snapshot={...snapshot,version:9,castle:snapshot.map==='castle'?{...createCastle(),phase:snapshot.arena?'arena':snapshot.level>=45?'guidance':'exploring'}:null};
+    if (!object(snapshot) || snapshot.version !== 9 || !own(snapshot,'castle')||!own(snapshot,'arena')||!validTraining(snapshot.training)||!own(MAPS,snapshot.map)||!own(CHARACTERS, snapshot.character) ||
       !integer(snapshot.seed, 0, 0xffffffff) || !integer(snapshot.rngState, 1, 0xffffffff) ||
       !number(snapshot.time, 0, 1e7) || !['playing', 'upgrade', 'won', 'lost'].includes(snapshot.status) ||
       !['', 'health', 'beacon', 'dawn','level','boss'].includes(snapshot.endReason) ||
@@ -580,7 +610,9 @@ export function restore(snapshot) {
         !integer(enemy.value, ['arena-boss','arena-tick'].includes(enemy.kind)?0:1, 1e5) || !number(enemy.phase, 0, TAU) || !number(enemy.hitFlash, 0, 1) ||
         !integer(enemy.guardianStage, 0, 3) || (enemy.kind === 'guardian') !== (enemy.guardianStage > 0) ||
         !number(enemy.fireTimer, -H, 4) ||(own(enemy,'elite')&&typeof enemy.elite!=='boolean')||
-        !number(enemy.slowTime??0,0,2)||!number(enemy.actionTimer??0,0,2)||!validateBossFields(enemy)||own(enemy,'bossType')&&state.map!=='crater') return null;
+        !number(enemy.slowTime??0,0,2)||!number(enemy.actionTimer??0,0,2)||!validateBossFields(enemy)||own(enemy,'bossType')&&!['crater','castle'].includes(state.map)||
+        own(enemy,'bossType')&&(state.map==='castle'?!['conductor','gatekeeper','monarch'].includes(enemy.bossType):!['carapace','tempest','matriarch'].includes(enemy.bossType))||
+        ['palace-guard','wax-servant','paper-moth'].includes(enemy.kind)&&state.map!=='castle') return null;
       ids.add(enemy.id);
       state.enemies.push({ id: enemy.id, kind: enemy.kind, x: enemy.x, y: enemy.y, hp: enemy.hp, maxHp: enemy.maxHp,
         radius: enemy.radius, speed: enemy.speed, damage: enemy.damage, value: enemy.value,
@@ -644,6 +676,8 @@ export function restore(snapshot) {
     state.choices = snapshot.choices.slice();
     if(!validateArena(snapshot.arena,state))return null;
     state.arena=snapshot.arena===null?null:{...snapshot.arena};
+    if(!validateCastle(snapshot.castle,state))return null;
+    state.castle=snapshot.castle===null?null:{...snapshot.castle};
     return state;
   } catch { return null; }
 }

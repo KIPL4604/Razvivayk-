@@ -20,6 +20,24 @@ export const BOSS_VARIANTS=Object.freeze({
     {kind:'radial',count:22,speed:130,damage:21,windup:.8,cooldown:2.4},
     {kind:'line',range:620,width:28,damage:45,windup:.8,cooldown:2},
   ]}),
+  conductor:freezeVariant({name:'Капельмейстер',sprite:'boss-conductor',attacks:[
+    {kind:'fan',count:9,speed:150,damage:17,spread:.18,windup:.85,cooldown:2.5},
+    {kind:'spiral',count:18,speed:120,damage:16,windup:1,cooldown:3},
+    {kind:'line',range:510,width:23,damage:28,windup:.9,cooldown:2.8},
+  ]}),
+  gatekeeper:freezeVariant({name:'Латунный привратник',sprite:'boss-gatekeeper',attacks:[
+    {kind:'fan',count:7,speed:155,damage:19,spread:.2,windup:.9,cooldown:2.8},
+    {kind:'slam',radius:190,damage:34,windup:1.2,cooldown:3.3},
+    {kind:'ring',count:26,speed:125,damage:19,windup:1,cooldown:3},
+  ]}),
+  monarch:freezeVariant({name:'Полый монарх',sprite:'boss-monarch',hp:52000,radius:100,damage:40,attacks:[
+    {kind:'ring',count:32,speed:135,damage:22,windup:1.1,cooldown:2.8},
+    {kind:'spiral',count:28,speed:130,damage:20,windup:1.1,cooldown:3.1},
+    {kind:'fan',count:11,speed:185,damage:22,spread:.15,windup:.85,cooldown:2.6},
+    {kind:'slam',radius:240,damage:42,windup:1.2,cooldown:2.8},
+    {kind:'ring',count:38,speed:145,damage:24,windup:1,cooldown:2.7},
+    {kind:'line',range:900,width:32,damage:40,windup:1,cooldown:2.7},
+  ]}),
 });
 export const BOSS_TYPES=Object.freeze(Object.keys(BOSS_VARIANTS));
 
@@ -62,9 +80,15 @@ export function updateBossAttacks(state,enemy,dt,{hurt,effect,limits}){
     }else{
       const raging=enemy.hp<enemy.maxHp*.5,count=attack.count+(raging?2:0);
       for(let n=0;n<count&&state.projectiles.length<limits.projectiles;n++){
-        const angle=enemy.phase+(attack.kind==='radial'?n/count*TAU:(n-(count-1)/2)*attack.spread);
+        const radial=['radial','ring'].includes(attack.kind);
+        // Ring attacks always leave a full-body safe wedge aligned with the
+        // captured warning direction. A spiral is an open arc, never a wall.
+        const offset=radial?n/count*TAU:attack.kind==='spiral'?-1.8+n*.27:(n-(count-1)/2)*attack.spread;
+        if(attack.kind==='ring'&&Math.min(offset,TAU-offset)<.56)continue;
+        const angle=enemy.phase+offset;
         const speed=attack.speed*(raging?1.15:1);
-        state.projectiles.push({id:state.nextId++,x:enemy.x,y:enemy.y,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,
+        const start=enemy.bossType==='monarch'?enemy.radius+12+(attack.kind==='spiral'?n*2:0):0;
+        state.projectiles.push({id:state.nextId++,x:enemy.x+Math.cos(angle)*start,y:enemy.y+Math.sin(angle)*start,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,
           radius:6,damage:attack.damage,life:4,hostile:true,weapon:'hostile',pierce:0,hits:[],returning:false});
       }
     }
@@ -75,7 +99,7 @@ export function updateBossAttacks(state,enemy,dt,{hurt,effect,limits}){
     enemy.phase=(Math.atan2(state.player.y-enemy.y,state.player.x-enemy.x)+TAU)%TAU;
     enemy.actionTimer=attack.windup;
     if(attack.kind==='slam')emit('warning',enemy.x,enemy.y,attack.radius,attack.windup);
-    else if(attack.kind==='radial')emit('shards',enemy.x,enemy.y,110,attack.windup);
+    else if(['radial','ring','spiral'].includes(attack.kind))emit('shards',enemy.x,enemy.y,enemy.bossType==='monarch'?200:110,attack.windup);
     else line('charge',attack.windup);
     return true;
   }

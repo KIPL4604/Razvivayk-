@@ -337,3 +337,17 @@ html.lumen-active,html.lumen-active body{overflow:hidden;overscroll-behavior:non
 .lumen-wave[data-phase=arena]{color:#f1c197}
 @media(max-width:540px){.lumen-boss-hud{top:max(108px,calc(var(--lumen-safe-top,0px) + 104px));padding:8px 9px 6px}.lumen-boss-hud strong{font-size:18px}.lumen-boss-hud #lumenBossPhase{font-size:10px}#lumenGameMount[data-boss=true] .lumen-wave,#lumenGameMount[data-arena]:not([data-arena=""]) .lumen-wave{top:max(198px,calc(var(--lumen-safe-top,0px) + 194px));font-size:12px}}
 @media(prefers-reduced-motion:reduce){.lumen-boss-track i{transition:none}}
+/* Warm castle surfaces keep the established HUD shape and keyboard contracts. */
+#lumenGameMount[data-map=castle]{--lumen-paper:#f4dfb5;--lumen-mint:#dfbf7d}
+#lumenGameMount[data-map=castle] .lumen-tool{background:#241919e8;border-color:#a17c485c}
+#lumenGameMount[data-map=castle] .lumen-hud-kicker,
+#lumenGameMount[data-map=castle] .lumen-timer span{color:#e1c9a3}
+#lumenGameMount[data-map=castle] .lumen-xp-track i{background:#dfbd70}
+#lumenGameMount[data-map=castle] .lumen-wave{color:#f2d6a2}
+#lumenGameMount[data-map=castle] .lumen-boss-hud{background:#211718f0;border-color:#b78e4d;border-bottom-color:#6a302b}
+#lumenGameMount[data-map=castle] .lumen-boss-hud{top:var(--lumen-boss-top,140px)}
+#lumenGameMount[data-map=castle] .lumen-xp{top:var(--lumen-xp-top,140px)}
+#lumenGameMount[data-map=castle][data-arena] .lumen-wave{top:var(--lumen-wave-top,232px)}
+#lumenGameMount[data-map=castle] .lumen-boss-track i{background:#b94a44;box-shadow:inset 0 2px #f5b475}
+#lumenGameMount[data-map=castle] .lumen-slot,
+#lumenGameMount[data-map=castle] .lumen-artifacts{background-color:#261b1be8}
