@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "date": "2026-10-28",
+  "status": "concept-awaiting-user-feedback",
+  "generator": "built-in image_gen",
+  "inputImages": [],
+  "styleResearch": [
+    "design/lumen-arena/environment-preview.png",
+    "design/lumen-arena/boss-matriarch-preview.png",
+    "design/lumen-quarry/roster-preview.png"
+  ],
+  "prompts": "prompts.md",
+  "runtimeIntegrated": false,
+  "assets": [
+    {
+      "file": "world-boss-creatures-v1.png",
+      "generationOutput": "exec-2f12e5f7-f974-466b-acc8-79f30dee92bb.png",
+      "width": 1448,
+      "height": 1086,
+      "mode": "RGB",
+      "bytes": 2563832,
+      "sha256": "a1e6b38ed310bd58cdbad35ebbe1437e62843a97f1b1d8becdb572b74cb5ba06",
+      "role": "world boss and creature approval board"
+    },
+    {
+      "file": "corridor-materials-v1.png",
+      "generationOutput": "exec-733129e1-b874-45dc-9ff2-2b0d019b07ee.png",
+      "width": 1448,
+      "height": 1086,
+      "mode": "RGB",
+      "bytes": 2194669,
+      "sha256": "fbd058ae5e3caabc234fc875659eeb3363555c600c40d98cfe8c8ba4f3b41c2a",
+      "role": "50 metre modular corridor and material concept board"
+    }
+  ]
+}
