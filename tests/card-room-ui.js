@@ -27,7 +27,7 @@ async page => {
       if(!a)break;
       if(a.card){
         const index=await p.evaluate(c=>saved.cardGames.runs.durak.hands[0].indexOf(c),a.card),targetPage=Math.floor(index/6);
-        const current=await p.locator('.hand-pages>span').count()?Number((await p.locator('.table-hand-label>span').last().innerText()).split('/')[0])-1:0;
+        const current=Number(await p.locator('#cardGameMount').getAttribute('data-hand-page'));
         for(let n=current;n<targetPage;n++)await p.locator('[data-cardgame-action="page"][data-cardgame-value="1"]').click();
         for(let n=current;n>targetPage;n--)await p.locator('[data-cardgame-action="page"][data-cardgame-value="-1"]').click();
         await p.locator('[data-cardgame-action="select"][data-cardgame-value="'+a.card+'"]').click();await p.locator('[data-cardgame-action="play"]').click();

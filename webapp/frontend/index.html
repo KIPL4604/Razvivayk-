@@ -13,19 +13,20 @@
   <link rel="stylesheet" href="/static/css/platform.css?v=1">
   <link rel="stylesheet" href="/static/css/lumen.css?v=castle-10">
   <link rel="stylesheet" href="/static/css/card-room.css?v=2">
-  <link rel="stylesheet" href="/static/css/card-salon.css?v=1">
+  <link rel="stylesheet" href="/static/css/card-salon.css?v=2">
+  <link rel="stylesheet" href="/static/css/information.css?v=1">
   <link rel="stylesheet" href="/static/css/pixel-hop.css?v=1">
   <script src="https://telegram.org/js/telegram-web-app.js" defer></script>
   <script src="/static/js/puzzles.js?v=4" defer></script>
   <script src="/static/js/visuals.js?v=4" defer></script>
   <script src="/static/js/chess-pieces.js?v=1" defer></script>
-  <script src="/static/js/chess-mode.js?v=1" defer></script>
+  <script src="/static/js/chess-mode.js?v=2" defer></script>
   <script src="/static/js/poker-cards.js?v=1" defer></script>
   <script src="/static/js/card-room.js?v=2" defer></script>
-  <script src="/static/js/poker-mode.js?v=3" defer></script>
+  <script src="/static/js/poker-mode.js?v=4" defer></script>
   <script src="/static/js/platform.js?v=1" defer></script>
   <script src="/static/js/lumen-mode.js?v=castle-15" defer></script>
-  <script src="/static/js/card-games.js?v=3" defer></script>
+  <script src="/static/js/card-games.js?v=4" defer></script>
   <script src="/static/js/specimen-mode.js?v=9" defer></script>
   <script src="/static/js/pixel-hop-mode.js?v=1" defer></script>
   <link rel="stylesheet" href="/static/css/specimen.css?v=5">
@@ -35,28 +36,28 @@
 <div id="app">
   <a class="skip-main-content-link" href="#main">Перейти к игре</a>
   <header class="app-header">
-    <div class="brand-lockup"><div class="brand-mark" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none"><path d="M6 7h20v6h-7v14h-6V13H6Z" fill="currentColor"/><path d="M23 20h4v7h-4z" fill="currentColor" opacity=".45"/></svg></div><div><div class="brand">Развивайка</div><div class="brand-caption">TERAMONT</div></div></div>
+    <div class="brand-lockup"><div><div class="brand">Развивайка</div></div></div>
     <div class="header-actions"><button class="profile-shortcut" data-screen-link="profile" type="button" aria-label="Открыть профиль"><span class="avatar avatar-small" id="headerAvatar">И</span><span class="header-rank" id="headerRank">Новичок</span></button><button class="icon-button" data-screen-link="help" type="button" aria-label="Как играть"><span data-ui-icon="help"></span></button></div>
-    <div class="sidebar-note"><span class="eyebrow">В своём темпе</span><p>Маленькая партия.<br>Новый сильный ход.</p><span>Логика · память · внимание</span></div>
+
   </header>
   <main id="main" tabindex="-1">
     <div class="connection-banner"><span class="status-dot" aria-hidden="true"></span><span id="connectionStatus" role="status">Загружаем игры…</span><button class="text-button hidden" id="retryConnection" type="button">Повторить подключение</button></div>
     <div id="launchStatus" class="launch-status" role="status"></div>
     <div id="cloudStatus" class="cloud-status hidden" role="status"></div>
     <section class="screen active" data-screen="home" aria-labelledby="homeTitle">
-      <div class="welcome-block"><div><p class="eyebrow">Время для себя</p><h1 id="homeTitle">Во что сыграем?</h1><p class="lead">Выбери игру. Найди свой ритм.</p></div><span class="library-count"><strong>18</strong> игр<br><span>1000 уровней</span></span></div>
+      <div class="welcome-block"><div><h1 id="homeTitle">Во что сыграем?</h1></div><span class="library-count"><strong>18</strong> игр<br><span>1000 уровней</span></span></div>
       <div id="resumeList"></div>
       <button class="together-link" type="button" data-screen-link="lobby"><span><strong>Играть вместе</strong><span>Пригласи друга или найди соперника в покере</span></span><span data-ui-icon="arrow"></span></button>
       <div class="pending-notice hidden" id="pendingNotice"><span>Результат сохранён на устройстве и ждёт отправки.</span><button class="text-button" id="retryPending" type="button">Повторить сохранение</button></div>
       <div class="category-filters" role="group" aria-label="Фильтр игр"><button class="active" data-filter="Все" aria-pressed="true" type="button">Все игры</button><button data-filter="Логика" aria-pressed="false" type="button">Логика</button><button data-filter="Память" aria-pressed="false" type="button">Память</button><button data-filter="Мышление" aria-pressed="false" type="button">Мышление</button><button data-filter="Внимание" aria-pressed="false" type="button">Внимание</button><button data-filter="Аркада" aria-pressed="false" type="button">Аркада</button></div>
       <h2 class="sr-only">Игры</h2><div class="campaign-grid" id="campaignCards"></div>
-      <div class="home-bottom"><span class="small-brand">Твой ход — твой прогресс.</span><button class="text-button" data-screen-link="help" type="button">Как всё устроено <span data-ui-icon="arrow"></span></button></div>
+      <div class="home-bottom"><button class="text-button" data-screen-link="help" type="button">Как всё устроено <span data-ui-icon="arrow"></span></button></div>
       <button class="player-overview" type="button" data-screen-link="profile"><span class="avatar" id="homeAvatar">И</span><span class="player-copy"><strong id="homePlayerName">Игрок</strong><span class="rank-line"><span id="homeRank">Новичок</span> · уровень <span id="homeLevel">1</span></span><span class="xp-track"><span id="homeXpBar"></span></span><span class="xp-caption"><span id="homeXpText">0 / 100 XP</span><span id="homeNextRank">до звания Практик</span></span></span><span data-ui-icon="arrow"></span></button>
       <div class="home-footer"><span><strong id="homeGamesCount">0</strong> партий</span><span><strong id="homeAchievementCount">0</strong> достижений</span><span><strong id="homeStreak">0</strong> дней подряд</span></div>
     </section>
     <section class="screen" data-screen="lobby" aria-labelledby="lobbyTitle">
       <div class="page-toolbar"><button class="back-button" data-screen-link="home" type="button"><span data-ui-icon="back"></span>Игры</button><span class="page-kicker">Один на один</span></div>
-      <p class="eyebrow">Встречаемся за столом</p><h1 class="page-title" id="lobbyTitle">Играть вместе</h1><p class="page-intro">Покер с другом или новым соперником. Карты каждого видит только он.</p>
+      <h1 class="page-title" id="lobbyTitle">Играть вместе</h1><p class="page-intro">Покер с другом или новым соперником. Карты каждого видит только он.</p>
       <div id="lobbyMount" aria-live="polite"></div>
     </section>
     <section class="screen" data-screen="levels" aria-labelledby="campaignTitle">
@@ -70,7 +71,7 @@
     </section>
     <section class="screen" data-screen="profile" aria-labelledby="profileName">
       <div class="page-toolbar"><button class="back-button" data-screen-link="home" type="button"><span data-ui-icon="back"></span>Игры</button><span class="page-kicker">Твой прогресс</span></div>
-      <div class="profile-hero"><span class="avatar avatar-large" id="profileAvatar">И</span><div class="profile-identity"><p class="eyebrow">Игровой профиль</p><h1 id="profileName">Игрок</h1><p class="profile-username" id="profileUsername">Профиль игрока</p></div></div>
+      <div class="profile-hero"><span class="avatar avatar-large" id="profileAvatar">И</span><div class="profile-identity"><h1 id="profileName">Игрок</h1><p class="profile-username" id="profileUsername">Профиль игрока</p></div></div>
       <div class="profile-grid"><div class="rank-panel"><div class="rank-panel-top"><span class="eyebrow">Текущее звание</span><span class="rank-emblem" id="rankEmblem" aria-hidden="true"></span></div><strong id="profileRank">Новичок</strong><div class="rank-progress-copy"><span>Уровень <b id="profileLevel">1</b></span><span id="profileXpText">0 / 100 XP</span></div><div class="xp-track" role="progressbar" aria-label="Опыт до следующего уровня" aria-valuemin="0" aria-valuemax="100" id="profileXpProgress"><span id="profileXpBar"></span></div><p id="rankNextText">До следующего звания — 2 уровня</p></div><div class="next-achievement" id="nextAchievement"></div></div>
       <div class="stat-grid"><div class="stat-item"><strong id="statGames">0</strong><span>партий</span></div><div class="stat-item"><strong id="statStreak">0</strong><span>дней подряд</span></div><div class="stat-item"><strong id="statSudoku">0</strong><span>этапов</span></div><div class="stat-item"><strong id="statMemory">0</strong><span>опыта XP</span></div></div>
       <p class="game-note" id="streakNote">Серия начинается с первой завершённой партии.</p>
@@ -94,13 +95,13 @@
       <div id="chessBoardMount"></div>
     </section>
     <section class="screen" data-screen="cards" aria-labelledby="cardLibraryTitle"><div id="cardLibraryMount"></div></section>
-    <section class="screen cardroom" data-screen="card-game" aria-labelledby="cardGameTitle"><header class="cardroom-toolbar" data-cardroom-toolbar><button class="table-icon" data-cardgame-action="exit" type="button" aria-label="К карточным играм"><span data-ui-icon="back"></span></button><div class="cardroom-title"><span>TERAMONT · КАРТОЧНАЯ КОМНАТА</span><h1 id="cardGameTitle">Карты</h1></div><div class="cardroom-tools"><button class="table-icon" data-cardgame-action="rules" type="button" aria-label="Правила игры"><span data-ui-icon="help"></span></button><button class="table-icon" data-cardgame-action="menu" type="button" aria-label="Меню партии"><span id="cardGameMenuIcon"></span></button><button class="table-icon" data-cardroom-action="fullscreen" type="button" aria-label="Полный экран" aria-pressed="false"><span id="cardGameFullscreenIcon"></span></button></div></header><div id="cardGameMount"></div></section>
+    <section class="screen cardroom" data-screen="card-game" aria-labelledby="cardGameTitle"><header class="cardroom-toolbar" data-cardroom-toolbar><button class="table-icon" data-cardgame-action="exit" type="button" aria-label="К карточным играм"><span data-ui-icon="back"></span></button><div class="cardroom-title"><h1 id="cardGameTitle">Карты</h1></div><div class="cardroom-tools"><button class="table-icon" data-cardgame-action="rules" type="button" aria-label="Правила игры"><span data-ui-icon="help"></span></button><button class="table-icon" data-cardgame-action="menu" type="button" aria-label="Меню партии"><span id="cardGameMenuIcon"></span></button><button class="table-icon" data-cardroom-action="fullscreen" type="button" aria-label="Полный экран" aria-pressed="false"><span id="cardGameFullscreenIcon"></span></button></div></header><div id="cardGameMount"></div></section>
     <section class="screen" data-screen="poker" aria-labelledby="pokerSetupTitle">
       <div class="page-toolbar"><button class="back-button" data-screen-link="cards" type="button"><span data-ui-icon="back"></span>Карты</button><span class="page-kicker">Математика за столом</span></div>
       <div id="pokerSetupMount"></div>
     </section>
     <section class="screen cardroom cardroom-poker" data-screen="poker-game" aria-label="Покерная партия">
-      <div class="game-toolbar cardroom-toolbar"><button class="icon-button table-icon" data-poker-action="setup" type="button" aria-label="Вернуться к выбору режима покера"><span data-ui-icon="back"></span></button><div class="cardroom-title"><span>TERAMONT · КАРТОЧНАЯ КОМНАТА</span><h1>Покер</h1></div><div class="cardroom-tools"><button class="icon-button table-icon" data-poker-action="math" type="button" aria-label="Математическая подсказка"><span data-ui-icon="bulb"></span></button><button class="icon-button table-icon" data-poker-action="rules" type="button" aria-label="Правила покера"><span data-ui-icon="help"></span></button><button class="icon-button table-icon" data-cardroom-action="fullscreen" type="button" aria-label="Полный экран" aria-pressed="false"><span id="pokerFullscreenIcon"></span></button></div></div>
+      <div class="game-toolbar cardroom-toolbar"><button class="icon-button table-icon" data-poker-action="setup" type="button" aria-label="Вернуться к выбору режима покера"><span data-ui-icon="back"></span></button><div class="cardroom-title"><h1>Покер</h1></div><div class="cardroom-tools"><button class="icon-button table-icon" data-poker-action="math" type="button" aria-label="Математическая подсказка"><span data-ui-icon="bulb"></span></button><button class="icon-button table-icon" data-poker-action="rules" type="button" aria-label="Правила покера"><span data-ui-icon="help"></span></button><button class="icon-button table-icon" data-cardroom-action="fullscreen" type="button" aria-label="Полный экран" aria-pressed="false"><span id="pokerFullscreenIcon"></span></button></div></div>
       <div id="pokerMount"></div>
     </section>
     <section class="screen" data-screen="specimen" aria-label="Нулевой образец"><div id="specimenMount"></div></section>

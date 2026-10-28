@@ -1,5 +1,5 @@
 async page => {
-  const base='http://127.0.0.1:8081',out='D:/Codex-artifacts/card-salon-20261029/';
+  const base='http://127.0.0.1:8081',out='D:/Codex-artifacts/ui-essential-20261029/';
   if(new URL(page.url()).origin!==base)throw Error('Use isolated QA server :8081');
   const ctx=await page.context().browser().newContext({viewport:{width:375,height:812},hasTouch:true});
   ctx.setDefaultTimeout(10000);
@@ -60,11 +60,11 @@ async page => {
     await fixture('durak');before=await run();await p.locator('.hand-card').first().focus();await p.keyboard.press('Enter');
     await settle();await p.locator('.durak-pairs').focus();await p.keyboard.press('Enter');await settle();
     assert(await run()!==before,'Keyboard select and table Enter');
-    await fixture('durak');before=await run();await p.locator('[data-cardgame-action="sort"]').click();await settle();
+    await fixture('durak');before=await run();await p.locator('[data-cardgame-action="menu"]').click();await p.locator('[data-cardgame-action="sort"]').click();await settle();
     assert(await run()===before,'Sort changes only presentation');
-    const sortLabel=await p.locator('.hand-sort').innerText(),hand=await p.locator('.hand-card').first().boundingBox();
+    const sortLabel=await p.locator('#cardGameMount').getAttribute('data-hand-sort'),hand=await p.locator('.hand-card').first().boundingBox();
     await p.mouse.move(hand.x+hand.width/2,hand.y+35);await p.mouse.down();await p.mouse.move(hand.x+hand.width/2+80,hand.y+35,{steps:10});await p.mouse.up();await settle();
-    assert(await p.locator('.hand-sort').innerText()!==sortLabel&&await run()===before,'Horizontal swipe sorts without playing');
+    assert(await p.locator('#cardGameMount').getAttribute('data-hand-sort')!==sortLabel&&await run()===before,'Horizontal swipe sorts without playing');
     results.push('Durak double tap, keyboard, legal highlight, swipe and button sorting');
     await fixture('solitaire');before=await run();
     await drag(p.locator('[data-cardgame-value="tableau:0:0"]'),p.locator('.sol-column').nth(2));
