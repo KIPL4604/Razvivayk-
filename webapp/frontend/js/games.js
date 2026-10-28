@@ -88,7 +88,7 @@ function renderCatalog(){
   const chess='<button class="campaign-card" type="button" data-chess-action="setup" '+(gameFilter!=="Все"&&gameFilter!=="Логика"?"hidden":"")+' aria-label="Шахматы. Играть против компьютера">'+gameArt("chess")+'<span class="campaign-card-copy"><span class="campaign-category">Логика · против компьютера</span><strong>Шахматы</strong><span class="campaign-card-progress"><span>6 уровней сложности</span>'+uiIcon("arrow")+'</span></span></button>';
   const poker='<button class="campaign-card" type="button" data-poker-action="setup" '+(gameFilter!=="Все"&&gameFilter!=="Мышление"?"hidden":"")+' aria-label="Математический покер. Играть с ботом или другом">'+PokerCards.art()+'<span class="campaign-card-copy"><span class="campaign-category">Мышление · вероятности</span><strong>Математический покер</strong><span class="campaign-card-progress"><span>С ботом или другом</span>'+uiIcon("arrow")+'</span></span></button>';
   const lumen='<button class="campaign-card lumen-catalog" type="button" data-lumen-action="open" '+(gameFilter!=="Все"?"hidden":"")+' aria-label="Люмен: последний маяк. Одиночный survival-экшен">'+LumenMode.art()+'<span class="campaign-card-copy"><span class="campaign-category">Новое · Survival</span><strong>Люмен<span>Последний маяк</span></strong><span class="campaign-card-progress"><span>3 мира · цель 30 / 35 / 45</span>'+uiIcon("arrow")+'</span></span></button>';
-  $("#campaignCards").innerHTML=SpecimenMode.catalog()+lumen+PixelHopMode.catalog(gameFilter)+poker+chess+GAME_ORDER.map(game=>{
+  $("#campaignCards").innerHTML=SpecimenMode.catalog()+lumen+PixelHopMode.catalog(gameFilter)+CardGames.catalog()+poker+chess+GAME_ORDER.map(game=>{
     const d=GAME_CATALOG[game],p=currentCampaign(game),run=saved.runs[game],resume=run&&!run.completed;
     return '<button class="campaign-card" type="button" data-campaign="'+game+'" '+(gameFilter!=="Все"&&d.category!==gameFilter?"hidden":"")+' aria-label="'+escapeHtml(d.name)+'. '+(resume?'Есть сохранённая партия. ':'')+'Открыть кампанию">'+gameArt(game)+'<span class="campaign-card-copy"><span class="campaign-category">'+escapeHtml(d.category)+'</span><strong>'+escapeHtml(d.name)+'</strong><span class="campaign-card-progress"><span>'+(resume?"Есть сохранение":p.complete?"100 / 100 · пройдено":"Уровень "+p.unlockedLevel+" / 100")+'</span>'+uiIcon("arrow")+'</span>'+(p.completedCount?'<span class="xp-track"><span style="width:'+p.completedCount+'%"></span></span>':'')+'</span></button>';
   }).join("");
@@ -143,20 +143,20 @@ function renderLevelMap(){
 }
 function renderHome(){
   updateProfileUI();
-  const chess=ChessMode.getResume(),poker=PokerMode.getResume(),specimen=SpecimenMode.getResume(),lumen=LumenMode.getResume(),runs=[...(specimen?[specimen]:[]),...(lumen?[lumen]:[]),...(poker?[poker]:[]),...Object.values(saved.runs).filter(r=>!r.completed),...(chess?[chess]:[])].sort((a,b)=>(b.lastTouchedAt||0)-(a.lastTouchedAt||0)),r=runs[0];
-  const title=r?.type==="specimen"?"Нулевой образец":r?.type==="lumen"?"Люмен: последний маяк":r?.type==="poker"?"Математический покер":r?.type==="chess"?"Шахматы":GAME_NAMES[r?.type],subtitle=r?.type==="specimen"?"Побег из лаборатории":r?.type==="lumen"?"Экспедиция":r?.type==="poker"?(r.mode==="solo"?"Против бота":"С другом"):r?.type==="chess"?(CHESS_LEVELS.find(l=>l.id===r.level)?.name||"Против компьютера"):r?.levelNumber?"Уровень "+r.levelNumber:"Свободная игра";
-  $("#resumeList").innerHTML=r?'<button class="resume-button" data-resume="'+r.type+'" type="button">'+(r.type==="specimen"?SpecimenMode.art():r.type==="lumen"?LumenMode.art():r.type==="poker"?PokerCards.art():gameArt(r.type))+'<span class="resume-copy"><small>Продолжить партию</small><strong>'+escapeHtml(title)+'</strong><span>'+escapeHtml(subtitle)+' · сохранено '+(r.type==="poker"?"на сервере":"на устройстве")+'</span></span>'+uiIcon("arrow")+'</button>':"";
+  const chess=ChessMode.getResume(),poker=PokerMode.getResume(),specimen=SpecimenMode.getResume(),lumen=LumenMode.getResume(),cards=CardGames.getResume(),runs=[...(specimen?[specimen]:[]),...(cards?[cards]:[]),...(lumen?[lumen]:[]),...(poker?[poker]:[]),...Object.values(saved.runs).filter(r=>!r.completed),...(chess?[chess]:[])].sort((a,b)=>(b.lastTouchedAt||0)-(a.lastTouchedAt||0)),r=runs[0];
+  const title=r?.type==="specimen"?"Нулевой образец":r?.type==="cards"?({durak:"Дурак",blackjack:"Блэкджек",solitaire:"Косынка"}[r.game]):r?.type==="lumen"?"Люмен: последний маяк":r?.type==="poker"?"Математический покер":r?.type==="chess"?"Шахматы":GAME_NAMES[r?.type],subtitle=r?.type==="specimen"?"Побег из лаборатории":r?.type==="cards"?"Карточная партия":r?.type==="lumen"?"Экспедиция":r?.type==="poker"?(r.mode==="solo"?"Против бота":"С другом"):r?.type==="chess"?(CHESS_LEVELS.find(l=>l.id===r.level)?.name||"Против компьютера"):r?.levelNumber?"Уровень "+r.levelNumber:"Свободная игра";
+  $("#resumeList").innerHTML=r?'<button class="resume-button" data-resume="'+r.type+'" type="button">'+(r.type==="specimen"?SpecimenMode.art():r.type==="cards"?PokerCards.art():r.type==="lumen"?LumenMode.art():r.type==="poker"?PokerCards.art():gameArt(r.type))+'<span class="resume-copy"><small>Продолжить партию</small><strong>'+escapeHtml(title)+'</strong><span>'+escapeHtml(subtitle)+' · сохранено '+(r.type==="poker"?"на сервере":"на устройстве")+'</span></span>'+uiIcon("arrow")+'</button>':"";
   $("#pendingNotice").classList.toggle("hidden",!saved.pending.length);
 }
 function selectCampaign(game){if(!GAME_NAMES[game])return;saved.selectedCampaign=game;saveState();showScreen("levels");}
 function showScreen(name){
   pauseGame();clearTimeout(revealHandle);if(saved.current?.revealing){saved.current.revealing=false;saved.current.ready=false;saveState();}
-  activeScreen=name;$("#app").classList.toggle("is-playing",["game","chess-game","poker-game","lumen-game","specimen","pixel-hop"].includes(name));$$("#main .screen").forEach(s=>s.classList.toggle("active",s.dataset.screen===name));$("#main").scrollTop=0;
+  activeScreen=name;$("#app").classList.toggle("is-playing",["game","chess-game","poker-game","lumen-game","specimen","card-game","pixel-hop"].includes(name));$$("#main .screen").forEach(s=>s.classList.toggle("active",s.dataset.screen===name));$("#main").scrollTop=0;
   $$(".bottom-nav button").forEach(b=>{b.classList.toggle("active",b.dataset.screenLink===name);b.setAttribute("aria-current",b.dataset.screenLink===name?"page":"false");});
   if(name==="home")renderHome();else if(name==="profile"||name==="levels")updateProfileUI();
-  $("#app").classList.toggle("is-poker",name==="poker-game");PokerMode.onScreen(name);ChessMode.onScreen(name);Platform.onScreen(name);LumenMode.onScreen(name);SpecimenMode.onScreen(name);PixelHopMode.onScreen(name);hydrateIcons();
+  $("#app").classList.toggle("is-poker",name==="poker-game");PokerMode.onScreen(name);ChessMode.onScreen(name);Platform.onScreen(name);LumenMode.onScreen(name);SpecimenMode.onScreen(name);CardGames.onScreen(name);CardRoom.onScreen(name);PixelHopMode.onScreen(name);hydrateIcons();
   if(hasTelegramIdentity&&tg?.isVersionAtLeast?.("6.1")&&tg?.BackButton){if(name==="home")tg.BackButton.hide();else tg.BackButton.show();}
-  const heading=$(`.screen[data-screen="${name}"] h1,.screen[data-screen="${name}"] h2`);if(heading){heading.tabIndex=-1;heading.focus({preventScroll:true});}
+  const heading=name==="card-game"?null:$(`.screen[data-screen="${name}"] h1,.screen[data-screen="${name}"] h2`);if(heading){heading.tabIndex=-1;heading.focus({preventScroll:true});}
 }
 function updateElapsed(){const c=saved.current;return Math.max(0,Number(c?.elapsed||0)+(c?.startedAt?(Date.now()-c.startedAt)/1000:0));}
 function persistCurrent(){const c=saved.current;if(!c)return;if(!c.completed)c.elapsed=updateElapsed();c.lastTouchedAt=Date.now();c.startedAt=activeScreen==="game"&&!c.completed&&!document.hidden?Date.now():null;saved.runs[c.type]=c;saveState();}
@@ -374,7 +374,7 @@ function configureTelegram(){
   if(tg.isVersionAtLeast?.("7.7"))call(()=>tg.disableVerticalSwipes());
   if(tg.isVersionAtLeast?.("6.2"))call(()=>tg.enableClosingConfirmation());
   const safeArea=()=>{const top=(tg.safeAreaInset?.top||0)+(tg.contentSafeAreaInset?.top||0),bottom=(tg.safeAreaInset?.bottom||0)+(tg.contentSafeAreaInset?.bottom||0);document.documentElement.style.setProperty("--app-safe-top",`${top}px`);document.documentElement.style.setProperty("--app-safe-bottom",`${bottom}px`);};
-  safeArea();call(()=>tg.onEvent("safeAreaChanged",safeArea));call(()=>tg.onEvent("contentSafeAreaChanged",safeArea));call(()=>tg.BackButton.onClick(()=>{if(activeScreen==="specimen"){SpecimenMode.back();return;}if(activeScreen==="pixel-hop"){showScreen("home");return;}if(["lumen","lumen-game"].includes(activeScreen)){LumenMode.back();return;}showScreen(activeScreen==="poker-game"?"poker":activeScreen==="chess-game"?"chess":activeScreen==="game"?"levels":"home");}));
+  safeArea();call(()=>tg.onEvent("safeAreaChanged",safeArea));call(()=>tg.onEvent("contentSafeAreaChanged",safeArea));call(()=>tg.BackButton.onClick(()=>{if(activeScreen==="specimen"){SpecimenMode.back();return;}if(activeScreen==="pixel-hop"){showScreen("home");return;}if(["lumen","lumen-game"].includes(activeScreen)){LumenMode.back();return;}showScreen(activeScreen==="card-game"?"cards":activeScreen==="poker-game"?"poker":activeScreen==="chess-game"?"chess":activeScreen==="game"?"levels":"home");}));
 }
 document.addEventListener("click",event=>{
   const target=event.target.closest("button");if(!target||target.disabled)return;
@@ -384,6 +384,7 @@ document.addEventListener("click",event=>{
   if(ChessMode.click(target))return;
   if(LumenMode.click(target))return;
   if(SpecimenMode.click(target))return;
+  if(CardGames.click(target))return;
   if(target.dataset.resume==="poker"){PokerMode.resume();return;}
   if(target.dataset.resume==="chess"){ChessMode.resume();return;}
   if(target.closest("#gameMount")){const entry=Object.entries(target.dataset)[0];if(entry)queueMicrotask(()=>{if(!target.isConnected&&activeScreen==="game"){const attr="data-"+entry[0].replace(/[A-Z]/g,c=>"-"+c.toLowerCase());const replacement=$$("button["+attr+"]",$("#gameMount")).find(b=>b.getAttribute(attr)===entry[1]);replacement?.focus({preventScroll:true});}});}

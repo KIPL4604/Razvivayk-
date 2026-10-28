@@ -12,7 +12,7 @@ CAMPAIGN_TITLES = {
     "rebuses": "Шифры и ребусы", "stroop": "Цвет и внимание",
 }
 SAVE_GAMES = frozenset((*CAMPAIGN_TITLES, "chess"))
-GAME_IDS = SAVE_GAMES | {"poker", "lumen", "specimen"}
+GAME_IDS = SAVE_GAMES | {"poker", "lumen", "specimen", "durak", "blackjack", "solitaire"}
 
 
 def catalog() -> dict:
@@ -46,4 +46,8 @@ def catalog() -> dict:
         "lifecycle": {"start": "client:LumenMode.enter", "save": "local:device",
                       "finish": "local:lumen"},
     })
+    for game, title in (("durak", "Дурак"), ("blackjack", "Блэкджек"), ("solitaire", "Косынка")):
+        games.append({"id": game, "title": title, "modes": ["solo"],
+                      "campaignLevels": 0, "cloudSave": False, "resultAuthority": "local",
+                      "lifecycle": {"start": "client:CardGames.enter", "save": "local:device", "finish": "local:cards"}})
     return {"version": 1, "games": games}

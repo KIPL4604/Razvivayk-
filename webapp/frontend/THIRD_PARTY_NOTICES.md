@@ -44,6 +44,16 @@ research; their React component source code is not distributed in this app.
 
 ## Poker
 
+The fullscreen glyph in `js/card-room.js` adapts Iconimate Arrows Out
+(version 631cc560723a), with Phosphor geometry. The Iconimate/Phosphor copyrights
+and MIT license printed above also apply to this glyph. Its runtime motion is
+original CSS; React/Motion code is not bundled.
+
+`design/card-controls/visual-reference.png` is an imagegen design concept based
+on screenshots of this project's own UI. It is not a runtime asset or a
+reproduction of Durak Online artwork. Durak Online's public help was consulted
+for interaction conventions; no third-party game code or artwork was imported.
+
 The complete 52-card vector deck, backs, court illustrations, poker icons and CSS
 motion in `js/poker-cards.js`, `css/poker-cards.css` and `css/poker.css` are original
 Teramont artwork. ArloUI Motion, 21st.dev card-flip metadata and Iconimate were

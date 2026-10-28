@@ -12,6 +12,7 @@
   <link rel="stylesheet" href="/static/css/poker.css?v=1">
   <link rel="stylesheet" href="/static/css/platform.css?v=1">
   <link rel="stylesheet" href="/static/css/lumen.css?v=castle-10">
+  <link rel="stylesheet" href="/static/css/card-room.css?v=2">
   <link rel="stylesheet" href="/static/css/pixel-hop.css?v=1">
   <script src="https://telegram.org/js/telegram-web-app.js" defer></script>
   <script src="/static/js/puzzles.js?v=4" defer></script>
@@ -19,11 +20,13 @@
   <script src="/static/js/chess-pieces.js?v=1" defer></script>
   <script src="/static/js/chess-mode.js?v=1" defer></script>
   <script src="/static/js/poker-cards.js?v=1" defer></script>
-  <script src="/static/js/poker-mode.js?v=1" defer></script>
+  <script src="/static/js/card-room.js?v=1" defer></script>
+  <script src="/static/js/poker-mode.js?v=3" defer></script>
   <script src="/static/js/platform.js?v=1" defer></script>
   <script src="/static/js/lumen-mode.js?v=castle-15" defer></script>
-  <script src="/static/js/pixel-hop-mode.js?v=1" defer></script>
+  <script src="/static/js/card-games.js?v=2" defer></script>
   <script src="/static/js/specimen-mode.js?v=9" defer></script>
+  <script src="/static/js/pixel-hop-mode.js?v=1" defer></script>
   <link rel="stylesheet" href="/static/css/specimen.css?v=5">
   <script src="/static/js/games.js?v=10" defer></script>
 </head>
@@ -40,7 +43,7 @@
     <div id="launchStatus" class="launch-status" role="status"></div>
     <div id="cloudStatus" class="cloud-status hidden" role="status"></div>
     <section class="screen active" data-screen="home" aria-labelledby="homeTitle">
-      <div class="welcome-block"><div><p class="eyebrow">Время для себя</p><h1 id="homeTitle">Во что сыграем?</h1><p class="lead">Выбери игру. Найди свой ритм.</p></div><span class="library-count"><strong>15</strong> игр<br><span>1000 уровней</span></span></div>
+      <div class="welcome-block"><div><p class="eyebrow">Время для себя</p><h1 id="homeTitle">Во что сыграем?</h1><p class="lead">Выбери игру. Найди свой ритм.</p></div><span class="library-count"><strong>18</strong> игр<br><span>1000 уровней</span></span></div>
       <div id="resumeList"></div>
       <button class="together-link" type="button" data-screen-link="lobby"><span><strong>Играть вместе</strong><span>Пригласи друга или найди соперника в покере</span></span><span data-ui-icon="arrow"></span></button>
       <div class="pending-notice hidden" id="pendingNotice"><span>Результат сохранён на устройстве и ждёт отправки.</span><button class="text-button" id="retryPending" type="button">Повторить сохранение</button></div>
@@ -89,12 +92,14 @@
       <div class="chess-opponent"><span class="chess-opponent-avatar" aria-hidden="true">Т</span><div><strong id="chessOpponentName">Любитель</strong><span>Компьютер</span></div><span id="chessTurnStatus" role="status" aria-live="polite">Подготовка партии…</span></div>
       <div id="chessBoardMount"></div>
     </section>
+    <section class="screen" data-screen="cards" aria-labelledby="cardLibraryTitle"><div id="cardLibraryMount"></div></section>
+    <section class="screen cardroom" data-screen="card-game" aria-labelledby="cardGameTitle"><header class="cardroom-toolbar" data-cardroom-toolbar><button class="table-icon" data-cardgame-action="exit" type="button" aria-label="К карточным играм"><span data-ui-icon="back"></span></button><div class="cardroom-title"><span>TERAMONT · КАРТОЧНАЯ КОМНАТА</span><h1 id="cardGameTitle">Карты</h1></div><div class="cardroom-tools"><button class="table-icon" data-cardgame-action="rules" type="button" aria-label="Правила игры"><span data-ui-icon="help"></span></button><button class="table-icon" data-cardgame-action="menu" type="button" aria-label="Меню партии"><span id="cardGameMenuIcon"></span></button><button class="table-icon" data-cardroom-action="fullscreen" type="button" aria-label="Полный экран" aria-pressed="false"><span id="cardGameFullscreenIcon"></span></button></div></header><div id="cardGameMount"></div></section>
     <section class="screen" data-screen="poker" aria-labelledby="pokerSetupTitle">
-      <div class="page-toolbar"><button class="back-button" data-screen-link="home" type="button"><span data-ui-icon="back"></span>Игры</button><span class="page-kicker">Математика за столом</span></div>
+      <div class="page-toolbar"><button class="back-button" data-screen-link="cards" type="button"><span data-ui-icon="back"></span>Карты</button><span class="page-kicker">Математика за столом</span></div>
       <div id="pokerSetupMount"></div>
     </section>
-    <section class="screen" data-screen="poker-game" aria-label="Покерная партия">
-      <div class="game-toolbar"><button class="icon-button" data-poker-action="setup" type="button" aria-label="Вернуться к выбору режима покера"><span data-ui-icon="back"></span></button><h1>Математический покер</h1><button class="icon-button" data-poker-action="rules" type="button" aria-label="Правила покера"><span data-ui-icon="help"></span></button></div>
+    <section class="screen cardroom cardroom-poker" data-screen="poker-game" aria-label="Покерная партия">
+      <div class="game-toolbar cardroom-toolbar"><button class="icon-button table-icon" data-poker-action="setup" type="button" aria-label="Вернуться к выбору режима покера"><span data-ui-icon="back"></span></button><div class="cardroom-title"><span>TERAMONT · КАРТОЧНАЯ КОМНАТА</span><h1>Покер</h1></div><div class="cardroom-tools"><button class="icon-button table-icon" data-poker-action="math" type="button" aria-label="Математическая подсказка"><span data-ui-icon="bulb"></span></button><button class="icon-button table-icon" data-poker-action="rules" type="button" aria-label="Правила покера"><span data-ui-icon="help"></span></button><button class="icon-button table-icon" data-cardroom-action="fullscreen" type="button" aria-label="Полный экран" aria-pressed="false"><span id="pokerFullscreenIcon"></span></button></div></div>
       <div id="pokerMount"></div>
     </section>
     <section class="screen" data-screen="specimen" aria-label="Нулевой образец"><div id="specimenMount"></div></section>
@@ -123,10 +128,10 @@
         </div>
       </div>
     </section>
-
     <section class="screen" data-screen="help" aria-labelledby="helpTitle">
       <button class="back-button" data-screen-link="home" type="button"><span data-ui-icon="back"></span>Игры</button><p class="eyebrow">Без установки</p><h1 class="page-title" id="helpTitle">Играй в своём темпе</h1>
       <div class="help-card"><h2>Десять отдельных кампаний</h2><p>В каждой — 100 уровней и 10 глав. Следующий этап открывается после победы. В судоку постепенно становится меньше исходных цифр, в памяти — больше элементов и раундов, а задачи на числа усложняются.</p></div>
+      <div class="help-card"><h2>Карточная комната</h2><p>Во вкладке «Карты» — подкидной Дурак с ботом, Блэкджек с дилером, Косынка и покер. Весь ход и управление находятся на сукне. Кнопка с четырьмя стрелками включает полный экран. Новые одиночные партии сохраняются на устройстве, XP кампаний не начисляют.</p></div>
       <div class="help-card"><h2>Люмен: последний маяк</h2><p>Одиночный survival-экшен. Двигайся джойстиком или WASD/стрелками, собирай световые осколки и выбирай улучшения. Оружие стреляет само. Достигни 30-го уровня в Биосаду, чтобы открыть Лунный карьер с целью 35. Для покупки нового бойца найди его оружие в случайном выборе и прокачай до VIII стадии за один забег. Пауза — Escape или P. Забег сохраняется на устройстве; XP кампаний не начисляется.</p></div>
       <div class="help-card"><h2>Математический покер</h2><p>Настоящий техасский холдем один на один с компьютером или другом Telegram. Виртуальные фишки, закрытые карты и серверные правила. Подсказки объясняют equity, шансы банка и EV колла. В каталоге выбери покер, затем режим.</p></div>
       <div class="help-card"><h2>Шахматы с компьютером</h2><p>Отдельная свободная игра с шестью уровнями соперника: от новичка до гроссмейстера. Выбери сложность и цвет, затем начни партию без часов. В Telegram позиция и шахматная статистика сохраняются в облаке; без сети — на устройстве. XP и достижения кампаний начисляются в головоломках.</p></div>
@@ -136,7 +141,7 @@
       <div class="help-card"><h2>Экран Telegram</h2><p>Игра запрашивает полный экран и отключение вертикальных свайпов на поддерживаемых клиентах. Закрытие по верхней панели контролирует сам Telegram.</p></div>
     </section>
   </main>
-  <nav class="bottom-nav" aria-label="Разделы"><button class="active" data-screen-link="home" aria-current="page" type="button"><span data-ui-icon="games"></span>Игры</button><button data-screen-link="levels" type="button"><span data-ui-icon="route"></span>Кампании</button><button data-screen-link="profile" type="button"><span data-ui-icon="user"></span>Профиль</button></nav>
+  <nav class="bottom-nav" aria-label="Разделы"><button class="active" data-screen-link="home" aria-current="page" type="button"><span data-ui-icon="games"></span>Игры</button><button data-screen-link="cards" type="button"><span data-ui-icon="cards"></span>Карты</button><button data-screen-link="levels" type="button"><span data-ui-icon="route"></span>Кампании</button><button data-screen-link="profile" type="button"><span data-ui-icon="user"></span>Профиль</button></nav>
   <div class="toast hidden" id="toast" role="status" aria-live="polite"></div>
   <dialog id="chessPromotion" class="chess-promotion" aria-labelledby="chessPromotionTitle"><h2 id="chessPromotionTitle">Превращение пешки</h2><p>Выбери новую фигуру</p><div id="chessPromotionChoices"></div><form method="dialog"><button class="text-button" type="submit">Отмена</button></form></dialog>
 </div>

@@ -7,9 +7,9 @@ async page => {
     await context.route('https://telegram.org/js/telegram-web-app.js',r=>r.fulfill({body:''}));const p=await context.newPage();await p.goto(base);await p.locator('#campaignCards [data-poker-action="setup"]').click();
     let created=false,releaseCreate;const createGate=new Promise(r=>releaseCreate=r);releases.push(releaseCreate);
     await context.route('**/api/poker/solo',async route=>{const response=await route.fetch();created=true;await createGate;await route.fulfill({response});});
-    await p.locator('[data-poker-action="solo"]').click();await wait(()=>created);await p.locator('[data-screen="poker"] [data-screen-link="home"]').click();releaseCreate();
-    await p.waitForFunction(()=>!!saved.poker);assert(await p.evaluate(()=>activeScreen==='home'),'Late room creation must not force navigation');
-    await context.unroute('**/api/poker/solo');await p.locator('[data-resume="poker"]').click();await p.locator('.poker-table').waitFor();
+    await p.locator('[data-poker-action="solo"]').click();await wait(()=>created);await p.locator('[data-screen="poker"] [data-screen-link="cards"]').click();releaseCreate();
+    await p.waitForFunction(()=>!!saved.poker);assert(await p.evaluate(()=>activeScreen==='cards'),'Late room creation must not force navigation');
+    await context.unroute('**/api/poker/solo');await p.evaluate(()=>showScreen('home'));await p.locator('[data-resume="poker"]').click();await p.locator('.poker-table').waitFor();
     const identity=await p.evaluate(()=>({roomId:saved.poker.roomId,token:saved.poker.token}));
     const oldVersion=Number(await p.locator('#pokerMount').getAttribute('data-version'));
     let held=false,released=false,releasePoll;const pollGate=new Promise(r=>releasePoll=r);releases.push(releasePoll);
@@ -19,10 +19,10 @@ async page => {
     await p.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));assert(Number(await p.locator('#pokerMount').getAttribute('data-version'))>oldVersion,'Delayed poll must not roll back the action');assert(await p.locator('.poker-result').isVisible(),'Resolved hand survives stale response');
     await context.unroute(roomUrl);await p.locator('[data-poker-action="next"]').click();await p.locator('.poker-actions').waitFor();
     await context.route('**/api/poker/rooms/*/hint',async route=>{const response=await route.fetch(),data=await response.json();await route.fulfill({response,json:{...data,version:data.version+1,equity:.999}});});
-    await p.locator('[data-poker-action="hint"]').click();await p.waitForFunction(()=>!document.querySelector('[data-poker-action="hint"]').disabled);assert(await p.locator('.poker-ev').count()===0,'Hint from another version must not display');await context.unroute('**/api/poker/rooms/*/hint');
+    await p.locator('[data-poker-action="math"]').click();await p.waitForFunction(()=>!document.querySelector('[data-poker-action="hint"]').disabled);assert(await p.locator('.poker-ev').count()===0,'Hint from another version must not display');await context.unroute('**/api/poker/rooms/*/hint');await p.locator('[data-poker-action="closemath"]').click();
     let left=false,releaseLeave;const leaveGate=new Promise(r=>releaseLeave=r);releases.push(releaseLeave);
     await context.route('**/api/poker/rooms/*/action',async route=>{if(route.request().postDataJSON().action!=='leave')return route.continue();const response=await route.fetch();left=true;await leaveGate;await route.fulfill({response});});
-    p.on('dialog',d=>d.accept());await p.locator('[data-poker-action="leave"]').click();await wait(()=>left);await p.locator('[data-screen="poker-game"] [data-poker-action="setup"]').click();await p.locator('[data-screen="poker"] [data-screen-link="home"]').click();releaseLeave();await p.waitForFunction(()=>saved.poker===null);assert(await p.evaluate(()=>activeScreen==='home'),'Leaving completion preserves navigation');
+    p.on('dialog',d=>d.accept());await p.locator('[data-poker-action="leave"]').click();await wait(()=>left);await p.locator('[data-screen="poker-game"] [data-poker-action="setup"]').click();await p.locator('[data-screen="poker"] [data-screen-link="cards"]').click();releaseLeave();await p.waitForFunction(()=>saved.poker===null);assert(await p.evaluate(()=>activeScreen==='cards'),'Leaving completion preserves navigation');
     return {lateCreateNavigation:true,stalePollIgnored:true,hintVersionGuard:true,lateLeaveCleared:true};
   }finally{releases.forEach(r=>r());await context.close();}
 }

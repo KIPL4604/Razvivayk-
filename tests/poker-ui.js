@@ -28,12 +28,12 @@ async (page) => {
     assert(!layout.overflow,'Horizontal overflow at '+width);results.push(layout);
   }
   await page.setViewportSize({width:375,height:812});
-  await page.locator('[data-poker-action="hint"]').click();await page.locator('.poker-ev').waitFor();
+  await page.locator('[data-poker-action="math"]').click();await page.locator('.poker-ev').waitFor();
   await page.locator('#pokerMathMount').scrollIntoViewIfNeeded();await snap(page,'poker-hint-375-iteration2');
   await page.route('**/api/poker/**',r=>r.abort());
   await page.locator('[data-poker-action="hint"]').click();await page.locator('#pokerConnectionError:not(.hidden)').waitFor();await snap(page,'poker-offline-375');
-  await page.unroute('**/api/poker/**');await page.locator('[data-poker-action="retry"]').click();await page.locator('#pokerConnectionError.hidden').waitFor({state:'attached'});
-  await page.locator('[data-poker-action="rules"]').focus();await page.keyboard.press('Enter');assert(await page.locator('#pokerRules').evaluate(el=>el.open),'Keyboard rules button');await page.locator('[data-poker-action="rules"]').click();
+  await page.unroute('**/api/poker/**');await page.locator('[data-poker-action="closemath"]').click();await page.locator('[data-poker-action="retry"]').click();await page.locator('#pokerConnectionError.hidden').waitFor({state:'attached'});
+  await page.locator('[data-poker-action="rules"]').focus();await page.keyboard.press('Enter');assert(await page.locator('#pokerRules').evaluate(el=>el.open),'Keyboard rules button');await page.locator('[data-poker-action="closerules"]').click();
   // Legal raise and then actual play to a resolved hand, always through visible UI.
   if((await stateOf(page)).legalActions.includes('raise')){await page.locator('#pokerRaiseForm button[type="submit"]').click();await page.locator('.poker-controls button:not(:disabled)').first().waitFor();}
   for(let i=0;i<12;i++){

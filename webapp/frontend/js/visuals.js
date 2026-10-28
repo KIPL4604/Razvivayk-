@@ -2,6 +2,7 @@
 // Original Teramont game illustrations. Star glyph adapted from Iconimate/Phosphor;
 // attribution and MIT license are in frontend/THIRD_PARTY_NOTICES.md.
 const UI_PATHS={
+  cards:'<path d="m8 4-3-.5a2 2 0 0 0-2.3 1.7L1 16a2 2 0 0 0 1.7 2.3L6 19"/><rect x="8" y="3" width="13" height="18" rx="2"/><path d="m14.5 8 3 4-3 4-3-4Z"/>',
   arrow:'<path d="M5 12h14m-5-5 5 5-5 5"/>',
   back:'<path d="M19 12H5m5-5-5 5 5 5"/>',
   games:'<rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><path d="M17.5 14v7M14 17.5h7"/>',
