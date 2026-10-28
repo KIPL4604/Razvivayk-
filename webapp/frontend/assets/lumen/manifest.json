@@ -296,6 +296,14 @@
     "castle/castle-wax-raw.png": {
       "bytes": 1885567,
       "sha256": "5aed79424b42a855c755af90edab3f8787edb3df98f2d8514b270426c198011c"
+    },
+    "castle-polish/castle-door-raw.png": {
+      "bytes": 2506165,
+      "sha256": "2d6be4ee30bf7aeb9191fac6d7553934091ce0c5eb90235c3ba60a66d1de3477"
+    },
+    "castle-polish/enemy-projectiles-raw.png": {
+      "bytes": 1902938,
+      "sha256": "a7ff0d22f330f81a2d1f0bd661ba4a763f47ab9a5e2ee04bf4109e493b94bfa5"
     }
   },
   "font": {
@@ -684,6 +692,20 @@
       "pack": "sprites-07.pack",
       "offset": 39962,
       "packBytes": 88360
+    },
+    "enemy-projectiles.png": {
+      "bytes": 16217,
+      "sha256": "5b5ce38fdd689a04989831dabafdb35e2bd7b296c5ac9cb102cf36d1661fe480",
+      "pack": "sprites-07.pack",
+      "offset": 128322,
+      "packBytes": 5102
+    },
+    "castle-door.png": {
+      "bytes": 454402,
+      "sha256": "479cb97faf2645019728d2880be0beb65fb4fe3cdc96074391ed14b65bcf1c50",
+      "pack": "sprites-08.pack",
+      "offset": 0,
+      "packBytes": 153080
     }
   },
   "actors": {
@@ -2262,9 +2284,40 @@
     },
     {
       "file": "sprites-07.pack",
-      "bytes": 128322,
-      "sha256": "0196131abb19e6f925c559b3d7254e0e0b5dfe684e74a15c51dd2bc2838b1454"
+      "bytes": 133424,
+      "sha256": "776cc7ad603c97195c6b14baa19267d460100bf2034029e19bb0146875544f29"
+    },
+    {
+      "file": "sprites-08.pack",
+      "bytes": 153080,
+      "sha256": "6f559b2724f7e694a696019db065f60a6fc33b707dac089dd3b5c612ac202e6f"
     }
   ],
-  "packFormat": "image/webp"
+  "packFormat": "image/webp",
+  "enemyProjectiles": {
+    "file": "enemy-projectiles.png",
+    "frameSize": 32,
+    "columns": 6,
+    "rows": 4,
+    "anchor": [
+      25,
+      16
+    ],
+    "families": [
+      "ruby",
+      "amber",
+      "wax",
+      "paper"
+    ]
+  },
+  "castleDoor": {
+    "file": "castle-door.png",
+    "frameSize": 256,
+    "columns": 6,
+    "rows": 1,
+    "anchor": [
+      128,
+      244
+    ]
+  }
 }

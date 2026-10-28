@@ -60,7 +60,7 @@ export function updateExpansionWeapons(state,dt,{hit,effect,limits}){
       const dx=z.x-e.x,dy=z.y-e.y,distance=Math.hypot(dx,dy)||1;
       const resistance=(e.kind==='guardian'||e.elite) ? .25 : 1;
       const pull=Math.min(Math.max(0,distance-e.radius-4),dt*65*resistance);
-      if(!['arena-tick','arena-boss'].includes(e.kind)){e.x+=dx/distance*pull;e.y+=dy/distance*pull;}
+      if(!['arena-tick','arena-boss','castle-door'].includes(e.kind)){e.x+=dx/distance*pull;e.y+=dy/distance*pull;}
       if(z.tick<=0)hit(state,e,z.damage,0,z.kind);
     }
     if(z.tick<=0){z.tick=.45;emit('pulse',z.x,z.y,z.radius,.35,z.kind);}

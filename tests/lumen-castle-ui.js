@@ -1,5 +1,5 @@
 async (page, options = {}) => {
-  const iteration=options.iteration||'v4',out=options.output||'D:/Codex-artifacts/lumen-castle-20261028/';
+  const iteration=options.iteration||'polish-v3',out=options.output||'D:/Codex-artifacts/lumen-castle-polish-20261028/';
   const context=await page.context().browser().newContext({viewport:{width:1440,height:900},hasTouch:true});
   const p=await context.newPage(),errors=[],badAssets=[],checks=[];
   const assert=(ok,msg)=>{if(!ok)throw Error(msg);};
@@ -14,25 +14,43 @@ async (page, options = {}) => {
       const {CASTLE,updateCastleGoal}=await import('/static/js/lumen/castle.mjs');
       const r=core.createRun({seed:527,character:'scout',map:'castle',runId:'castle-browser-'+kind});
       r.time=420;r.spawnedGuardians=3;r.spawnedElites=4;r.spawnTimer=3;
-      const ordinary=['corridor','actors','conductor','gatekeeper'].includes(kind);
-      r.level=ordinary?44:45;r.xpNext=xpForLevel(r.level);r.player.x=345;r.player.y=420;
-      r.upgrades={spark:8,orbit:8,pulse:8,flame:8,laurel:3,heart:3,aegis:3};
+      const ordinary=['corridor','actors','conductor','gatekeeper','enemy-fire'].includes(kind);
+      r.level=ordinary?44:45;r.xpNext=xpForLevel(r.level);r.player.x=0;r.player.y=420;
+      r.upgrades={spark:8,orbit:8,pulse:8,flame:8,focus:5,haste:4,laurel:3,heart:3,aegis:3};
       r.foundWeapons=['orbit','pulse','flame'];r.masteredWeapons=['orbit','pulse','flame'];r.relicState.shield=3;
       updateCastleGoal(r);
-      if(['actors','conductor','gatekeeper'].includes(kind)){
+      if(['actors','conductor','gatekeeper','enemy-fire'].includes(kind)){
         r.upgrades={spark:1};r.foundWeapons=[];r.masteredWeapons=[];r.relicState.shield=0;r.player.y=500;
-        const spots=kind==='actors'?[[190,420,'palace-guard'],[450,690,'wax-servant'],[120,880,'paper-moth']]:[[200,450,'guardian']];
-        r.enemies=spots.map(([x,y,enemyKind],i)=>({id:10+i,x,y,kind:enemyKind,hp:8000,maxHp:8000,radius:enemyKind==='guardian'?40:15,speed:0,damage:7,value:12,phase:i*.3,hitFlash:0,guardianStage:enemyKind==='guardian'?1:0,fireTimer:3,elite:false,slowTime:0,actionTimer:0,...(enemyKind==='guardian'?{bossType:kind,attackStage:0}:{})}));
+        const spots=kind==='actors'?[[-85,420,'palace-guard'],[85,690,'wax-servant'],[-20,880,'paper-moth']]:kind==='enemy-fire'?[[-80,300,'paper-moth'],[90,370,'wax-servant']]:[[-100,450,'guardian']];
+        r.enemies=spots.map(([x,y,enemyKind],i)=>({id:10+i,x,y,kind:enemyKind,hp:8000,maxHp:8000,radius:enemyKind==='guardian'?40:15,speed:0,damage:7,value:12,phase:i*.3,hitFlash:0,guardianStage:enemyKind==='guardian'?1:0,fireTimer:kind==='actors'?3:.05,elite:false,slowTime:0,actionTimer:0,...(enemyKind==='guardian'?{bossType:kind,attackStage:0}:{})}));
         r.nextId=100;
       }else if(kind==='corridor'||kind==='guidance'){
-        const spots=[[170,320,'palace-guard'],[480,580,'wax-servant'],[120,600,'paper-moth']];
-        r.enemies=spots.map(([x,y,kind],i)=>({id:10+i,x,y,kind,hp:2000,maxHp:2000,radius:15,speed:20,damage:7,value:12,phase:i*.3,hitFlash:0,guardianStage:0,fireTimer:3,elite:false,slowTime:0,actionTimer:0}));
+        const spots=[[-80,320,'palace-guard'],[100,580,'wax-servant'],[-80,650,'paper-moth']];
+        r.enemies.push(...spots.map(([x,y,kind],i)=>({id:10+i,x,y,kind,hp:2000,maxHp:2000,radius:15,speed:20,damage:7,value:12,phase:i*.3,hitFlash:0,guardianStage:0,fireTimer:3,elite:false,slowTime:0,actionTimer:0})));
         r.nextId=100;
-        r.gems=[{x:300,y:510,value:2,tier:1},{x:390,y:550,value:12,tier:2}];
+        r.gems=[{x:-60,y:510,value:2,tier:1},{x:60,y:550,value:12,tier:2}];
       }else{
-        r.player.x=0;r.player.y=CASTLE.bossY+450;
-        core.step(r,{},1/60);
-        if(kind!=='forming')for(let n=0;n<151;n++)core.step(r,{},1/60);
+        // Prepared start near the real closed door; breach it with the actual
+        // four weapons and walk across the plane. No door-HP assignment/teleport.
+        r.player.x=0;r.player.y=r.castle.doorY+120;
+        if(kind!=='door'){
+          for(let n=0;n<3600&&!r.arena;n++){
+            const y=r.player.y;core.step(r,{y:-1},1/60);
+            if(Math.abs(r.player.y-y)>r.player.speed/60+.01)throw Error('Door traversal teleported the player');
+          }
+          if(!r.arena||!r.castle.doorBroken)throw Error('Real weapons/walk failed to enter the hall');
+          if(kind!=='forming')for(let n=0;n<151;n++)core.step(r,{},1/60);
+        }
+        if(kind==='dense-ring'){
+          // Prepared valid projectile field for visibility/load review, not a
+          // claimed ordinary boss attack or normal-route playthrough.
+          r.upgrades={spark:1,laurel:3};r.foundWeapons=[];r.masteredWeapons=[];r.relicState.shield=3;
+          r.projectiles=[];r.enemies.find(e=>e.kind==='arena-boss').fireTimer=4;
+          for(const radius of [140,240,340])for(let n=0;n<24;n++){
+            const a=n/24*Math.PI*2;if(Math.abs(a-Math.PI/2)<.55)continue;
+            r.projectiles.push({id:r.nextId++,x:r.arena.x+Math.cos(a)*radius,y:r.arena.y+Math.sin(a)*radius,vx:Math.cos(a)*130,vy:Math.sin(a)*130,radius:6,damage:20,life:4,hostile:true,weapon:'hostile',pierce:0,hits:[],returning:false});
+          }
+        }
         if(['reward','celebrating'].includes(kind)){
           r.enemies.find(e=>e.kind==='arena-boss').hp=1;
           for(let n=0;n<240&&r.arena.phase==='fighting';n++)core.step(r,{},1/60);
@@ -73,6 +91,11 @@ async (page, options = {}) => {
       assert((await p.locator('#lumenWave').innerText()).includes('СТРЕЛКОЙ'),'Guidance announced');
       await p.keyboard.press('Escape');await p.reload();await p.locator('[data-resume="lumen"]').click();await p.locator('[data-lumen-action="continue"]').click();
       assert(await p.locator('#lumenGameMount').getAttribute('data-guidance')==='true','Guidance survives reload');
+      await seed('door');await shot('door-closed',width);
+      const doorStart=await p.evaluate(()=>({y:saved.lumen.run.player.y,doorY:saved.lumen.run.castle.doorY,hp:saved.lumen.run.enemies.find(e=>e.kind==='castle-door').maxHp}));
+      await p.keyboard.down('w');await p.waitForTimeout(350);await shot('door-cracking',width);
+      await p.locator('#lumenBossName').filter({hasText:'Полый монарх'}).waitFor({timeout:15000});await p.keyboard.up('w');await p.waitForTimeout(900);await shot('door-entered',width);await p.keyboard.press('Escape');
+      assert(await p.evaluate(start=>{const r=saved.lumen.run;return start.hp===6000&&start.y>start.doorY&&r.castle.doorBroken&&r.player.y<r.castle.doorY&&r.arena.y===r.castle.hallY;},doorStart),'Real keyboard path breaches the full-HP door and enters its dynamic hall');
       await seed('forming');await shot('forming',width);
       assert(await p.locator('#lumenBossName').innerText()==='Полый монарх','Monarch name');
       assert(await p.locator('#lumenBossMeter').getAttribute('aria-valuemax')==='52000','Actual final-boss HP');
@@ -103,25 +126,26 @@ async (page, options = {}) => {
       await p.locator('#lumenDialogTitle').filter({hasText:'Замок угасшего света пройден'}).waitFor();await shot('result',width);
       assert((await p.locator('#lumenOverlay').innerText()).includes('Полый монарх повержен'),'Castle-specific result copy');
       assert(await p.evaluate(()=>saved.lumen.run===null&&saved.lumen.meta.coins===1200&&saved.lumen.meta.clearedMaps.includes('castle')),'Victory recorded after reload without duplicate reward');
-      checks.push(width+'px menu/corridor/guidance/reload/monarch/HUD/keyboard/reward800/fountain/reload/result');
+      checks.push(width+'px menu/narrow-corridor/guidance/reload/real-keyboard-door6000/walk/hall/monarch/HUD/reward800/fountain/reload/result');
       await p.locator('[data-lumen-action="exit"]').click();
     }
     for(const [width,height] of [[375,812],[1440,900]]){
       await p.setViewportSize({width,height});
-      for(const kind of ['actors','conductor','gatekeeper']){
+      for(const kind of ['actors','conductor','gatekeeper','enemy-fire','dense-ring']){
         await seed(kind);await shot(kind,width);
-        if(kind!=='actors')assert(await p.locator('#lumenBossName').innerText()===(kind==='conductor'?'Капельмейстер':'Латунный привратник'),'Mini-boss name '+kind);
+        if(['conductor','gatekeeper','enemy-fire'].includes(kind)){await p.waitForTimeout(900);await shot(kind+'-projectiles',width);}
+        if(['conductor','gatekeeper'].includes(kind))assert(await p.locator('#lumenBossName').innerText()===(kind==='conductor'?'Капельмейстер':'Латунный привратник'),'Mini-boss name '+kind);
         await p.keyboard.press('Escape');
-        assert(await p.evaluate(kind=>kind==='actors'?saved.lumen.run.enemies.some(e=>e.kind==='palace-guard')&&saved.lumen.run.enemies.some(e=>e.kind==='wax-servant')&&saved.lumen.run.enemies.some(e=>e.kind==='paper-moth'):saved.lumen.run.enemies.some(e=>e.bossType===kind),kind),'Actors persist in a valid run '+kind);
+        assert(await p.evaluate(kind=>kind==='actors'?saved.lumen.run.enemies.some(e=>e.kind==='palace-guard')&&saved.lumen.run.enemies.some(e=>e.kind==='wax-servant')&&saved.lumen.run.enemies.some(e=>e.kind==='paper-moth'):kind==='dense-ring'?saved.lumen.run.projectiles.filter(e=>e.hostile).length>=50:kind==='enemy-fire'?saved.lumen.run.projectiles.some(e=>e.hostile&&e.radius===24)&&saved.lumen.run.projectiles.some(e=>e.hostile&&e.radius===6):saved.lumen.run.enemies.some(e=>e.bossType===kind)&&saved.lumen.run.projectiles.some(e=>e.hostile),kind),'Actors and authored projectiles persist in a valid run '+kind);
       }
-      checks.push(width+'px ordinary3actors/conductor/gatekeeper prepared snapshots');
+      checks.push(width+'px ordinary3actors/conductor/gatekeeper/paper-wax-fire/dense-ring prepared snapshots');
     }
     await p.setViewportSize({width:375,height:812});await seed('corridor');
     const touch=await context.newCDPSession(p);
     await touch.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:180,y:510,id:1}]});
     await touch.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:208,y:530,id:1}]});await p.waitForTimeout(180);
     await touch.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});await p.keyboard.press('Escape');await touch.detach();
-    assert(await p.evaluate(()=>saved.lumen.run.player.x>345&&saved.lumen.run.player.y>420),'Native joystick works');
+    assert(await p.evaluate(()=>saved.lumen.run.player.x>0&&saved.lumen.run.player.y>420),'Native joystick works');
     const controls=p.locator('#lumenOverlay button,#lumenOverlay summary');await controls.last().focus();await p.keyboard.press('Tab');
     assert(await controls.first().evaluate(e=>e===document.activeElement),'Pause focus trap');
     await p.emulateMedia({reducedMotion:'reduce'});await seed('guidance');await shot('reduced-motion',375);await p.keyboard.press('Escape');
@@ -132,11 +156,16 @@ async (page, options = {}) => {
       const canvas=document.createElement('canvas');canvas.style.cssText='position:fixed;inset:0;width:375px;height:812px;z-index:10000';document.body.append(canvas);
       const renderer=new Renderer(canvas,await loadArt());renderer.resize();renderer.captureTick(run);
       for(let n=0;n<8;n++)renderer.draw(run);
-      const result={unchanged:before===JSON.stringify(serialize(run)),heroCss:96*renderer.scale};
+      const atlas=renderer.art.images['enemy-projectiles'],anchor=renderer.art.manifest.enemyProjectiles.anchor,original=renderer.ctx.drawImage,draws=[];
+      renderer.ctx.drawImage=function(...args){if(args[0]===atlas)draws.push(args.slice(1));return original.apply(this,args);};
+      renderer.enemyVfx.sprite(renderer,0,0,0,0,32,0,1);renderer.ctx.drawImage=original;
+      const width=Math.round(32*renderer.zoom),sample=draws[0];
+      const result={unchanged:before===JSON.stringify(serialize(run)),heroCss:96*renderer.scale,atlas:[atlas.width,atlas.height],anchor,headAligned:sample[4]===-width*anchor[0]/32&&sample[5]===-width*anchor[1]/32};
       renderer.destroy();canvas.remove();return result;
     });
     assert(purity.unchanged,'Renderer must not mutate serialized state');
     assert(purity.heroCss>=40,'Mobile exploration hero remains readable');
+    assert(purity.atlas[0]===192&&purity.atlas[1]===128&&purity.anchor[0]===25&&purity.anchor[1]===16&&purity.headAligned,'Authored projectile source head aligns with its simulation point');
     assert(!errors.length&&!badAssets.length,JSON.stringify({errors,badAssets}));
     checks.push('Native touch, pause focus, reduced motion, pure rendering, mobile actor scale');
     return {iteration,checks,purity,errors,badAssets,output:out};

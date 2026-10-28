@@ -4,26 +4,27 @@ import {normalizeMeta,bankCoins,recordProgress} from '../webapp/frontend/js/lume
 import {createRun,step,chooseUpgrade,restore,serialize} from '../webapp/frontend/js/lumen/engine.mjs';
 import {WEAPON_IDS} from '../webapp/frontend/js/lumen/catalog.mjs';
 import {bodyRadius,PLAYER_BODY} from '../webapp/frontend/js/lumen/physics.mjs';
-import {CASTLE,castleProps} from '../webapp/frontend/js/lumen/castle.mjs';
+import {CASTLE,castleProps,castleGuidance} from '../webapp/frontend/js/lumen/castle.mjs';
 function steer(run,frame,memory){
  if(frame%6&&memory.input)return memory.input;
  const p=run.player;
- if(run.arena&&['forming','fighting'].includes(run.arena.phase)){const dx=p.x,dy=p.y+2000,d=Math.hypot(dx,dy)||1,r=(330-d)*.04;return memory.input={x:-dy/d+dx/d*r,y:dx/d+dy/d*r};}
+ if(run.arena&&['forming','fighting'].includes(run.arena.phase)){const dx=p.x-run.arena.x,dy=p.y-run.arena.y,d=Math.hypot(dx,dy)||1,r=(330-d)*.04;return memory.input={x:-dy/d+dx/d*r,y:dx/d+dy/d*r};}
  let target=null,nearest=Infinity;
  for(const item of [...run.chests,...run.gems]){const d=Math.hypot(item.x-p.x,item.y-p.y);if(d<nearest){nearest=d;target=item;}}
- if(run.castle.phase==='guidance')target={x:0,y:-2000};
+ if(castleGuidance(run))target=castleGuidance(run);
  const nearby=run.enemies.filter(e=>e.hp>0&&Math.hypot(e.x-p.x,e.y-p.y)<280);
  if(!target&&run.enemies.length){const e=run.enemies.reduce((a,b)=>Math.hypot(a.x-p.x,a.y-p.y)<Math.hypot(b.x-p.x,b.y-p.y)?a:b);const dx=p.x-e.x,dy=p.y-e.y,d=Math.hypot(dx,dy)||1;target={x:e.x+dx/d*130,y:e.y+dy/d*130};}
  const gx=target?target.x-p.x:Math.cos(frame/260),gy=target?target.y-p.y:Math.sin(frame/260),gd=Math.hypot(gx,gy)||1;
- const shots=run.projectiles.filter(s=>s.hostile&&Math.hypot(s.x-p.x,s.y-p.y)<230),props=castleProps(p.y-180,p.y+180);
+ const shots=run.projectiles.filter(s=>s.hostile&&Math.hypot(s.x-p.x,s.y-p.y)<230),props=castleProps(p.y-180,p.y+180,run);
  let best=-Infinity,input={x:0,y:0};
  for(let i=0;i<24;i++){
   const a=i*Math.PI/12,x=Math.cos(a),y=Math.sin(a);
   let score=(x*gx+y*gy)/gd+.18*(x*(memory.input?.x||0)+y*(memory.input?.y||0));
   for(const h of [.2,.5]){
    const px=p.x+x*p.speed*h,py=p.y+y*p.speed*h;
-   if(Math.abs(px)>650)score-=(Math.abs(px)-650)/8;
-   if(run.level<45&&py<CASTLE.gateY+55)score-=(CASTLE.gateY+55-py)/8;
+   const corridorSafe=CASTLE.halfWidth-70;
+   if(Math.abs(px)>corridorSafe)score-=(Math.abs(px)-corridorSafe)/8;
+   if(run.castle.doorY!==null&&!run.castle.doorBroken&&py<run.castle.doorY+55)score-=(run.castle.doorY+55-py)/8;
    for(const prop of props){const d=Math.hypot(px-prop.x,py-prop.y)-PLAYER_BODY-prop.radius;if(d<25)score-=(25-d)/8;}
    for(const e of nearby){
     const dx=p.x-e.x,dy=p.y-e.y,d=Math.hypot(dx,dy)||1;
@@ -46,9 +47,9 @@ function steer(run,frame,memory){
 // QA only: the run is never edited. Steering reads threats, floor geometry,
 // warnings and pickups; all equipment comes from the real offered choices.
 test('a normal Keeper castle expedition reaches45, follows guidance, defeats the monarch and opens one800reward',{timeout:120000},t=>{
- const character='keeper',run=createRun({seed:17,map:'castle',character}),memory={},phases=new Set();
+ const character='keeper',run=createRun({seed:23,map:'castle',character}),memory={},phases=new Set();
  const pref=[Object.keys(run.upgrades)[0],'pulse','flame','spark','storm','orbit','focus','haste','aegis','laurel','heart','chronogear','amplifier','collector','carapace','ember','compass','hourglass','magnet','vitality','stride','repair'];
- let goalAt=null,upgradeChoices=0,guidanceSeen=false;
+ let goalAt=null,upgradeChoices=0,guidanceSeen=false,doorSeen=false,doorBrokenSeen=false;
  for(let frame=0;frame<1800*60&&!['won','lost'].includes(run.status);frame++){
   step(run,steer(run,frame,memory),1/60);
   while(run.status==='upgrade'){
@@ -60,6 +61,8 @@ test('a normal Keeper castle expedition reaches45, follows guidance, defeats the
   }
   if(run.level===45&&goalAt===null)goalAt=run.time;
   if(run.castle.phase==='guidance'&&!run.arena)guidanceSeen=true;
+  if(run.enemies.some(e=>e.kind==='castle-door'&&e.maxHp===6000))doorSeen=true;
+  if(run.castle.doorBroken)doorBrokenSeen=true;
   if(run.arena&&!phases.has(run.arena.phase)){
    phases.add(run.arena.phase);
    const resumed=restore(serialize(run));
@@ -70,6 +73,7 @@ test('a normal Keeper castle expedition reaches45, follows guidance, defeats the
  assert.equal(run.status,'won',JSON.stringify({time:run.time,level:run.level,hp:run.player.hp,phase:run.arena?.phase}));
  assert.equal(run.level,45);assert.equal(run.endReason,'boss');assert(run.player.hp>0);
  assert.equal(upgradeChoices,43);assert(guidanceSeen,'route skipped the independent guidance phase');
+ assert(doorSeen&&doorBrokenSeen,'route skipped destruction of the real6000HPdoor');
  assert.deepEqual([...phases],['forming','fighting','reward','celebrating','complete']);
  assert.equal(run.arena.kind,'castle');assert.equal(run.enemies.length,0);assert.equal(run.chests.length,0);
  const reward=run.lootLog.filter(item=>item.id===run.arena.rewardId);
@@ -80,6 +84,6 @@ test('a normal Keeper castle expedition reaches45, follows guidance, defeats the
  assert.equal(bankCoins(meta,run),run.coinsEarned);assert.equal(bankCoins(meta,resumed),0);
  recordProgress(meta,run);assert(meta.clearedMaps.includes('castle'));
  assert.deepEqual(run.training,{vigor:0,lens:0,drive:0,compass:0});
- t.diagnostic(JSON.stringify({character,seed:17,goalAt:goalAt.toFixed(2),wonAt:run.time.toFixed(2),
+ t.diagnostic(JSON.stringify({character,seed:23,goalAt:goalAt.toFixed(2),wonAt:run.time.toFixed(2),
    hp:run.player.hp.toFixed(2),kills:run.kills,coins:run.coinsEarned,openedChests:run.openedChests,upgradeChoices}));
 });

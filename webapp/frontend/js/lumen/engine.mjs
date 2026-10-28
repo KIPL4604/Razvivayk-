@@ -10,7 +10,7 @@ import {CONTACT_PERIOD,movePlayer,separateCrowd,touchingEnemies,contactDamage} f
 import {normalizeTraining,validTraining} from './training.mjs';
 import {startArena,updateArena,enforceArenaBoundary,bossDeath,markArenaChestOpened,validateArena} from './arena.mjs';
 import {updateBossAttacks,validateBossFields} from './bosses.mjs';
-import {createCastle,updateCastleGoal,castleColliders,constrainCastleEntity,validateCastle,castleCreatureStats,updateCastleEnemy} from './castle.mjs';
+import {CASTLE,createCastle,castleLayout,ensureCastleExit,breakCastleDoor,updateCastleGoal,castleColliders,constrainCastleEntity,validateCastle,castleCreatureStats,updateCastleEnemy} from './castle.mjs';
 
 export const DURATION = 480; // Historical benchmark for older harnesses; no time limit.
 export const LIMITS = Object.freeze({ enemies: 240, projectiles: 100, gems: 220, effects: 80, zones:24, chests:12 });
@@ -28,7 +28,7 @@ export const UPGRADES = Object.freeze([
 const H = 1 / 60;
 const TAU = Math.PI * 2;
 const GUARDIAN_TIMES = [120, 240, 420];
-const TYPES = [...ENEMIES, 'guardian','arena-boss','arena-tick'];
+const TYPES = [...ENEMIES, 'guardian','arena-boss','arena-tick','castle-door'];
 const CATALOG = new Map(UPGRADES.map((upgrade) => [upgrade.id, upgrade]));
 const own = (object, key) => Object.prototype.hasOwnProperty.call(object, key);
 const clamp = (value, low, high) => Math.max(low, Math.min(high, value));
@@ -69,7 +69,7 @@ export function createRun({ seed = 0x1a71be, character = 'scout',runId,map='gard
   const normalizedSeed = Number.isInteger(seed) ? seed >>> 0 : 0x1a71be;
   const selected = own(CHARACTERS, character) ? character : 'scout';
   const state = {
-    version: 9, castle:map==='castle'?createCastle():null,arena:null,relicState:{shield:0,recharge:0,surge:0},archivedWeapons:{}, training:normalizeTraining(training),map:own(MAPS,map)?map:'garden',foundWeapons:[],masteredWeapons:[], seed: normalizedSeed, rngState: normalizedSeed || 0x9e3779b9,
+    version: 10, castle:map==='castle'?createCastle():null,arena:null,relicState:{shield:0,recharge:0,surge:0},archivedWeapons:{}, training:normalizeTraining(training),map:own(MAPS,map)?map:'garden',foundWeapons:[],masteredWeapons:[], seed: normalizedSeed, rngState: normalizedSeed || 0x9e3779b9,
     runId:typeof runId==='string'&&/^[a-zA-Z0-9-]{1,90}$/.test(runId)?runId:`run-${normalizedSeed.toString(16)}-${selected}`,
     character: selected, time: 0, status: 'playing', endReason: '',
     player: { x: 0, y: 0, hp: CHARACTERS[selected].hp, maxHp: CHARACTERS[selected].hp,
@@ -116,7 +116,7 @@ function hit(state, enemy, amount, push = 0,weapon) {
   enemy.hp -= amount;
   enemy.hitFlash = 0.12;
   if(weapon&&own(WEAPONS,weapon)&&state.effects.length<LIMITS.effects-8){effect(state,'impact',enemy.x,enemy.y,Math.min(48,enemy.radius+9),.22);state.effects.at(-1).weapon=weapon;}
-  if (push&&enemy.kind!=='arena-boss') {
+  if (push&&!['arena-boss','castle-door'].includes(enemy.kind)) {
     const dx = enemy.x - state.player.x;
     const dy = enemy.y - state.player.y;
     const distance = Math.hypot(dx, dy) || 1;
@@ -124,6 +124,7 @@ function hit(state, enemy, amount, push = 0,weapon) {
     enemy.y += dy / distance * push;
   }
   if (enemy.hp <= 0) {
+    if(enemy.kind==='castle-door'&&breakCastleDoor(state,enemy,{effect}))return;
     if(enemy.kind==='arena-boss'&&bossDeath(state,enemy,{effect}))return;
     state.kills += 1;
     if (enemy.kind === 'guardian') {
@@ -169,7 +170,7 @@ function spawn(state, guardianStage = 0, wave = waveAt(state.time),elite=false) 
     let farthest = -1;
     for (let i = 0; i < state.enemies.length; i += 1) {
       const candidate = state.enemies[i];
-      if (candidate.kind === 'guardian'||candidate.elite) continue;
+      if (candidate.kind === 'guardian'||candidate.kind==='castle-door'||candidate.elite) continue;
       const d = distanceSquared(candidate, state.player);
       if (d > farthest) { farthest = d; index = i; }
     }
@@ -219,7 +220,7 @@ function spawn(state, guardianStage = 0, wave = waveAt(state.time),elite=false) 
 function creatures(state, dt) {
   for (const enemy of state.enemies) {
     if (enemy.hp <= 0) continue;
-    if(['arena-boss','arena-tick'].includes(enemy.kind))continue;
+    if(['arena-boss','arena-tick','castle-door'].includes(enemy.kind))continue;
     if(enemy.bossType){updateBossAttacks(state,enemy,dt,{hurt,effect,limits:LIMITS});continue;}
     if(updateCastleEnemy(state,enemy,dt,{hurt,effect,limits:LIMITS}))continue;
     enemy.hitFlash = Math.max(0, enemy.hitFlash - dt);
@@ -272,7 +273,7 @@ function creatures(state, dt) {
       }
     }
   }
-  state.enemies = state.enemies.filter((enemy) => enemy.hp > 0 && (enemy.kind === 'guardian' || distanceSquared(enemy, state.player) < 1650 ** 2));
+  state.enemies = state.enemies.filter((enemy) => enemy.hp > 0 && (['guardian','castle-door'].includes(enemy.kind) || distanceSquared(enemy, state.player) < 1650 ** 2));
 }
 
 function projectiles(state, dt) {
@@ -387,7 +388,16 @@ function collect(state, dt) {
 }
 
 function tick(state, input, dt) {
-  updateCastleGoal(state);
+  updateCastleGoal(state,dt);
+  // A saved run from the former wider corridor may resume beyond a side wall.
+  // Project before movement/spawns and give brief arrival grace so its existing
+  // crowd cannot hit the player on the same tick as this geometry adjustment.
+  const layout=state.map==='castle'?castleLayout(state):null;
+  const insideHall=layout?.doorBroken&&layout.doorY!==null&&state.player.y<layout.doorY;
+  if(state.map==='castle'&&!state.arena&&!insideHall&&Math.abs(state.player.x)>CASTLE.halfWidth-20){
+    constrainCastleEntity(state.player,state);
+    state.player.invulnerable=Math.max(state.player.invulnerable,.8);
+  }
   if(state.level>=MAPS[state.map].goal&&!MAPS[state.map].bossGoal){state.status='won';state.endReason='level';state.choices=[];return;}
   if(state.level>=MAPS[state.map].goal&&MAPS[state.map].bossGoal&&!state.arena)startArena(state,{effect});
   state.time += dt;
@@ -404,7 +414,7 @@ function tick(state, input, dt) {
   state.effects = state.effects.filter((event) => event.life > 0);
   if(state.arena){updateArena(state,dt,{hit,hurt,effect,limits:LIMITS});if(state.status!=='playing')return;enforceArenaBoundary(state,{hurt,effect});if(state.status!=='playing')return;}
   const wind=player.hp>=player.maxHp?1+rank(state,'compass')*.05:1;
-  const bodies=state.map==='castle'?[...state.enemies,...castleColliders(player.y-180,player.y+180)]:state.enemies;
+  const bodies=state.map==='castle'?[...state.enemies,...castleColliders(player.y-180,player.y+180,state)]:state.enemies;
   movePlayer(player,bodies,input.x*player.speed*dt*wind,input.y*player.speed*dt*wind);
   if(state.map==='castle'){
     constrainCastleEntity(player,state);
@@ -433,7 +443,7 @@ function tick(state, input, dt) {
   separateCrowd(state.enemies,player);
   if(state.map==='castle'){
     constrainCastleEntity(player,state);
-    for(const e of state.enemies)if(e.kind!=='arena-boss')constrainCastleEntity(e,state,Math.min(45,e.radius+12));
+    for(const e of state.enemies)if(!['arena-boss','castle-door'].includes(e.kind))constrainCastleEntity(e,state,Math.min(45,e.radius+12));
   }
   const contacts=state.arena?.phase==='forming'?[]:touchingEnemies(state);
   if(state.contactTimer<=0&&contacts.length&&hurt(state,contactDamage(contacts),.2)){
@@ -541,6 +551,17 @@ function migrateLoadout(snapshot){
   return old;
 }
 
+function migrateCastle(snapshot){
+  const old=serialize(snapshot);old.version=10;old.castle=old.map==='castle'?createCastle():null;
+  if(old.map!=='castle')return old;
+  if(old.arena&&typeof old.arena==='object'){
+    const hallY=old.arena.y;
+    old.castle={phase:'arena',targetX:0,targetY:hallY,doorY:hallY+CASTLE.hallHalfHeight,hallY,
+      doorId:0,doorBroken:true,doorTime:1.2};
+  }else if(old.level>=45)ensureCastleExit(old);
+  return old;
+}
+
 export function restore(snapshot) {
   try {
     if(object(snapshot)&&snapshot.version===1)snapshot=migrateLegacy(snapshot);
@@ -551,7 +572,8 @@ export function restore(snapshot) {
     if(object(snapshot)&&snapshot.version===6)snapshot=migrateLoadout(snapshot);
     if(object(snapshot)&&snapshot.version===7)snapshot={...snapshot,version:8,arena:null};
     if(object(snapshot)&&snapshot.version===8)snapshot={...snapshot,version:9,castle:snapshot.map==='castle'?{...createCastle(),phase:snapshot.arena?'arena':snapshot.level>=45?'guidance':'exploring'}:null};
-    if (!object(snapshot) || snapshot.version !== 9 || !own(snapshot,'castle')||!own(snapshot,'arena')||!validTraining(snapshot.training)||!own(MAPS,snapshot.map)||!own(CHARACTERS, snapshot.character) ||
+    if(object(snapshot)&&snapshot.version===9)snapshot=migrateCastle(snapshot);
+    if (!object(snapshot) || snapshot.version !== 10 || !own(snapshot,'castle')||!own(snapshot,'arena')||!validTraining(snapshot.training)||!own(MAPS,snapshot.map)||!own(CHARACTERS, snapshot.character) ||
       !integer(snapshot.seed, 0, 0xffffffff) || !integer(snapshot.rngState, 1, 0xffffffff) ||
       !number(snapshot.time, 0, 1e7) || !['playing', 'upgrade', 'won', 'lost'].includes(snapshot.status) ||
       !['', 'health', 'beacon', 'dawn','level','boss'].includes(snapshot.endReason) ||
@@ -607,12 +629,12 @@ export function restore(snapshot) {
       if (!position(enemy) || !integer(enemy.id, 1, 0x7fffffff) || ids.has(enemy.id) || !TYPES.includes(enemy.kind) ||
         !number(enemy.maxHp, 1, 1e5) || !number(enemy.hp, 0, enemy.maxHp) || enemy.hp <= 0 ||
         !number(enemy.radius, 1, 100) || !number(enemy.speed, 0, 1000) || !number(enemy.damage, 0, 1000) ||
-        !integer(enemy.value, ['arena-boss','arena-tick'].includes(enemy.kind)?0:1, 1e5) || !number(enemy.phase, 0, TAU) || !number(enemy.hitFlash, 0, 1) ||
+        !integer(enemy.value, ['arena-boss','arena-tick','castle-door'].includes(enemy.kind)?0:1, 1e5) || !number(enemy.phase, 0, TAU) || !number(enemy.hitFlash, 0, 1) ||
         !integer(enemy.guardianStage, 0, 3) || (enemy.kind === 'guardian') !== (enemy.guardianStage > 0) ||
         !number(enemy.fireTimer, -H, 4) ||(own(enemy,'elite')&&typeof enemy.elite!=='boolean')||
         !number(enemy.slowTime??0,0,2)||!number(enemy.actionTimer??0,0,2)||!validateBossFields(enemy)||own(enemy,'bossType')&&!['crater','castle'].includes(state.map)||
         own(enemy,'bossType')&&(state.map==='castle'?!['conductor','gatekeeper','monarch'].includes(enemy.bossType):!['carapace','tempest','matriarch'].includes(enemy.bossType))||
-        ['palace-guard','wax-servant','paper-moth'].includes(enemy.kind)&&state.map!=='castle') return null;
+        ['palace-guard','wax-servant','paper-moth','castle-door'].includes(enemy.kind)&&state.map!=='castle') return null;
       ids.add(enemy.id);
       state.enemies.push({ id: enemy.id, kind: enemy.kind, x: enemy.x, y: enemy.y, hp: enemy.hp, maxHp: enemy.maxHp,
         radius: enemy.radius, speed: enemy.speed, damage: enemy.damage, value: enemy.value,
@@ -674,10 +696,9 @@ export function restore(snapshot) {
       'spawnedGuardians', 'finalGuardianDefeated', 'nextId', 'remainder', 'contactTimer', 'spawnTimer', 'boltTimer', 'pulseTimer', 'orbitTimer', 'orbitAngle',
       'coinsEarned','openedChests','spawnedElites','attackSerial']) state[key] = snapshot[key];
     state.choices = snapshot.choices.slice();
-    if(!validateArena(snapshot.arena,state))return null;
     state.arena=snapshot.arena===null?null:{...snapshot.arena};
-    if(!validateCastle(snapshot.castle,state))return null;
     state.castle=snapshot.castle===null?null:{...snapshot.castle};
+    if(!validateCastle(snapshot.castle,state)||!validateArena(snapshot.arena,state))return null;
     return state;
   } catch { return null; }
 }

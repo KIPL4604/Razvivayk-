@@ -47,7 +47,7 @@ test('eight stages deliver four orbiting blades; the cap rejects stage IX',()=>{
 test('v2 active saves keep wallet-independent state and migrate discovered weapons and pending choices',()=>{
   const v2=serialize(createRun());v2.version=2;delete v2.map;delete v2.foundWeapons;
   v2.time=479;v2.player.x=125;v2.upgrades={spark:3,ice:5};v2.coinsEarned=85;v2.status='upgrade';v2.choices=['ice'];
-  const r=restore(v2);assert(r);assert.equal(r.version,9);assert.equal(r.map,'garden');assert.deepEqual(r.foundWeapons,['ice']);assert.equal(r.coinsEarned,85);assert.equal(r.player.x,125);
+  const r=restore(v2);assert(r);assert.equal(r.version,10);assert.equal(r.map,'garden');assert.deepEqual(r.foundWeapons,['ice']);assert.equal(r.coinsEarned,85);assert.equal(r.player.x,125);
   assert(chooseUpgrade(r,'ice'));assert.equal(r.upgrades.ice,6);assert(restore(serialize(r)));
   v2.level=33;v2.status='playing';v2.choices=[];const completed=restore(v2);assert(completed);step(completed,{},1/60);assert.equal(completed.status,'won');
 });

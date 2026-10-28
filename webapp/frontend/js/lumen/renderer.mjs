@@ -5,6 +5,8 @@ import {BOSS_VARIANTS} from './bosses.mjs';
 import {ARENA_HAZARD_INSET} from './arena.mjs';
 import {WeaponVFX,arenaCamera} from './weapon-vfx.mjs';
 import {CastleView} from './castle-view.mjs';
+import {EnemyVFX} from './enemy-vfx.mjs';
+import {castleLayout} from './castle.mjs';
 
 const TAU = Math.PI * 2;
 const round = Math.round;
@@ -26,6 +28,7 @@ export class Renderer {
     this.lastTime = -1; this.lastAttack = 0; this.attackUntil = 0; this.lastContact = 0;
     this.health = new HealthFeedback(); this.hitSheets = new Map();
     this.vfx = new WeaponVFX();
+    this.enemyVfx=new EnemyVFX();
     this.media = matchMedia('(prefers-reduced-motion: reduce)');
     this.previous = { player: null, enemies: new Map(), shots: new Map(), gems: new WeakMap() };
     this.captureTick = this.captureTick.bind(this);
@@ -152,6 +155,7 @@ export class Renderer {
     }
     for (const [id, old] of this.views) {
       if (next.has(id)) continue;
+      if(old.kind==='castle-door')continue;
       // Far-away despawns are not deaths. Match the simulation's dissolve event.
       if (old.kind==='arena-tick'&&state.arena&&['reward','celebrating','complete'].includes(state.arena.phase)
         || (state.effects || []).some(e => ['dissolve','guardian','arena-clear'].includes(e.kind) && distance(e, old) < 45)) {
@@ -162,8 +166,8 @@ export class Renderer {
     this.views = next; this.lastTime = t;
   }
 
-  ground(player) {
-    if(this.map==='castle')return this.castleView.ground(this,player);
+  ground(player,state) {
+    if(this.map==='castle')return this.castleView.ground(this,player,state);
     const c = this.ctx;
     const center=this.camera||player;
     const left = center.x - this.width / this.scale / 2 - 128;
@@ -268,7 +272,8 @@ export class Renderer {
     this.map=state.map||'garden';
     this.arena=['crater','castle'].includes(this.map)?state.arena:null;
     const bossArt=this.art.manifest.actors['boss-monarch'],heroArt=this.art.manifest.actors[state.character];
-    const target=this.map==='castle'?this.castleView.camera(this.width,this.height,this.baseScale,p,this.arena,{...this.castleInsets,bossAnchor:bossArt?.anchor?.[1]/bossArt?.frameSize||.94,heroAnchor:heroArt?.anchor?.[1]/heroArt?.frameSize||.94}):arenaCamera(this.width,this.height,this.baseScale,p,this.arena);
+    const proposed=this.map==='castle'?this.castleView.camera(this.width,this.height,this.baseScale,p,this.arena,{...this.castleInsets,layout:castleLayout(state),bossAnchor:bossArt?.anchor?.[1]/bossArt?.frameSize||.94,heroAnchor:heroArt?.anchor?.[1]/heroArt?.frameSize||.94}):arenaCamera(this.width,this.height,this.baseScale,p,this.arena);
+    const target=this.map==='castle'?this.castleView.follow(state,proposed,this.width,this.height):proposed;
     const transition=this.map!=='castle'&&this.arena?.phase==='forming'&&!this.media.matches?Math.min(1,(this.arena.time||0)/.75):1;
     const blend=transition*transition*(3-2*transition);
     this.camera={x:lerp(p.x,target.x,blend),y:lerp(p.y,target.y,blend)};
@@ -280,13 +285,14 @@ export class Renderer {
     this.cy = (target.screenY!==undefined?target.screenY*this.dpr:this.arena?this.canvas.height/2+40*this.dpr:this.canvas.height*.49) - this.camera.y * z;
     this.view(state);
     this.vfx.observe(state);this.vfx.beginFrame();
+    this.enemyVfx.observe(state);this.enemyVfx.beginFrame();
     this.health.update(state);
     const cue=this.health.sample(t+(state.status==='lost'?(this.terminalElapsed||0):state.remainder||0));
     const heroAnimation=state.status==='lost'?'death':cue.hurt?'hurt'
       :this.attackUntil>t?'attack':state.moving?'walk':'idle';
     const heroSince=heroAnimation==='death'?t-(this.terminalElapsed??.6)
       :heroAnimation==='hurt'?this.health.hitSince:heroAnimation==='attack'?this.attackUntil-.375:0;
-    const props = this.ground(p);
+    const props = this.ground(p,state);
     if(this.arena&&this.map!=='castle')this.arenaGround(this.arena,t);
     if(state.upgrades?.collector&&!preview){
       const scan=this.media.matches?0:(t%3)/.9;
@@ -335,7 +341,9 @@ export class Renderer {
     for (const entity of entities) {
       if (Math.abs(entity.x - this.camera.x) > this.width / this.scale * .6 + 180
         || Math.abs(entity.y - this.camera.y) > this.height / this.scale * .6 + 180) continue;
-      if(entity.kind==='castle-prop'){
+      if(entity.kind==='castle-door'||entity.kind==='castle-open-door'){
+        this.castleView.door(this,entity,state);
+      }else if(entity.kind==='castle-prop'){
         this.castleView.prop(this,entity,p,t);
       }else if (entity.kind === 'prop') {
         c.globalAlpha = sceneryOpacity(entity,p);
@@ -360,7 +368,7 @@ export class Renderer {
         this.actor(key, entity.kind === 'dead' ? 'death' : view.animation || 'walk',
           point.x, point.y, entity.kind==='dead'?entity.size:actorSize(entity), t, view.since || 0, view.flip);
       }
-      if (!['hero', 'prop','castle-prop', 'dead','chest','arena-tick'].includes(entity.kind) && (['guardian','arena-boss'].includes(entity.kind) || entity.elite || entity.hp < entity.maxHp)) {
+      if (!['hero', 'prop','castle-prop','castle-door','castle-open-door', 'dead','chest','arena-tick'].includes(entity.kind) && (['guardian','arena-boss'].includes(entity.kind) || entity.elite || entity.hp < entity.maxHp)) {
         const point=this.pose(entity,'enemies');
         const [x, y] = this.at(point.x, point.y - entity.radius - 23);
         const width = round(entity.radius * 2 * z);
@@ -371,6 +379,7 @@ export class Renderer {
     }
     for (const shot of state.projectiles || []) {
       const point=this.pose(shot,'shots'),[x, y] = this.at(point.x, point.y);
+      if(shot.hostile&&this.enemyVfx.projectile(this,shot,point,t))continue;
       this.vfx.trail(this,shot,point,t);
       c.save(); c.translate(x, y);
       c.rotate(Math.round((['cleaver','chakram','sunrise'].includes(shot.weapon)?t*9:Math.atan2(shot.vy, shot.vx)) / (TAU / 8)) * TAU / 8);
@@ -401,6 +410,7 @@ export class Renderer {
       }else c.drawImage(shot.hostile?this.art.images.combat:this.art.images.arsenal,shot.hostile?96:(index||0)*48,shot.hostile?0:48,frame,frame,-size/2,-size/2,size,size);
       c.restore();
     }
+    this.enemyVfx.aftermath(this,t);
     this.vfx.muzzles(this,t);
     for (const effect of state.effects || []) {
       if(this.map==='castle'&&effect.kind==='arc'&&Number.isFinite(effect.toX)){
@@ -474,6 +484,7 @@ export class Renderer {
     this.views.clear(); this.ghosts = []; this.art = null;this.floorPatterns={};
     this.hitSheets.clear();
     this.vfx.reset();
+    this.enemyVfx.reset();
     this.previous.enemies.clear();this.previous.shots.clear();this.previous.gems=new WeakMap();
   }
 }

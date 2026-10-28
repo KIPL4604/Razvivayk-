@@ -157,5 +157,30 @@ class LumenArtTests(unittest.TestCase):
                              manifest['sources']['castle/' + source.name]['sha256'])
 
 
+    @unittest.skipIf(Image is None, 'Install Pillow for authored projectile/door checks')
+    def test_enemy_flight_frames_and_breakable_door_are_authored_and_transparent(self):
+        manifest = json.loads((ART / 'manifest.json').read_text(encoding='utf-8'))
+        self.assertEqual(manifest['enemyProjectiles']['families'], ['ruby', 'amber', 'wax', 'paper'])
+        with Image.open(ART / 'enemy-projectiles.png') as raw:
+            image=raw.convert('RGBA')
+            self.assertEqual(image.size,(192,128))
+            self.assertEqual(set(image.getchannel('A').get_flattened_data()),{0,255})
+            for row in range(4):
+                frames=[image.crop((col*32,row*32,(col+1)*32,(row+1)*32)) for col in range(6)]
+                self.assertEqual(len({f.tobytes() for f in frames}),6)
+                for frame in frames:
+                    self.assertIsNotNone(frame.crop((21,11,30,22)).getbbox(), 'Dangerous head must remain visible near its anchor')
+        with Image.open(ART / 'castle-door.png') as raw:
+            image=raw.convert('RGBA')
+            self.assertEqual(image.size,(1536,256))
+            self.assertEqual(set(image.getchannel('A').get_flattened_data()),{0,255})
+            self.assertEqual(image.getpixel((128,140))[3],255)
+            self.assertEqual(image.getpixel((5*256+128,140))[3],0,'Broken portal must have a transparent opening')
+            self.assertEqual(len({image.crop((i*256,0,(i+1)*256,256)).tobytes() for i in range(6)}),6)
+        for name in ['enemy-projectiles-raw.png','castle-door-raw.png']:
+            source=ART.parents[3]/'design/lumen-castle-polish/sources'/name
+            self.assertEqual(hashlib.sha256(source.read_bytes()).hexdigest(),manifest['sources']['castle-polish/'+name]['sha256'])
+
+
 if __name__ == '__main__':
     unittest.main()

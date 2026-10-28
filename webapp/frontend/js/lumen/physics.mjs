@@ -21,7 +21,7 @@ export function movePlayer(player, enemies, dx, dy) {
     let first = 1, normal = null;
     const a = dx*dx + dy*dy;
     for (const enemy of enemies) {
-      if (enemy.hp <= 0) continue;
+      if (enemy.hp <= 0||enemy.kind==='castle-door') continue;
       const ox = player.x-enemy.x, oy = player.y-enemy.y;
       const radius = PLAYER_BODY+bodyRadius(enemy);
       const b = ox*dx+oy*dy, c = ox*ox+oy*oy-radius*radius;
@@ -57,7 +57,7 @@ function keepOutsidePlayer(enemy,player,radius) {
 }
 
 export function separateCrowd(enemies,player) {
-  const alive=enemies.filter(e=>e.hp>0);
+  const alive=enemies.filter(e=>e.hp>0&&e.kind!=='castle-door');
   const radii=alive.map(bodyRadius),masses=alive.map(mass);
   // Positions are bounded by save validation to +/- 1e7. This numeric key is
   // injective in that range and avoids allocating nine strings per body/pass.
@@ -91,7 +91,7 @@ export function separateCrowd(enemies,player) {
   }
 }
 
-export const touchingEnemies = state => state.enemies.filter(e=>e.hp>0
+export const touchingEnemies = state => state.enemies.filter(e=>e.hp>0&&e.kind!=='castle-door'
   && Math.hypot(e.x-state.player.x,e.y-state.player.y)<=PLAYER_BODY+bodyRadius(e)+1);
 export function contactDamage(contacts) {
   return contacts.length ? Math.round(Math.max(...contacts.map(e=>e.damage))

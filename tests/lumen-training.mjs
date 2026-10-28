@@ -56,7 +56,7 @@ test('purchase affects the next run and never changes the saved active snapshot'
 });
 test('v5 run migrates unchanged; v6 ranks round-trip and malformed snapshots are rejected',()=>{
   const old=serialize(createRun());old.version=5;delete old.training;
-  const migrated=restore(old);assert(migrated);assert.equal(migrated.version,9);assert.deepEqual(migrated.training,zero());
+  const migrated=restore(old);assert(migrated);assert.equal(migrated.version,10);assert.deepEqual(migrated.training,zero());
   const current=serialize(createRun({training:all(3)}));assert.deepEqual(serialize(restore(current)),current);
   for(const training of [null,[],all(6),{vigor:2}, {...all(1),extra:1}])assert.equal(restore({...current,training}),null);
 });

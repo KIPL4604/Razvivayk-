@@ -1,5 +1,5 @@
 import {BOSS_VARIANTS,updateBossAttacks,validateBossFields} from './bosses.mjs';
-import {CASTLE} from './castle.mjs';
+import {CASTLE,castleLayout} from './castle.mjs';
 
 export const ARENA_RADIUS=330;
 export const ARENA_TICK_COUNT=32;
@@ -33,17 +33,19 @@ export function startArena(state,{effect}){
 }
 
 function startCastleArena(state,{effect}){
-  if(state.level<45||state.arena||state.status==='lost'||Math.hypot(state.player.x,state.player.y-CASTLE.bossY)>CASTLE.triggerRadius)return false;
+  const {hallY,doorY,doorBroken}=castleLayout(state);
+  if(state.level<45||state.arena||state.status==='lost'||!doorBroken||hallY===null||state.player.y>=doorY||
+    Math.hypot(state.player.x,state.player.y-hallY)>CASTLE.triggerRadius)return false;
   for(const enemy of state.enemies)emit(state,effect,'dissolve',enemy.x,enemy.y,enemy.radius+8,.4);
   state.enemies=[];state.projectiles=[];state.zones=[];state.gems=[];state.chests=[];
   state.choices=[];state.status='playing';state.endReason='';state.remainder=0;
   const stats=BOSS_VARIANTS.monarch,bossId=state.nextId++;
-  state.arena={kind:'castle',phase:'forming',x:0,y:CASTLE.bossY,radius:CASTLE.hallHalfHeight,time:0,bossId,rewardId:0};
+  state.arena={kind:'castle',phase:'forming',x:0,y:hallY,radius:CASTLE.hallHalfHeight,time:0,bossId,rewardId:0};
   state.castle.phase='arena';
-  state.enemies.push({id:bossId,kind:'arena-boss',bossType:'monarch',attackStage:0,x:0,y:CASTLE.bossY,
+  state.enemies.push({id:bossId,kind:'arena-boss',bossType:'monarch',attackStage:0,x:0,y:hallY,
     hp:stats.hp,maxHp:stats.hp,radius:stats.radius,speed:0,damage:stats.damage,value:0,phase:0,hitFlash:0,
     guardianStage:0,fireTimer:.8,elite:false,slowTime:0,actionTimer:0});
-  emit(state,effect,'warning',0,CASTLE.bossY,240,2.5);
+  emit(state,effect,'warning',0,hallY,240,2.5);
   return true;
 }
 
@@ -52,7 +54,7 @@ export function enforceArenaBoundary(state,{hurt}={}){
   if(arena.kind==='castle'){
     const p=state.player,margin=p.radius+24;
     p.x=Math.max(-CASTLE.hallHalfWidth+margin,Math.min(CASTLE.hallHalfWidth-margin,p.x));
-    p.y=Math.max(CASTLE.bossY-CASTLE.hallHalfHeight+margin,Math.min(CASTLE.bossY+CASTLE.hallHalfHeight-margin,p.y));
+    p.y=Math.max(arena.y-CASTLE.hallHalfHeight+margin,Math.min(arena.y+CASTLE.hallHalfHeight-margin,p.y));
     return false;
   }
   const p=state.player,dx=p.x-arena.x,dy=p.y-arena.y,distance=Math.hypot(dx,dy),safe=arena.radius-p.radius-36;
@@ -146,7 +148,7 @@ export function validateArena(value,state){
 
 function validateCastleArena(value,state,number,integer){
   if(!value||typeof value!=='object'||Array.isArray(value)||value.kind!=='castle'||state.level!==45||
-    !ARENA_PHASES.includes(value.phase)||value.x!==0||value.y!==CASTLE.bossY||value.radius!==CASTLE.hallHalfHeight||
+    !ARENA_PHASES.includes(value.phase)||value.x!==0||value.y!==state.castle?.hallY||value.radius!==CASTLE.hallHalfHeight||
     !number(value.time,0,3)||!integer(value.bossId,1,state.nextId-1)||!integer(value.rewardId,0,state.nextId-1))return false;
   const bosses=state.enemies.filter(e=>e.kind==='arena-boss'),mega=state.chests.filter(c=>c.mega);
   if(state.enemies.some(e=>e.kind==='arena-tick'))return false;
@@ -156,7 +158,7 @@ function validateCastleArena(value,state,number,integer){
     const boss=bosses[0],stats=BOSS_VARIANTS.monarch;
     return boss.id===value.bossId&&boss.bossType==='monarch'&&validateBossFields(boss)&&boss.maxHp===stats.hp&&
       boss.radius===stats.radius&&boss.damage===stats.damage&&boss.value===0&&boss.guardianStage===0&&
-      boss.x===0&&boss.y===CASTLE.bossY&&boss.speed===0;
+      boss.x===0&&boss.y===state.castle.hallY&&boss.speed===0;
   }
   if(bosses.length||!value.rewardId)return false;
   if(value.phase==='reward')return value.time===0&&mega.length===1&&mega[0].id===value.rewardId&&
