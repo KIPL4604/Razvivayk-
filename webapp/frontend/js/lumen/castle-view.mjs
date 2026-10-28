@@ -5,6 +5,10 @@ const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 const propArt={piano:[0,248],bookshelf:[1,216],column:[2,216],candelabra:[3,146],flowerbed:[4,232]};
 const hash=(x,y)=>((Math.imul(x,374761393)^Math.imul(y,668265263))>>>0);
 
+// One presentation contract for the actor, camera and visual acceptance checks.
+// Neither number changes a combat body or a simulation coordinate.
+export const CASTLE_HALL_VISUAL=Object.freeze({heroSize:96,monarchSize:744});
+
 /** Castle-only view data. No random calls, state writes, collision bodies or save data. */
 export class CastleView{
   constructor(renderer){
@@ -36,11 +40,11 @@ export class CastleView{
     if(arena||layout?.doorBroken&&Number.isFinite(bossY)){
       // Sprite height is much larger than the monarch's collision circle. Fit
       // its crown and the hero into the actual clear space between both HUDs.
-      const size=620,anchor=framing.bossAnchor??.94,heroAnchor=framing.heroAnchor??.94;
+      const {monarchSize:size,heroSize}=CASTLE_HALL_VISUAL,anchor=framing.bossAnchor??.94,heroAnchor=framing.heroAnchor??.94;
       const top=framing.top??230,bottom=Math.max(top+100,framing.bottom??height-155);
-      const minY=Math.min(bossY+7-size*anchor,player.y+7-96*heroAnchor)-24;
-      const maxY=Math.max(bossY+7+size*(1-anchor),player.y+7+96*(1-heroAnchor))+24;
-      const minX=Math.min(-size/2,player.x-48),maxX=Math.max(size/2,player.x+48);
+      const minY=Math.min(bossY+7-size*anchor,player.y+7-heroSize*heroAnchor)-24;
+      const maxY=Math.max(bossY+7+size*(1-anchor),player.y+7+heroSize*(1-heroAnchor))+24;
+      const minX=Math.min(-size/2,player.x-heroSize/2),maxX=Math.max(size/2,player.x+heroSize/2);
       const fit=Math.min(baseScale,(width-24)/(maxX-minX),(bottom-top)/(maxY-minY));
       const scale=Math.max(Math.min(baseScale,.3),fit),mix=arena?1:clamp(layout.transition||0,0,1);
       const hall={x:(minX+maxX)/2,y:(minY+maxY)/2,scale,screenY:(top+bottom)/2};
@@ -66,6 +70,34 @@ export class CastleView{
     c.fillRect(x/2,y/2,w/2,h/2);c.restore();
   }
 
+  hallDecor(r,index,x,y,width,height=width,flip=false){
+    const meta=r.art.manifest.castleHall?.decor,size=meta?.frameSize||256;
+    if(!r.art.images['castle-hall-decor'])return;
+    const columns=meta?.columns||6;
+    r.blit('castle-hall-decor',(index%columns)*size,Math.floor(index/columns)*size,size,size,
+      x,y,width,height,(meta?.anchor?.[1]??244)/size,flip);
+  }
+
+  hallBackdrop(r,layout){
+    const top=layout.hallY-CASTLE.hallHalfHeight,width=CASTLE.hallHalfWidth*2;
+    const image=r.art.images['castle-hall-floor'];
+    if(image)r.blit('castle-hall-floor',0,0,image.width,image.height,0,layout.doorY,width,CASTLE.hallHalfHeight*2,1);
+    else this.fill(r,'carpet',-CASTLE.hallHalfWidth,top,width,CASTLE.hallHalfHeight*2);
+    // A single tall architectural composition: wide rear niche, paired crests,
+    // statues and four pilasters. The floor remains one broad carpeted space.
+    this.hallDecor(r,5,0,top+96,520,420);
+    for(const side of [-1,1]){
+      this.hallDecor(r,4,side*505,top+96,490,420,side===1);
+      for(let bay=0;bay<4;bay++)this.hallDecor(r,4,side*744,top+320+bay*320,218,350,side===1);
+      this.hallDecor(r,1,side*430,top+128,182,308);
+      this.hallDecor(r,2,side*575,top+152,190,256,side===1);
+      this.hallDecor(r,0,side*710,top+170,214,410,side===1);
+      this.hallDecor(r,0,side*235,top+118,150,320,side===1);
+      // The entrance shoulders are large walnut bays rather than a tile grid.
+      this.hallDecor(r,4,side*(CASTLE.halfWidth+180),layout.doorY+52,360,230,side===1);
+    }
+  }
+
   ground(r,player,state){
     const c=r.ctx,layout=castleLayout(state),half=CASTLE.halfWidth,carpet=CASTLE.carpetHalfWidth;
     const top=r.camera.y-r.height/r.scale/2-320,bottom=r.camera.y+r.height/r.scale/2+320;
@@ -77,32 +109,29 @@ export class CastleView{
     this.fill(r,'carpet',-carpet,top,carpet*2,bottom-top);
     if(hall){
       const start=Math.max(top,hallTop),end=Math.min(bottom,hallBottom);
-      if(end>start){this.fill(r,'wood',-CASTLE.hallHalfWidth-120,start,CASTLE.hallHalfWidth*2+240,end-start);this.fill(r,'parquet',-CASTLE.hallHalfWidth,start,CASTLE.hallHalfWidth*2,end-start);this.fill(r,'carpet',-240,start,480,end-start);}
+      if(end>start)this.fill(r,'wood',-CASTLE.hallHalfWidth-120,start,CASTLE.hallHalfWidth*2+240,end-start);
       const [,endY]=r.at(0,hallTop);if(endY>0){c.fillStyle='#100e10';c.fillRect(0,0,r.canvas.width,Math.min(r.canvas.height,endY));}
+      if(bottom>hallTop-420&&top<hallBottom+240)this.hallBackdrop(r,layout);
     }
     // Border cells repeat without stretching the embroidery or floor motif.
     for(let y=Math.floor(top/64)*64;y<=bottom;y+=64){
-      if(hall&&y+64<hallTop)continue;
-      const width=inHall(y)?240:carpet;
+      if(hall&&y<hallBottom)continue;
+      const width=carpet;
       r.blit('castle-tiles',4*32,0,32,32,-width+28,y+64,56,64,1);
       r.blit('castle-tiles',5*32,0,32,32,width-28,y+64,56,64,1);
     }
     // The upright wall section is repeated along the same 50m module as its props.
     for(let y=Math.floor(top/128)*128;y<=bottom;y+=128){
-      if(hall&&y+128<hallTop)continue;
-      const width=inHall(y)?CASTLE.hallHalfWidth:half;
+      if(hall&&y<hallBottom)continue;
+      const width=half;
       r.blit('castle-props',5*128,0,128,128,-width-28,y+110,152,152,.94);
       r.blit('castle-props',5*128,0,128,128,width+28,y+110,152,152,.94,true);
       const [lx,py]=r.at(-width,y),[rx]=r.at(width,y),height=128*r.zoom;
       c.fillStyle='#bd8a42';c.fillRect(lx,py,Math.max(r.dpr,2*r.zoom),height);c.fillRect(rx-Math.max(r.dpr,2*r.zoom),py,Math.max(r.dpr,2*r.zoom),height);
     }
-    if(hall&&top<hallTop+220&&bottom>hallTop){
-      for(let x=-CASTLE.hallHalfWidth+64;x<CASTLE.hallHalfWidth;x+=128)r.blit('castle-props',5*128,0,128,128,x,hallTop+56,142,142,.94);
-    }
-    if(hall&&top<layout.doorY+220&&bottom>layout.doorY){
-      for(const side of [-1,1])for(let x=half+64;x<CASTLE.hallHalfWidth;x+=128)r.blit('castle-props',5*128,0,128,128,side*x,layout.doorY+56,142,142,.94);
-    }
-    const props=castleProps(top,bottom,state).map(p=>({...p,kind:'castle-prop',propKind:p.kind,index:propArt[p.kind]?.[0]??3,size:propArt[p.kind]?.[1]??146}));
+    const props=castleProps(top,bottom,state).map(p=>inHall(p.y)?
+      {...p,kind:'castle-hall-prop',index:p.kind==='column'?0:3,size:p.kind==='column'?350:190}:
+      {...p,kind:'castle-prop',propKind:p.kind,index:propArt[p.kind]?.[0]??3,size:propArt[p.kind]?.[1]??146});
     if(hall&&layout.doorBroken)props.push({kind:'castle-open-door',x:0,y:layout.doorY});
     if(r.arena&&['forming','fighting'].includes(r.arena.phase)){
       const y=layout.doorY,[x,py]=r.at(-half,y),[right]=r.at(half,y);
@@ -148,6 +177,29 @@ export class CastleView{
     c.globalAlpha=entity.y>player.y&&near<130?.65:1;
     r.blit('castle-props',index*128,0,128,128,entity.x,entity.y,size,size,.94,entity.x>0&&entity.propKind==='column');
     c.restore();
+  }
+
+  hallProp(r,entity,player,time){
+    const c=r.ctx;
+    c.save();
+    if(entity.index===3){
+      const pulse=r.media.matches?1:.96+Math.sin(time*2.5+entity.y*.017)*.04;
+      const [x,y]=r.at(entity.x,entity.y-entity.size*.61),radius=100*r.zoom;
+      const glow=c.createRadialGradient(x,y,0,x,y,radius);
+      glow.addColorStop(0,'#ffbf632b');glow.addColorStop(1,'#ffad5000');
+      c.globalAlpha=pulse;c.fillStyle=glow;c.fillRect(x-radius,y-radius,radius*2,radius*2);
+    }
+    c.globalAlpha=entity.y>player.y&&Math.hypot(entity.x-player.x,entity.y-player.y)<150?.62:1;
+    this.hallDecor(r,entity.index,entity.x,entity.y,entity.size,entity.size,entity.x>0);
+    c.restore();
+  }
+
+  monarchLight(r,x,y,time){
+    const c=r.ctx,[px,py]=r.at(x,y+7-CASTLE_HALL_VISUAL.monarchSize*.59),radius=128*r.zoom;
+    const glow=c.createRadialGradient(px,py,0,px,py,radius);
+    glow.addColorStop(0,'#ffd58a20');glow.addColorStop(.35,'#e6923510');glow.addColorStop(1,'#b04a1700');
+    c.save();c.globalAlpha=r.media.matches?1:.96+Math.sin(time*2)*.04;
+    c.fillStyle=glow;c.fillRect(px-radius,py-radius,radius*2,radius*2);c.restore();
   }
 
   guide(r,state){

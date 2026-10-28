@@ -7,7 +7,7 @@ export function loadArt() {
     if (!response.ok) throw new Error('Lumen asset manifest unavailable');
     const manifest = await response.json();
     if (manifest.version !== 1 || manifest.frameSize !== 48 || manifest.packFormat !== 'image/webp' || !Array.isArray(manifest.packs)) throw new Error('Unsupported Lumen artwork');
-    const packs = {};
+    const packs = Object.create(null);
     for (const entry of manifest.packs) {
       let lastError;
       for (let attempt = 0; attempt < 3; attempt++) {
@@ -33,13 +33,21 @@ export function loadArt() {
       if (lastError) throw lastError;
     }
     const entries = await Promise.all(Object.entries(manifest.files).map(async ([file, entry]) => {
-      const pack = packs[entry.pack];
-      if (!pack || !Number.isSafeInteger(entry.offset) || !Number.isSafeInteger(entry.packBytes) ||
-          entry.offset < 0 || entry.packBytes < 1 || entry.offset + entry.packBytes > pack.byteLength) {
-        throw new Error(`Invalid Lumen artwork entry: ${file}`);
-      }
+      const invalid = () => { throw new Error(`Invalid Lumen artwork entry: ${file}`); };
+      if (!entry || typeof entry !== 'object' || Array.isArray(entry)) invalid();
+      const chunks = entry.chunks === undefined
+        ? [{pack:entry.pack, offset:entry.offset, bytes:entry.packBytes}]
+        : entry.chunks;
+      if (!Array.isArray(chunks) || !chunks.length) invalid();
+      const slices = chunks.map(chunk => {
+        if (!chunk || typeof chunk !== 'object' || typeof chunk.pack !== 'string') invalid();
+        const pack = packs[chunk.pack];
+        if (!pack || !Number.isSafeInteger(chunk.offset) || !Number.isSafeInteger(chunk.bytes) ||
+            chunk.offset < 0 || chunk.bytes < 1 || chunk.offset + chunk.bytes > pack.byteLength) invalid();
+        return pack.slice(chunk.offset, chunk.offset + chunk.bytes);
+      });
       const image = new Image();
-      const url = URL.createObjectURL(new Blob([pack.slice(entry.offset, entry.offset + entry.packBytes)], {type:manifest.packFormat}));
+      const url = URL.createObjectURL(new Blob(slices, {type:manifest.packFormat}));
       try {
         image.src = url;
         await image.decode();

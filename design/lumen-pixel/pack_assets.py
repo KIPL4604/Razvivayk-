@@ -1,4 +1,9 @@
-"""Pack Lumen's existing PNG sheets into bounded deterministic transfers."""
+"""Pack lossless artwork into bounded transfers without reducing texture detail.
+
+Small WebP images retain their original single-range entry. Larger images use
+ordered byte chunks; the browser joins them before decoding the complete WebP.
+The source PNGs are never resized or rewritten here.
+"""
 
 from pathlib import Path
 from io import BytesIO
@@ -31,10 +36,28 @@ def build_pack(art_dir: Path, manifest: dict) -> None:
         transfer = encoded.getvalue()
         if payload and len(payload) + len(transfer) > limit:
             flush()
-        entry['pack'] = f'sprites-{len(packs):02d}.pack'
-        entry['offset'] = len(payload)
-        entry['packBytes'] = len(transfer)
-        payload.extend(transfer)
+        if len(transfer) <= limit:
+            entry.pop('chunks', None)
+            entry['pack'] = f'sprites-{len(packs):02d}.pack'
+            entry['offset'] = len(payload)
+            entry['packBytes'] = len(transfer)
+            payload.extend(transfer)
+            continue
+
+        # A PNG atlas stays whole. Only its encoded transport bytes cross pack
+        # boundaries, so animation anchors and every decoded RGBA pixel survive.
+        for key in ('pack', 'offset', 'packBytes'):
+            entry.pop(key, None)
+        entry['chunks'] = []
+        cursor = 0
+        while cursor < len(transfer):
+            size = min(limit - len(payload), len(transfer) - cursor)
+            entry['chunks'].append({'pack': f'sprites-{len(packs):02d}.pack',
+                                    'offset': len(payload), 'bytes': size})
+            payload.extend(transfer[cursor:cursor + size])
+            cursor += size
+            if len(payload) == limit:
+                flush()
     flush()
     manifest.pop('pack', None)
     manifest['packs'] = packs

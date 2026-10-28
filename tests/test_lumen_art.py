@@ -1,8 +1,11 @@
 """Production-asset integrity gates. Run: python tests/test_lumen_art.py."""
 import hashlib
+import importlib.util
 from io import BytesIO
 import json
 from pathlib import Path
+import random
+import tempfile
 import unittest
 try:
     from PIL import Image
@@ -13,6 +16,51 @@ ART = Path(__file__).resolve().parents[1] / 'webapp/frontend/assets/lumen'
 
 
 class LumenArtTests(unittest.TestCase):
+    def assert_packed_images(self, art_dir, manifest):
+        """Check ordered ranges, complete pack coverage and exact decoded pixels."""
+        packs = {}
+        for descriptor in manifest['packs']:
+            name = descriptor['file']
+            self.assertNotIn(name, packs)
+            pack = (art_dir / name).read_bytes()
+            self.assertEqual(len(pack), descriptor['bytes'])
+            self.assertGreater(len(pack), 0)
+            self.assertLessEqual(len(pack), 220_000)
+            self.assertEqual(hashlib.sha256(pack).hexdigest(), descriptor['sha256'])
+            packs[name] = pack
+        offsets = dict.fromkeys(packs, 0)
+        order = {name: index for index, name in enumerate(packs)}
+        last_pack = -1
+        for name, entry in manifest['files'].items():
+            with self.subTest(name=name):
+                if 'chunks' in entry:
+                    chunks = entry['chunks']
+                    self.assertIsInstance(chunks, list)
+                    self.assertGreater(len(chunks), 1)
+                    for key in ('pack', 'offset', 'packBytes'):
+                        self.assertNotIn(key, entry)
+                else:
+                    chunks = [{'pack': entry['pack'], 'offset': entry['offset'],
+                               'bytes': entry['packBytes']}]
+                encoded = bytearray()
+                for chunk in chunks:
+                    pack_name, offset, size = chunk['pack'], chunk['offset'], chunk['bytes']
+                    self.assertIn(pack_name, packs)
+                    self.assertIsInstance(offset, int)
+                    self.assertIsInstance(size, int)
+                    self.assertEqual(offset, offsets[pack_name])
+                    self.assertGreater(size, 0)
+                    self.assertLessEqual(offset + size, len(packs[pack_name]))
+                    self.assertGreaterEqual(order[pack_name], last_pack)
+                    last_pack = order[pack_name]
+                    encoded.extend(packs[pack_name][offset:offset + size])
+                    offsets[pack_name] += size
+                with Image.open(BytesIO(encoded)) as converted, Image.open(art_dir / name) as original:
+                    self.assertEqual(converted.size, original.size)
+                    self.assertEqual(converted.convert('RGBA').tobytes(), original.convert('RGBA').tobytes())
+        for name, pack in packs.items():
+            self.assertEqual(offsets[name], len(pack), 'Pack has unused or duplicated ranges: ' + name)
+
     def test_manifest_matches_all_production_textures(self):
         manifest = json.loads((ART / 'manifest.json').read_text(encoding='utf-8'))
         self.assertEqual(set(manifest['animations']), {'idle', 'walk', 'attack', 'hurt', 'death'})
@@ -27,23 +75,44 @@ class LumenArtTests(unittest.TestCase):
     @unittest.skipIf(Image is None, 'Install design/lumen-pixel/requirements.txt for pixel checks')
     def test_runtime_pack_matches_every_manifest_texture(self):
         manifest = json.loads((ART / 'manifest.json').read_text(encoding='utf-8'))
-        packs = {}
-        for descriptor in manifest['packs']:
-            pack = (ART / descriptor['file']).read_bytes()
-            self.assertEqual(len(pack), descriptor['bytes'])
-            self.assertLessEqual(len(pack), 220_000)
-            self.assertEqual(hashlib.sha256(pack).hexdigest(), descriptor['sha256'])
-            packs[descriptor['file']] = pack
-        offsets = dict.fromkeys(packs, 0)
-        for name, entry in manifest['files'].items():
-            with self.subTest(name=name):
-                self.assertEqual(entry['offset'], offsets[entry['pack']])
-                encoded = packs[entry['pack']][entry['offset']:entry['offset'] + entry['packBytes']]
-                with Image.open(BytesIO(encoded)) as converted, Image.open(ART / name) as original:
-                    self.assertEqual(converted.convert('RGBA').tobytes(), original.convert('RGBA').tobytes())
-                offsets[entry['pack']] += entry['packBytes']
-        for name, pack in packs.items():
-            self.assertEqual(offsets[name], len(pack))
+        self.assert_packed_images(ART, manifest)
+
+    @unittest.skipIf(Image is None, 'Install Pillow for multi-pack transport regression')
+    def test_large_lossless_atlas_crosses_packs_without_resizing_or_rewriting_pngs(self):
+        script = ART.parents[3] / 'design/lumen-pixel/pack_assets.py'
+        spec = importlib.util.spec_from_file_location('lumen_pack_regression', script)
+        packer = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(packer)
+        rng = random.Random(7321)
+        pixels = bytearray(rng.randbytes(512 * 512 * 4))
+        # Hard alpha still leaves enough RGB detail to exceed several packs.
+        # Hidden RGB under transparent pixels must survive lossless transfer too.
+        for index in range(3, len(pixels), 4):
+            pixels[index] = 255 if (index // 4) % 3 else 0
+        with tempfile.TemporaryDirectory(prefix='lumen-pack-regression-') as temporary:
+            art_dir = Path(temporary)
+            Image.new('RGBA', (32, 32), (21, 42, 63, 255)).save(art_dir / 'legacy.png')
+            Image.frombytes('RGBA', (512, 512), bytes(pixels)).save(art_dir / 'large.png')
+            Image.new('RGBA', (48, 48), (75, 50, 25, 0)).save(art_dir / 'tail.png')
+            manifest = {'files': {}}
+            originals = {}
+            for name in ['legacy.png', 'large.png', 'tail.png']:
+                data = (art_dir / name).read_bytes()
+                originals[name] = data
+                manifest['files'][name] = {'bytes': len(data), 'sha256': hashlib.sha256(data).hexdigest()}
+            packer.build_pack(art_dir, manifest)
+            self.assertGreater(len(manifest['files']['large.png']['chunks']), 2)
+            for name in ['legacy.png', 'tail.png']:
+                self.assertNotIn('chunks', manifest['files'][name])
+                self.assertTrue({'pack', 'offset', 'packBytes'}.issubset(manifest['files'][name]))
+            self.assert_packed_images(art_dir, manifest)
+            first_manifest = json.dumps(manifest, sort_keys=True)
+            first_packs = {p['file']: (art_dir / p['file']).read_bytes() for p in manifest['packs']}
+            packer.build_pack(art_dir, manifest)
+            self.assertEqual(json.dumps(manifest, sort_keys=True), first_manifest)
+            self.assertEqual({p['file']: (art_dir / p['file']).read_bytes() for p in manifest['packs']}, first_packs)
+            for name, data in originals.items():
+                self.assertEqual((art_dir / name).read_bytes(), data, 'Packer rewrote source PNG: ' + name)
 
     @unittest.skipIf(Image is None, 'Offline pixel checks: install design/lumen-pixel/requirements.txt')
     def test_actor_frames_have_hard_alpha_shared_palette_and_baseline(self):
@@ -180,6 +249,36 @@ class LumenArtTests(unittest.TestCase):
         for name in ['enemy-projectiles-raw.png','castle-door-raw.png']:
             source=ART.parents[3]/'design/lumen-castle-polish/sources'/name
             self.assertEqual(hashlib.sha256(source.read_bytes()).hexdigest(),manifest['sources']['castle-polish/'+name]['sha256'])
+
+
+    @unittest.skipIf(Image is None, 'Install Pillow for concept fidelity checks')
+    def test_monarch_and_hall_keep_detail_without_reducing_texture_for_transfer(self):
+        manifest = json.loads((ART / 'manifest.json').read_text(encoding='utf-8'))
+        actor = manifest['actors']['boss-monarch']
+        self.assertGreaterEqual(actor['frameSize'], 320, 'The former 160px monarch lost concept details')
+        self.assertGreater(len(manifest['palettes']['boss-monarch']), 128)
+        self.assertIn('chunks', manifest['files']['boss-monarch.png'])
+        self.assertEqual(manifest['castleHall']['decor']['anchor'], [128, 244])
+        with Image.open(ART / 'castle-hall-floor.png') as floor:
+            self.assertEqual(floor.size, (1024, 1024))
+            self.assertEqual(set(floor.getchannel('A').get_flattened_data()), {255})
+            pixels = list(floor.convert('RGB').get_flattened_data())
+            crimson = sum(r > g * 1.65 and r > b * 1.65 for r, g, b in pixels)
+            self.assertGreater(crimson / len(pixels), .75, 'Hall floor should be predominantly crimson carpet')
+        with Image.open(ART / 'castle-hall-decor.png') as decor:
+            self.assertEqual(decor.size, (1536, 256))
+            self.assertEqual(set(decor.getchannel('A').get_flattened_data()), {0, 255})
+            cells = [decor.crop((i * 256, 0, (i + 1) * 256, 256)) for i in range(6)]
+            self.assertEqual(len({cell.tobytes() for cell in cells}), 6)
+            for cell in cells:
+                bounds = cell.getbbox()
+                self.assertIsNotNone(bounds)
+                self.assertGreaterEqual(bounds[0], 8)
+                self.assertLessEqual(bounds[2], 248)
+                self.assertEqual(bounds[3], 244)
+        for source in (ART.parents[3] / 'design/lumen-castle-fidelity/sources').glob('*.png'):
+            self.assertEqual(hashlib.sha256(source.read_bytes()).hexdigest(),
+                             manifest['sources']['castle-fidelity/' + source.name]['sha256'])
 
 
 if __name__ == '__main__':

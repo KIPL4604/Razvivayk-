@@ -304,6 +304,38 @@
     "castle-polish/enemy-projectiles-raw.png": {
       "bytes": 1902938,
       "sha256": "a7ff0d22f330f81a2d1f0bd661ba4a763f47ab9a5e2ee04bf4109e493b94bfa5"
+    },
+    "castle-fidelity/castle-hall-decor-raw.png": {
+      "bytes": 1929674,
+      "sha256": "fb41acb3c594f8ae88325bc3c42f2e55cd0d7e659f0c03fef2e299a6c57ff026"
+    },
+    "castle-fidelity/castle-hall-floor-raw.png": {
+      "bytes": 2509917,
+      "sha256": "e6998ddda5f2854be367e50c37839280c79ca13f782935e1431914aa1ad50b89"
+    },
+    "castle-fidelity/monarch-attack-raw.png": {
+      "bytes": 2903215,
+      "sha256": "fd1fa3ce8cf67887d3f39f9602df02e61f18bd8fe9ba9464286ccd5d59d5f6f6"
+    },
+    "castle-fidelity/monarch-death-raw.png": {
+      "bytes": 2706322,
+      "sha256": "4c0dde7e4e12b76a70fc3f409cb5d761997805b60eee317b0c3b71d6fdcff34d"
+    },
+    "castle-fidelity/monarch-hurt-raw.png": {
+      "bytes": 2830219,
+      "sha256": "452fdd244567a624dd077c7d41b94d6b4e9bb8de3f2264409d55c40d475dd1d8"
+    },
+    "castle-fidelity/monarch-idle-raw.png": {
+      "bytes": 2941060,
+      "sha256": "7ed4642479c4f1df724f090a902c44082ea5e7d7dbd3e70faf2ceb4bcc207a1e"
+    },
+    "castle-fidelity/monarch-master-raw.png": {
+      "bytes": 1869496,
+      "sha256": "4fab1635cb4ea76db0494c4bdc0fbf87a0ea2ee091295dd49dcdffb48286d123"
+    },
+    "castle-fidelity/monarch-walk-raw.png": {
+      "bytes": 2843218,
+      "sha256": "a8ba6c6c1ebf411d9db513ce008506132bb3c8cec5757c658c53d784eb742e9c"
     }
   },
   "font": {
@@ -666,46 +698,112 @@
       "packBytes": 150038
     },
     "boss-monarch.png": {
-      "bytes": 665346,
-      "sha256": "3f60601ea2ada817d69eed89e98488950f906c31c9ae01ae5accbcea74898e4c",
-      "pack": "sprites-06.pack",
-      "offset": 0,
-      "packBytes": 209516
+      "bytes": 2869998,
+      "sha256": "5e89c01e2bd24fbeb396ae9da966dbb36a35b17405a508636327964df2963b4e",
+      "chunks": [
+        {
+          "pack": "sprites-06.pack",
+          "offset": 0,
+          "bytes": 220000
+        },
+        {
+          "pack": "sprites-07.pack",
+          "offset": 0,
+          "bytes": 220000
+        },
+        {
+          "pack": "sprites-08.pack",
+          "offset": 0,
+          "bytes": 220000
+        },
+        {
+          "pack": "sprites-09.pack",
+          "offset": 0,
+          "bytes": 220000
+        },
+        {
+          "pack": "sprites-10.pack",
+          "offset": 0,
+          "bytes": 104880
+        }
+      ]
     },
     "castle-tiles.png": {
       "bytes": 19026,
       "sha256": "20a6e83378904ab270ff1941830259afa18c542bb8385bc77ce936f769b091fd",
-      "pack": "sprites-07.pack",
-      "offset": 0,
+      "pack": "sprites-10.pack",
+      "offset": 104880,
       "packBytes": 13348
     },
     "castle-props.png": {
       "bytes": 81009,
       "sha256": "c5d7890ed84c01cebf44f90d4d467479f63330318f9bd78734812414b4ae9336",
-      "pack": "sprites-07.pack",
-      "offset": 13348,
+      "pack": "sprites-10.pack",
+      "offset": 118228,
       "packBytes": 26614
     },
     "castle-floor.png": {
       "bytes": 129639,
       "sha256": "beb4ddee1c42cca1b81d56f7e5a18520e341291715e68f20bb6b6bf0dca17600",
-      "pack": "sprites-07.pack",
-      "offset": 39962,
+      "pack": "sprites-11.pack",
+      "offset": 0,
       "packBytes": 88360
     },
     "enemy-projectiles.png": {
       "bytes": 16217,
       "sha256": "5b5ce38fdd689a04989831dabafdb35e2bd7b296c5ac9cb102cf36d1661fe480",
-      "pack": "sprites-07.pack",
-      "offset": 128322,
+      "pack": "sprites-11.pack",
+      "offset": 88360,
       "packBytes": 5102
     },
     "castle-door.png": {
       "bytes": 454402,
       "sha256": "479cb97faf2645019728d2880be0beb65fb4fe3cdc96074391ed14b65bcf1c50",
-      "pack": "sprites-08.pack",
+      "pack": "sprites-12.pack",
       "offset": 0,
       "packBytes": 153080
+    },
+    "castle-hall-floor.png": {
+      "bytes": 1713230,
+      "sha256": "d5119120aae8ed9b2738bca035fd1da8979639f2d597cdde1837df7463431b84",
+      "chunks": [
+        {
+          "pack": "sprites-13.pack",
+          "offset": 0,
+          "bytes": 220000
+        },
+        {
+          "pack": "sprites-14.pack",
+          "offset": 0,
+          "bytes": 220000
+        },
+        {
+          "pack": "sprites-15.pack",
+          "offset": 0,
+          "bytes": 220000
+        },
+        {
+          "pack": "sprites-16.pack",
+          "offset": 0,
+          "bytes": 8458
+        }
+      ]
+    },
+    "castle-hall-decor.png": {
+      "bytes": 301602,
+      "sha256": "5cc415c009aa10cf2bff9c60a7ee68a68e326f4ccf85d2ff6fb1cd026b2f9be0",
+      "chunks": [
+        {
+          "pack": "sprites-17.pack",
+          "offset": 0,
+          "bytes": 220000
+        },
+        {
+          "pack": "sprites-18.pack",
+          "offset": 0,
+          "bytes": 1970
+        }
+      ]
     }
   },
   "actors": {
@@ -1007,10 +1105,10 @@
       "rows": 5
     },
     "boss-monarch": {
-      "frameSize": 160,
+      "frameSize": 320,
       "anchor": [
-        80,
-        154
+        160,
+        308
       ],
       "columns": 6,
       "rows": 5
@@ -2164,86 +2262,262 @@
       "#050102"
     ],
     "boss-monarch": [
-      "#f5cc82",
-      "#e6a358",
-      "#e28b3d",
-      "#c4854b",
-      "#d56e28",
-      "#b96e34",
-      "#ac6835",
-      "#9a6335",
-      "#bd4e1c",
-      "#9f4f23",
-      "#90522a",
-      "#8e441f",
-      "#804825",
-      "#7e3c1d",
-      "#6e4125",
-      "#693920",
-      "#99271f",
-      "#7f271d",
-      "#6e321a",
-      "#6f231a",
-      "#603221",
-      "#603016",
-      "#5e2817",
-      "#5e2016",
-      "#502e22",
-      "#512b17",
-      "#4f2518",
-      "#4e2015",
-      "#41281d",
-      "#3f2118",
-      "#411d15",
-      "#351d18",
-      "#83191e",
-      "#611919",
-      "#401a13",
-      "#301915",
+      "#fdf7ca",
+      "#fae9b4",
+      "#fdeb95",
+      "#fcdf8d",
+      "#fbd28a",
+      "#f1ce90",
+      "#fccd67",
+      "#f3ca6b",
+      "#f6be71",
+      "#f4b269",
+      "#f8b84f",
+      "#f6ac4c",
+      "#ecb370",
+      "#ecae57",
+      "#dfb06d",
+      "#e8a15f",
+      "#e99f54",
+      "#f3a03d",
+      "#e69d45",
+      "#e6914b",
+      "#ed8e2d",
+      "#db995a",
+      "#db9544",
+      "#d98b4c",
+      "#d98938",
+      "#d08f4d",
+      "#d08544",
+      "#c28c52",
+      "#d97e43",
+      "#cd7e43",
+      "#c97c43",
+      "#e37c27",
+      "#cd7b2d",
+      "#c27c46",
+      "#c07643",
+      "#c17931",
+      "#de6c2a",
+      "#e25c26",
+      "#c47032",
+      "#c56228",
+      "#bb6e3d",
+      "#bc6d29",
+      "#bb6027",
+      "#b17041",
+      "#b26d2d",
+      "#b06531",
+      "#ae6033",
+      "#ad5831",
+      "#af5c1e",
+      "#a36737",
+      "#a25d2e",
+      "#a2592a",
+      "#91633d",
+      "#905931",
+      "#a05627",
+      "#8b5530",
+      "#e04922",
+      "#df3920",
+      "#b74c21",
+      "#b93c1f",
+      "#eb2627",
+      "#d82523",
+      "#bd2b1d",
+      "#be1f20",
+      "#9d4f2e",
+      "#9d4e23",
+      "#a24e17",
+      "#984d18",
+      "#9d4123",
+      "#9c4110",
+      "#9f301a",
+      "#9f211b",
+      "#8c4f2c",
+      "#8b482a",
+      "#7e4b2d",
+      "#904a1a",
+      "#85481d",
+      "#834026",
+      "#84401c",
+      "#873f11",
+      "#88371d",
+      "#7b361c",
+      "#82360e",
+      "#822c14",
+      "#842216",
+      "#71462c",
+      "#703b20",
+      "#6f341e",
+      "#713311",
+      "#60412f",
+      "#5d3928",
+      "#5b3524",
+      "#573121",
+      "#6f2c18",
+      "#702b0b",
+      "#602c17",
+      "#4f2c21",
+      "#512a17",
+      "#412a23",
+      "#6c2217",
+      "#6c220a",
+      "#5f2211",
+      "#502319",
+      "#52210f",
+      "#3f241e",
+      "#3d1e1b",
+      "#401f13",
+      "#321f1c",
+      "#c51922",
+      "#6b1a12",
+      "#3f1a12",
+      "#2c1917",
       "#111b25",
-      "#84141b",
-      "#79131b",
-      "#73141c",
-      "#731315",
-      "#730d18",
-      "#6c131b",
-      "#6b1215",
-      "#6b0d17",
-      "#64131b",
-      "#5c131a",
-      "#5f1215",
-      "#5f0e17",
-      "#5e0d11",
-      "#5e0914",
-      "#501316",
-      "#500e16",
-      "#4f0d11",
-      "#3f1315",
-      "#3e140c",
-      "#400d13",
-      "#4f0913",
-      "#430811",
-      "#3b0810",
-      "#311414",
-      "#32130c",
-      "#310d10",
-      "#281312",
-      "#270d0f",
-      "#320912",
-      "#31090d",
-      "#28090f",
-      "#31050e",
-      "#29050d",
-      "#25050c",
-      "#200f10",
-      "#20090d",
-      "#20060c",
-      "#170b0d",
-      "#18050a",
-      "#0e0507",
-      "#1b0208",
-      "#100206",
-      "#040102"
+      "#131818",
+      "#e11225",
+      "#de0823",
+      "#d50c23",
+      "#cf0e23",
+      "#cf0421",
+      "#c70e23",
+      "#c70421",
+      "#be1023",
+      "#bd0922",
+      "#bd0521",
+      "#bd021f",
+      "#ae1026",
+      "#ad1019",
+      "#ad0925",
+      "#ad091b",
+      "#b10524",
+      "#a70523",
+      "#ad051b",
+      "#b10220",
+      "#a70220",
+      "#ac0218",
+      "#9b1020",
+      "#9b0920",
+      "#8e101d",
+      "#8d091e",
+      "#9c0523",
+      "#9b051b",
+      "#8f0520",
+      "#8a051f",
+      "#8d0518",
+      "#9f021f",
+      "#9a021f",
+      "#96021f",
+      "#9d0118",
+      "#950118",
+      "#90021e",
+      "#8f011a",
+      "#89021c",
+      "#8d0114",
+      "#82101b",
+      "#761018",
+      "#80091f",
+      "#7f0917",
+      "#73091a",
+      "#84051e",
+      "#7c051e",
+      "#810518",
+      "#790518",
+      "#74051b",
+      "#730514",
+      "#681015",
+      "#680918",
+      "#6c051a",
+      "#64051a",
+      "#690514",
+      "#610514",
+      "#84021e",
+      "#83021a",
+      "#7c021d",
+      "#7b0219",
+      "#830114",
+      "#7d0114",
+      "#790114",
+      "#74021a",
+      "#730116",
+      "#730111",
+      "#6c0219",
+      "#6b0216",
+      "#640219",
+      "#650216",
+      "#610215",
+      "#6b0111",
+      "#650110",
+      "#610110",
+      "#551110",
+      "#560915",
+      "#5c0519",
+      "#5b0516",
+      "#560517",
+      "#590510",
+      "#500516",
+      "#4f0510",
+      "#45120e",
+      "#3b120e",
+      "#420910",
+      "#480514",
+      "#420513",
+      "#45050c",
+      "#3c0510",
+      "#5c0219",
+      "#5e0215",
+      "#5a0215",
+      "#5b0112",
+      "#560216",
+      "#550112",
+      "#59010d",
+      "#500215",
+      "#510112",
+      "#4d0112",
+      "#4f010d",
+      "#480215",
+      "#490112",
+      "#460111",
+      "#420212",
+      "#47010c",
+      "#41010c",
+      "#3c0212",
+      "#3b010e",
+      "#3b0109",
+      "#2e1514",
+      "#2f130c",
+      "#241312",
+      "#2f0b0c",
+      "#230c0c",
+      "#320510",
+      "#310508",
+      "#26050b",
+      "#340211",
+      "#35010e",
+      "#32010e",
+      "#2e020e",
+      "#330109",
+      "#2d0108",
+      "#28020d",
+      "#27010a",
+      "#22010b",
+      "#250105",
+      "#1c0f10",
+      "#1b0a0b",
+      "#130a0b",
+      "#190509",
+      "#120508",
+      "#0b0506",
+      "#1c010a",
+      "#1b0105",
+      "#140209",
+      "#130106",
+      "#130102",
+      "#0c0106",
+      "#0b0102",
+      "#050103",
+      "#010001"
     ]
   },
   "packs": [
@@ -2279,18 +2553,68 @@
     },
     {
       "file": "sprites-06.pack",
-      "bytes": 209516,
-      "sha256": "e2979d24449dfd7fa12a09dfb645e77061f64351fa9dab443c0b15f7fae819ff"
+      "bytes": 220000,
+      "sha256": "4f1d5900f40c1c9ec02be1121ca7ee485b08fb61521ceab1c8f3d6a0f190e218"
     },
     {
       "file": "sprites-07.pack",
-      "bytes": 133424,
-      "sha256": "776cc7ad603c97195c6b14baa19267d460100bf2034029e19bb0146875544f29"
+      "bytes": 220000,
+      "sha256": "7a63633e60211bde6c63176ce07e4d71884b86d57cb3ba51c5351ada32e0cacf"
     },
     {
       "file": "sprites-08.pack",
+      "bytes": 220000,
+      "sha256": "7f1aea13307dec575477a4eace7d40d624e7f7e71dba3a2038e529100e86c0a0"
+    },
+    {
+      "file": "sprites-09.pack",
+      "bytes": 220000,
+      "sha256": "6152cb0a34d77f2f607ec8bf0dce4b91857bbbc1db74fb62dc61bee67d8a5244"
+    },
+    {
+      "file": "sprites-10.pack",
+      "bytes": 144842,
+      "sha256": "0c3a3dbd8f1967a0c8d3f5d278f2fe3d803e516f1a931a15847d432c2eb12d92"
+    },
+    {
+      "file": "sprites-11.pack",
+      "bytes": 93462,
+      "sha256": "ac6b86f996318e3e27c5a162a80a7bb1978d5ac450d2559669f69de761794bdb"
+    },
+    {
+      "file": "sprites-12.pack",
       "bytes": 153080,
       "sha256": "6f559b2724f7e694a696019db065f60a6fc33b707dac089dd3b5c612ac202e6f"
+    },
+    {
+      "file": "sprites-13.pack",
+      "bytes": 220000,
+      "sha256": "76dd2d7c566d4f4c2c601e81a6981ab692ba0e50332108ac70d94c6162e4e259"
+    },
+    {
+      "file": "sprites-14.pack",
+      "bytes": 220000,
+      "sha256": "ce8e1dd9579331a24aa5ea2ba1be36ddcdf112457ea8fd19be7a54ca0df4ad1a"
+    },
+    {
+      "file": "sprites-15.pack",
+      "bytes": 220000,
+      "sha256": "40e189b86c13d5968e71a0e70e1f57ea1cb0f844d82a386613580a478cc54bc6"
+    },
+    {
+      "file": "sprites-16.pack",
+      "bytes": 8458,
+      "sha256": "22d43c6ae40e516d94531a65ae5b7f678b21446ee6c0951defdfe2cf66677e21"
+    },
+    {
+      "file": "sprites-17.pack",
+      "bytes": 220000,
+      "sha256": "b8f76c2094e1f042a940d8ce1b375bd4bb3be294899b8c563b3055d091105bb0"
+    },
+    {
+      "file": "sprites-18.pack",
+      "bytes": 1970,
+      "sha256": "bcb3c1f4b3e2618d846f4942362754b79958e694346bf1b4a39c89ac592175db"
     }
   ],
   "packFormat": "image/webp",
@@ -2319,5 +2643,23 @@
       128,
       244
     ]
+  },
+  "castleHall": {
+    "floor": {
+      "file": "castle-hall-floor.png",
+      "width": 1024,
+      "height": 1024
+    },
+    "decor": {
+      "file": "castle-hall-decor.png",
+      "frameSize": 256,
+      "columns": 6,
+      "rows": 1,
+      "anchor": [
+        128,
+        244
+      ]
+    },
+    "reference": "lumen-castle-concept/world-boss-creatures-v2.png"
   }
 }

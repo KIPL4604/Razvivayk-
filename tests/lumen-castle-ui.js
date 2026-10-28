@@ -103,7 +103,7 @@ async (page, options = {}) => {
       assert(boxes.every(b=>b.x>=0&&b.x+b.w<=width+1),'HUD horizontal bounds '+width);
       assert(boxes[0].y+boxes[0].h<boxes[1].y&&boxes[1].y+boxes[1].h<boxes[2].y,'HUD vertical separation '+width);
       const framing=await p.evaluate(async()=>{
-        const {Renderer}=await import('/static/js/lumen/renderer.mjs'),{loadArt}=await import('/static/js/lumen/assets.mjs');
+        const {Renderer}=await import('/static/js/lumen/renderer.mjs'),{loadArt}=await import('/static/js/lumen/assets.mjs'),{CASTLE_HALL_VISUAL}=await import('/static/js/lumen/castle-view.mjs');
         const {restore}=await import('/static/js/lumen/engine.mjs'),run=restore(saved.lumen.run),art=await loadArt();
         const canvas=document.createElement('canvas');canvas.style.cssText='position:fixed;inset:0;width:100vw;height:100vh;opacity:0;pointer-events:none';document.body.append(canvas);
         const renderer=new Renderer(canvas,art);renderer.resize();
@@ -111,11 +111,12 @@ async (page, options = {}) => {
         renderer.castleInsets={top,bottom};renderer.draw(run);
         const actor=art.manifest.actors['boss-monarch'],anchor=actor.anchor[1]/actor.frameSize;
         const boss=run.enemies.find(e=>e.kind==='arena-boss');
-        const bossTop=renderer.at(boss.x,boss.y+7-620*anchor)[1]/renderer.dpr;
+        const bossTop=renderer.at(boss.x,boss.y+7-CASTLE_HALL_VISUAL.monarchSize*anchor)[1]/renderer.dpr;
         const heroBottom=renderer.at(run.player.x,run.player.y+14)[1]/renderer.dpr;
-        const result={top,bottom,bossTop,heroBottom,scale:renderer.scale};renderer.destroy();canvas.remove();return result;
+        const result={top,bottom,bossTop,heroBottom,scale:renderer.scale,sizeRatio:CASTLE_HALL_VISUAL.monarchSize/CASTLE_HALL_VISUAL.heroSize};renderer.destroy();canvas.remove();return result;
       });
       assert(framing.bossTop>=framing.top-2&&framing.heroBottom<=framing.bottom+2,'Monarch crown/hero framing '+width+' '+JSON.stringify(framing));
+      assert(framing.sizeRatio>=7&&framing.sizeRatio<=8,'Monarch is seven to eight hero heights');
       await seed('fighting');await p.waitForTimeout(2100);await shot('ring',width);await p.keyboard.press('Escape');
       assert(await p.evaluate(()=>saved.lumen.run.arena.kind==='castle'&&saved.lumen.run.arena.phase==='fighting'),'Castle boss is fighting');
       await seed('reward');await shot('reward',width);await p.keyboard.press('Escape');

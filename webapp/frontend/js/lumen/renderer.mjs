@@ -4,7 +4,7 @@ import {bodyRadius,PLAYER_BODY} from './physics.mjs';
 import {BOSS_VARIANTS} from './bosses.mjs';
 import {ARENA_HAZARD_INSET} from './arena.mjs';
 import {WeaponVFX,arenaCamera} from './weapon-vfx.mjs';
-import {CastleView} from './castle-view.mjs';
+import {CastleView,CASTLE_HALL_VISUAL} from './castle-view.mjs';
 import {EnemyVFX} from './enemy-vfx.mjs';
 import {castleLayout} from './castle.mjs';
 
@@ -14,7 +14,7 @@ const hash = (x, y) => ((Math.imul(x, 374761393) ^ Math.imul(y, 668265263)) >>> 
 const distance = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 const castleSprites={'palace-guard':'castle-guard','wax-servant':'castle-wax','paper-moth':'castle-moth'};
 const spriteKey=e=>e.bossType&&BOSS_VARIANTS[e.bossType]?BOSS_VARIANTS[e.bossType].sprite:e.kind==='arena-boss'?BOSS_VARIANTS.matriarch.sprite:e.kind==='guardian'?BOSSES[e.guardianStage||1].sprite:castleSprites[e.kind]||e.kind;
-const actorSize=e=>e.bossType==='monarch'?620:e.bossType==='conductor'?250:e.bossType==='gatekeeper'?280:e.kind==='arena-boss'?252:e.kind==='arena-tick'?86:e.kind==='guardian'?220:e.elite?128:({'palace-guard':112,'wax-servant':108,'paper-moth':94,beetle:90,wasp:76,crawler:92,spitter:90,wisp:76,quartzling:86,shardback:110,moonmoth:86}[e.kind]||80);
+const actorSize=e=>e.bossType==='monarch'?CASTLE_HALL_VISUAL.monarchSize:e.bossType==='conductor'?250:e.bossType==='gatekeeper'?280:e.kind==='arena-boss'?252:e.kind==='arena-tick'?86:e.kind==='guardian'?220:e.elite?128:({'palace-guard':112,'wax-servant':108,'paper-moth':94,beetle:90,wasp:76,crawler:92,spitter:90,wisp:76,quartzling:86,shardback:110,moonmoth:86}[e.kind]||80);
 
 /** Presentation only. Simulation coordinates, collisions and save records are untouched. */
 export class Renderer {
@@ -340,17 +340,19 @@ export class Renderer {
       .sort((a, b) => a.y - b.y);
     for (const entity of entities) {
       if (Math.abs(entity.x - this.camera.x) > this.width / this.scale * .6 + 180
-        || Math.abs(entity.y - this.camera.y) > this.height / this.scale * .6 + 180) continue;
+        || Math.abs(entity.y - this.camera.y) > this.height / this.scale * .6 + (entity.kind==='castle-hall-prop'?entity.size:180)) continue;
       if(entity.kind==='castle-door'||entity.kind==='castle-open-door'){
         this.castleView.door(this,entity,state);
       }else if(entity.kind==='castle-prop'){
         this.castleView.prop(this,entity,p,t);
+      }else if(entity.kind==='castle-hall-prop'){
+        this.castleView.hallProp(this,entity,p,t);
       }else if (entity.kind === 'prop') {
         c.globalAlpha = sceneryOpacity(entity,p);
         this.blit(MAPS[this.map].props, entity.index * 64, 0, 64, 64, entity.x, entity.y, entity.size);
         c.globalAlpha = 1;
       } else if (entity.kind === 'hero') {
-          this.actor(state.character, heroAnimation, p.x, p.y, 96, t, heroSince, state.player.facingX < -.1);
+          this.actor(state.character, heroAnimation, p.x, p.y, CASTLE_HALL_VISUAL.heroSize, t, heroSince, state.player.facingX < -.1);
       } else if(entity.kind==='chest'){
         if(entity.mega&&this.art.images['mega-chest']){
           const frame=this.media.matches?0:Math.floor(t*5)%3;
@@ -365,10 +367,11 @@ export class Renderer {
         const view = entity.kind === 'dead' ? entity : this.views.get(entity.id) || entity;
         const key=entity.kind==='dead'?entity.sprite:spriteKey(entity);
         const point=entity.kind==='dead'?entity:this.pose(entity,'enemies');
+        if(key==='boss-monarch'&&entity.kind!=='dead')this.castleView.monarchLight(this,point.x,point.y,t);
         this.actor(key, entity.kind === 'dead' ? 'death' : view.animation || 'walk',
           point.x, point.y, entity.kind==='dead'?entity.size:actorSize(entity), t, view.since || 0, view.flip);
       }
-      if (!['hero', 'prop','castle-prop','castle-door','castle-open-door', 'dead','chest','arena-tick'].includes(entity.kind) && (['guardian','arena-boss'].includes(entity.kind) || entity.elite || entity.hp < entity.maxHp)) {
+      if (!['hero', 'prop','castle-prop','castle-hall-prop','castle-door','castle-open-door', 'dead','chest','arena-tick'].includes(entity.kind) && (['guardian','arena-boss'].includes(entity.kind) || entity.elite || entity.hp < entity.maxHp)) {
         const point=this.pose(entity,'enemies');
         const [x, y] = this.at(point.x, point.y - entity.radius - 23);
         const width = round(entity.radius * 2 * z);
