@@ -44,6 +44,13 @@ async (page, options = {}) => {
       const run=restore(saved.lumen.run),art=await loadArt(),before=JSON.stringify(serialize(run));
       const canvas=document.createElement('canvas');canvas.style.cssText='position:fixed;inset:0;width:100vw;height:100vh;opacity:0;pointer-events:none';document.body.append(canvas);
       const renderer=new Renderer(canvas,art);renderer.resize();
+      const planes=[],paint=renderer.ctx.drawImage.bind(renderer.ctx);
+      renderer.ctx.drawImage=function(image,...args){
+        const m=this.getTransform();
+        if(image===art.images['castle-hall-decor']&&Math.abs(m.b)>.001&&Math.abs(m.c)>.001)
+          planes.push({a:m.a,b:m.b,c:m.c,d:m.d});
+        return paint(image,...args);
+      };
       const hud=['.lumen-hud','.lumen-boss-hud','.lumen-wave'].map(selector=>{const b=document.querySelector(selector).getBoundingClientRect();return {x:b.x,y:b.y,w:b.width,h:b.height};});
       const top=hud[2].y+hud[2].h+20,bottom=document.querySelector('.lumen-bottom').getBoundingClientRect().top-22;
       renderer.castleInsets={top,bottom};renderer.draw(run);
@@ -53,7 +60,10 @@ async (page, options = {}) => {
       const floor=art.images['castle-hall-floor'],decor=art.images['castle-hall-decor'];
       const result={top,bottom,bossTop,heroBottom,hud,scale:renderer.scale,heroCss:CASTLE_HALL_VISUAL.heroSize*renderer.scale,
         ratio:CASTLE_HALL_VISUAL.monarchSize/CASTLE_HALL_VISUAL.heroSize,bossFrame:meta.frameSize,bossAnchor:meta.anchor,
-        floor:[floor.width,floor.height],decor:[decor.width,decor.height],pure:before===JSON.stringify(serialize(run))};
+        floor:[floor.width,floor.height],decor:[decor.width,decor.height],
+        sidePlanes:{count:planes.length,mirrored:planes.some(m=>m.c>0)&&planes.some(m=>m.c<0),
+          angled:planes.every(m=>Math.abs(m.a)<.001&&m.b>0&&m.d>0&&Object.values(m).every(Number.isFinite))},
+        pure:before===JSON.stringify(serialize(run))};
       renderer.destroy();canvas.remove();return result;
     });
   }
@@ -63,6 +73,18 @@ async (page, options = {}) => {
     for(const [width,height] of [[375,812],[768,1024],[1440,900],[1920,1080]]){
       await p.setViewportSize({width,height});
       await prepare('corridor');await shot('corridor',width);
+      if(options.walkWalls&&width===375){
+        const from=await p.evaluate(()=>saved.lumen.run.player.y);
+        await p.keyboard.down('w');await p.waitForTimeout(2400);await p.keyboard.up('w');
+        await shot('walls-walk-north',width);await p.keyboard.press('Escape');
+        const north=await p.evaluate(()=>saved.lumen.run.player.y);
+        await p.locator('[data-lumen-action="continue"]').click();
+        await p.keyboard.down('s');await p.waitForTimeout(2400);await p.keyboard.up('s');
+        await shot('walls-walk-south',width);await p.keyboard.press('Escape');
+        const south=await p.evaluate(()=>saved.lumen.run.player.y);
+        assert(from-north>=320&&south-north>=320,'Keyboard traverses a complete wall bay in both directions');
+        checks.push({wallWalk:{from,north,south}});
+      }
       const route=await prepare('forming');await shot('forming',width);
       assert(route.doorHp===6000&&route.doorBroken&&route.phase==='forming','Actual door and hall activation');
       const framing=await measure();
@@ -72,6 +94,7 @@ async (page, options = {}) => {
       assert(framing.ratio>=7&&framing.ratio<=8&&framing.bossFrame>=256,'Seven to eight hero heights with detailed monarch');
       assert(framing.floor[0]===1024&&framing.floor[1]===1024&&framing.decor[0]===1536&&framing.decor[1]===256,'Authored full hall assets');
       assert(framing.pure,'Drawing preserves the serialized run');
+      assert(framing.sidePlanes.count>=4&&framing.sidePlanes.mirrored&&framing.sidePlanes.angled,'Side panels follow opposed angled wall planes');
       await prepare('fighting');await p.waitForTimeout(2100);await shot('ring',width);
       checks.push({width,height,route,framing});
     }

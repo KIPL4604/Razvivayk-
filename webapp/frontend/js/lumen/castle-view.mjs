@@ -8,6 +8,7 @@ const hash=(x,y)=>((Math.imul(x,374761393)^Math.imul(y,668265263))>>>0);
 // One presentation contract for the actor, camera and visual acceptance checks.
 // Neither number changes a combat body or a simulation coordinate.
 export const CASTLE_HALL_VISUAL=Object.freeze({heroSize:96,monarchSize:744});
+const WALL=Object.freeze({bay:320,depth:160,rise:240,cap:12});
 
 /** Castle-only view data. No random calls, state writes, collision bodies or save data. */
 export class CastleView{
@@ -33,7 +34,7 @@ export class CastleView{
     // to a miniature. Desktop can show both wall rows at the normal actor scale.
     const widthScale=width/(CASTLE.halfWidth*2+176);
     const layout=framing.layout,bossY=arena?.y??layout?.hallY;
-    const scale=Math.max(Math.min(baseScale,.52),Math.min(baseScale,widthScale));
+    const scale=Math.max(Math.min(baseScale,.46),Math.min(baseScale,widthScale));
     const halfView=width/scale/2;
     const cameraX=halfView>=CASTLE.halfWidth?0:clamp(player.x,-CASTLE.halfWidth+halfView,CASTLE.halfWidth-halfView);
     const corridor={x:cameraX,y:player.y,scale,screenY:height*.49};
@@ -78,6 +79,38 @@ export class CastleView{
       x,y,width,height,(meta?.anchor?.[1]??244)/size,flip);
   }
 
+  sideWalls(r,half,minY,maxY,origin=0){
+    if(maxY<=minY)return;
+    const image=r.art.images['castle-hall-decor'];if(!image)return;
+    const c=r.ctx,cell=r.art.manifest.castleHall?.decor?.frameSize||256;
+    // This crop excludes the atlas gutter, keeping neighbouring bays flush.
+    const sx=cell*4+8,sy=28,sw=cell-16,sh=216;
+    const first=Math.floor((minY-origin)/WALL.bay),last=Math.ceil((maxY-origin)/WALL.bay);
+    for(const side of [-1,1])for(let bay=first;bay<last;bay++){
+      const y0=origin+bay*WALL.bay,start=Math.max(minY,y0),end=Math.min(maxY,y0+WALL.bay);
+      if(end<=start)continue;
+      const u0=(start-y0)/WALL.bay,u1=(end-y0)/WALL.bay;
+      const inner=side*half,outer=side*(half+WALL.depth);
+      const [tx,ty]=r.at(outer,start-WALL.rise),[bx,by]=r.at(inner,start);
+      const span=(end-start)*r.zoom,sourceWidth=(u1-u0)*sw;
+      c.save();
+      // Horizontal texture axis follows the length of the wall; its vertical
+      // axis follows actual wall height. Both sides use mirrored 3D planes.
+      c.setTransform(0,span/sourceWidth,(bx-tx)/sh,(by-ty)/sh,tx,ty);
+      c.drawImage(image,sx+u0*sw,sy,sourceWidth,sh,0,0,sourceWidth,sh);
+      const shade=c.createLinearGradient(0,0,0,sh);
+      shade.addColorStop(0,'#080b1010');shade.addColorStop(1,'#080b1055');
+      c.fillStyle=shade;c.fillRect(0,0,sourceWidth,sh);c.restore();
+      const [ex,ey]=r.at(outer,end-WALL.rise),[cx,cy]=r.at(outer+side*WALL.cap,start-WALL.rise-10);
+      c.save();c.beginPath();c.moveTo(tx,ty);c.lineTo(ex,ey);c.lineTo(ex+cx-tx,ey+cy-ty);c.lineTo(cx,cy);c.closePath();
+      c.fillStyle='#46321f';c.fill();c.strokeStyle='#a77a37';c.lineWidth=Math.max(r.dpr,2*r.zoom);c.stroke();
+      const [fx,fy]=r.at(inner,end);
+      c.beginPath();c.moveTo(bx,by);c.lineTo(fx,fy);c.strokeStyle='#171013';c.lineWidth=Math.max(2*r.dpr,7*r.zoom);c.stroke();
+      c.beginPath();c.moveTo(bx-side*3*r.zoom,by-3*r.zoom);c.lineTo(fx-side*3*r.zoom,fy-3*r.zoom);
+      c.strokeStyle='#9c6d30';c.lineWidth=Math.max(r.dpr,2*r.zoom);c.stroke();c.restore();
+    }
+  }
+
   hallBackdrop(r,layout){
     const top=layout.hallY-CASTLE.hallHalfHeight,width=CASTLE.hallHalfWidth*2;
     const image=r.art.images['castle-hall-floor'];
@@ -88,7 +121,6 @@ export class CastleView{
     this.hallDecor(r,5,0,top+96,520,420);
     for(const side of [-1,1]){
       this.hallDecor(r,4,side*505,top+96,490,420,side===1);
-      for(let bay=0;bay<4;bay++)this.hallDecor(r,4,side*744,top+320+bay*320,218,350,side===1);
       this.hallDecor(r,1,side*430,top+128,182,308);
       this.hallDecor(r,2,side*575,top+152,190,256,side===1);
       this.hallDecor(r,0,side*710,top+170,214,410,side===1);
@@ -96,6 +128,7 @@ export class CastleView{
       // The entrance shoulders are large walnut bays rather than a tile grid.
       this.hallDecor(r,4,side*(CASTLE.halfWidth+180),layout.doorY+52,360,230,side===1);
     }
+    this.sideWalls(r,CASTLE.hallHalfWidth,top+96,layout.doorY,top+96);
   }
 
   ground(r,player,state){
@@ -107,6 +140,9 @@ export class CastleView{
     this.fill(r,'wood',-half-120,top,half*2+240,bottom-top);
     this.fill(r,'parquet',-half,top,half*2,bottom-top);
     this.fill(r,'carpet',-carpet,top,carpet*2,bottom-top);
+    // The opaque hall floor/entrance shoulders occlude gallery wall tops that
+    // project behind the doorway; they cannot become wings inside the room.
+    this.sideWalls(r,half,hall?Math.max(top,hallBottom):top,bottom);
     if(hall){
       const start=Math.max(top,hallTop),end=Math.min(bottom,hallBottom);
       if(end>start)this.fill(r,'wood',-CASTLE.hallHalfWidth-120,start,CASTLE.hallHalfWidth*2+240,end-start);
@@ -119,15 +155,6 @@ export class CastleView{
       const width=carpet;
       r.blit('castle-tiles',4*32,0,32,32,-width+28,y+64,56,64,1);
       r.blit('castle-tiles',5*32,0,32,32,width-28,y+64,56,64,1);
-    }
-    // The upright wall section is repeated along the same 50m module as its props.
-    for(let y=Math.floor(top/128)*128;y<=bottom;y+=128){
-      if(hall&&y<hallBottom)continue;
-      const width=half;
-      r.blit('castle-props',5*128,0,128,128,-width-28,y+110,152,152,.94);
-      r.blit('castle-props',5*128,0,128,128,width+28,y+110,152,152,.94,true);
-      const [lx,py]=r.at(-width,y),[rx]=r.at(width,y),height=128*r.zoom;
-      c.fillStyle='#bd8a42';c.fillRect(lx,py,Math.max(r.dpr,2*r.zoom),height);c.fillRect(rx-Math.max(r.dpr,2*r.zoom),py,Math.max(r.dpr,2*r.zoom),height);
     }
     const props=castleProps(top,bottom,state).map(p=>inHall(p.y)?
       {...p,kind:'castle-hall-prop',index:p.kind==='column'?0:3,size:p.kind==='column'?350:190}:
