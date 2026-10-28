@@ -139,3 +139,13 @@ The Teramont catalog art, iframe shell, mobile controls, and navigation are
 separate original integration code.
 The upstream game uses only browser Canvas 2D, Web Audio, ES modules, and its two
 local JSON level files; no game API or external runtime library is loaded.
+
+
+## Card salon materials (29 October 2026)
+
+The bandana texture is original imagegen output based on this project's approved
+visual concept. Its unmodified PNG is retained in design/card-salon/; runtime
+assets/cards/bandana.webp is a 768px WebP derivative. The procedural SVG grain,
+leather and rail textures and salon CSS are original code. No third-party
+Durak Online graphics or UI library is shipped. Existing navigation and
+fullscreen icon attributions above remain applicable.

@@ -7,6 +7,16 @@ Teramont — игровая платформа внутри Telegram Mini App. �
 Перед работой читать [MEMORY.md](MEMORY.md) и [AGENTS.md](AGENTS.md).
 Для продолжения в другом чате начать с раздела 0 MEMORY.md: там путь проекта,
 актуальные возможности, последние этапы, открытые вопросы и границы проверки.
+29.10.2026, карточный зал: пользователь утвердил референс и попросил«1в1».
+Визуал теперьв игре: кожа/строчка/сукно, настоящаякоричнево-белаяpaisley
+текстура/мягкийсвет,4формыстолов, тёмнаябиблиотека/выборпокера.
+Блэкджек:своярукавнутристола; Дурак:пальцемвсередину, широкаязона/центрпар.
+MCP/Edge4ширины/2личныеитерации,39Node, nativeCDPdragcenter, полныйDurak
+won25ходов/solo+onlinePoker/reconnect/undo/reload/reducedmotion,0errors.
+Compact720/667/375height и19картКосынки проверены; Poker.cqh/landscapefix.
+См.design/card-salon/review.md и MEMORY48/11.48; four-games-live-final.png
+в D:/Codex-artifacts/card-salon-20261029/ —реальныйUI. Телефон/полныйHTTPS
+неприняты; бот/туннель/APIнеперезапускались. ЧужиеLumentests отдельно.
 29.10.2026, карты: сначала управление, затем референс на оценку. Drag мышью/
 native touch, legal targets, double tap и swipe-sort Дурака; stack drag/undoZ
 Косынки, H/S/D Блэкджека, пресеты ставки Покера с отдельной отправкой.

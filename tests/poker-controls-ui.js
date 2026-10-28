@@ -1,5 +1,5 @@
 async page => {
-  const base='http://127.0.0.1:8081',out='D:/Codex-artifacts/cards-redesign-20261028/';
+  const base='http://127.0.0.1:8081',out='D:/Codex-artifacts/card-salon-20261029/';
   if(new URL(page.url()).origin!==base)throw Error('Use isolated QA server :8081');
   const ctx=await page.context().browser().newContext();ctx.setDefaultTimeout(12000);
   const errors=[],assert=(ok,msg)=>{if(!ok)throw Error(msg);};

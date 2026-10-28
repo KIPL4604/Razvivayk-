@@ -30,6 +30,8 @@ const CardRoom=(()=>{
   }
   function onScreen(name){
     const before=active();current=name;const now=active();
+    document.documentElement.classList.toggle('cards-lounge',['cards','poker'].includes(name));
+    if(now){const panel=document.querySelector('.cardroom.active');if(panel&&!panel.querySelector('.cardroom-bandana')){const fabric=document.createElement('div');fabric.className='cardroom-bandana';fabric.setAttribute('aria-hidden','true');fabric.innerHTML='<i></i><i></i>';panel.prepend(fabric);}}
     document.documentElement.classList.toggle('cardroom-active',now);
     if(now){for(const id of ['pokerFullscreenIcon','cardGameFullscreenIcon','cardGameMenuIcon']){const e=document.querySelector('#'+id);if(e&&!e.firstElementChild)e.innerHTML=icon(id==='cardGameMenuIcon'?'menu':'fullscreen');}viewport();if(tg?.isVersionAtLeast?.('7.7'))try{tg.disableVerticalSwipes();}catch(_){}updateFullscreen();}
     if(before&&!now){document.querySelectorAll('.cardroom-dialog[open]').forEach(d=>d.close());if(ownedFullscreen&&document.fullscreenElement)document.exitFullscreen?.().catch(()=>{});ownedFullscreen=false;document.documentElement.style.removeProperty('--cardroom-height');}

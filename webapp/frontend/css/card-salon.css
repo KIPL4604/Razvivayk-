@@ -1,0 +1,426 @@
+/* Approved card-room reference, 29 October 2026. Materials stay behind live DOM. */
+:root {
+  --salon-ivory:#f1e6cc;
+  --salon-muted:#c5bda8;
+  --salon-tan:#dbb576;
+  --salon-grain:url('/static/assets/cards/grain.svg');
+  --salon-leather:url('/static/assets/cards/leather.svg');
+  --salon-rail:url('/static/assets/cards/leather-rail.svg');
+  --salon-bandana:url('/static/assets/cards/bandana.webp');
+}
+.cardroom {
+  --room-edge:max(9px,calc((100vw - 1180px)/2));
+  --felt:#10291e;
+  --felt-light:#23422b;
+  --paper:var(--salon-ivory);
+  --gold:var(--salon-tan);
+  --muted-table:var(--salon-muted);
+  --table-line:#d8c6a22b;
+  background:radial-gradient(ellipse at 50% -15%,#6a594849,transparent 65%),var(--salon-leather),#100f0d;
+  font-family:Arial,Helvetica,sans-serif;
+  color:var(--salon-ivory);
+}
+.cardroom.active,
+.cardroom.cardroom-poker.active {
+  padding: max(24px,calc(var(--cardroom-safe-top,0px) + 12px))
+    max(calc(var(--room-edge) + 25px),calc(var(--cardroom-safe-right,0px) + 18px))
+    max(28px,calc(var(--cardroom-safe-bottom,0px) + 18px))
+    max(calc(var(--room-edge) + 25px),calc(var(--cardroom-safe-left,0px) + 18px))!important;
+}
+.cardroom::before {
+  inset:max(10px,var(--cardroom-safe-top,0px)) var(--room-edge) max(10px,var(--cardroom-safe-bottom,0px));
+  border:10px solid transparent;
+  border-radius:30px;
+  background:radial-gradient(ellipse at 48% 42%,#31543837,#0008 100%) padding-box,
+    var(--salon-grain) padding-box,linear-gradient(var(--room-cloth,var(--felt)),var(--room-cloth,var(--felt))) padding-box,
+    var(--salon-rail) border-box,linear-gradient(95deg,#26170f,#775031 12%,#372017 40%,#69432a 85%,#20100b) border-box;
+  box-shadow:0 0 0 1px #ae7f51,0 0 0 3px #1d100b,
+    inset 0 0 0 2px #190e09,inset 0 0 14px 4px #000b,
+    0 3px 2px #f1c18b52,0 12px 26px #000c;
+}
+.cardroom::after {
+  inset:max(14px,calc(var(--cardroom-safe-top,0px) + 4px)) calc(var(--room-edge) + 5px) max(14px,calc(var(--cardroom-safe-bottom,0px) + 4px));
+  border:1px dashed #dac7a978;
+  border-radius:25px;
+  box-shadow:0 0 0 1px #1d100a7d;
+}
+.cardroom[data-card-theme="blackjack"]::before,.cardroom-poker::before {
+  --room-cloth:#12140f;
+}
+.cardroom-bandana {position:absolute;inset:0;z-index:-2;pointer-events:none;overflow:hidden}
+.cardroom-bandana>i {
+  position:absolute;top:0;bottom:0;left:0;width:calc(var(--room-edge) + 8px);
+  background-image:linear-gradient(90deg,#150a0430,#0005),var(--salon-bandana);
+  background-size:auto,460px 460px;
+  box-shadow:inset -7px 0 12px #000b;
+}
+.cardroom-bandana>i+i{left:auto;right:0;background-position:0 0,230px 90px;box-shadow:inset 7px 0 12px #000b}
+.cardroom-bandana>i::after {
+  content:'';position:absolute;inset:-100% 0;
+  background:linear-gradient(170deg,transparent 40%,#fce5bd24 50%,transparent 60%);
+  animation:bandana-light 14s ease-in-out infinite;will-change:transform;
+}
+.cardroom-bandana>i+i::after{animation-delay:-7s}
+@keyframes bandana-light{0%,20%{transform:translateY(-35%)}80%,100%{transform:translateY(35%)}}
+.cardroom-toolbar,.cardroom .game-toolbar {
+  flex-basis:58px;padding-bottom:12px;border-bottom:1px solid #c0a77542;
+}
+.cardroom-title>span{font-size:8px;letter-spacing:.2em;color:#c8bda0;font-weight:400}
+.cardroom-title h1,.cardroom .game-toolbar h1{font-size:25px!important;color:#f8edd5}
+.cardroom .table-icon{border:0;background:none;color:#e7e1ce;border-radius:8px}
+.cardroom .table-icon:hover{background:#f2d69d12;color:#fff3d6}
+.cardroom .table-icon svg{width:21px;height:21px}
+.cardroom-meta{min-height:42px;font-size:12px;color:#ded7c3}
+.cardroom .table-button,
+.cardroom-poker .poker-controls button,
+.cardroom-poker .poker-table-footer button {
+  border:1px solid #9a998170;
+  background:linear-gradient(#2e3526,#1a2118);
+  color:#f1ecd9;border-radius:10px;
+  box-shadow:inset 0 1px 0 #fff1,0 2px 4px #0004;
+  font:500 14px Arial,Helvetica,sans-serif;
+  min-height:52px;
+}
+.cardroom .table-button:not(.secondary),
+.cardroom-poker .poker-controls button.primary-button {
+  background:linear-gradient(120deg,#e7c58b,#d2a663);
+  border-color:#f1d39d;color:#211b11;
+  box-shadow:inset 0 1px 0 #fff7,0 2px 7px #0005;
+}
+.cardroom .table-button:hover:not(:disabled),
+.cardroom-poker .poker-controls button:hover:not(:disabled){filter:brightness(1.12)}
+.cardroom .table-button:disabled,.cardroom-poker .poker-controls button:disabled{opacity:.4!important}
+.cardroom button:focus-visible,.cardroom input:focus-visible{outline:2px solid #f3d59a;outline-offset:3px}
+.table-actions{max-width:680px;gap:10px}
+.table-footer{padding-top:8px}
+.table-message{font-size:12px;color:#e0d7bf;margin-bottom:10px;min-height:20px}
+.table-avatar,.cardroom-poker .poker-avatar {
+  color:#342615;background:linear-gradient(130deg,#f1d397,#c79752);
+  border:1px solid #d8b979;box-shadow:0 3px 9px #0004;
+}
+.table-opponent {min-height:90px;margin:12px auto 10px;gap:13px;max-width:610px}
+.table-opponent strong{font-size:15px;color:#f4ebd7}
+.table-opponent>div>span{font-size:11px;color:#c8bea6}
+.opponent-cards{--table-card:49px;margin-left:18px}
+.opponent-cards>.playing-card{margin-left:-26px;transform:rotate(-3deg)}
+.opponent-cards>.playing-card:nth-child(even){transform:rotate(3deg)}
+.durak-board{grid-template-columns:90px minmax(0,1fr) 70px;max-width:1040px;max-height:none;gap:20px}
+.durak-pairs {
+  align-self:stretch;align-content:center;justify-content:center;
+  max-width:650px;min-height:110px;width:100%;height:100%;
+  grid-template-columns:repeat(var(--pair-cols,3),minmax(0,var(--pair-track,110px)));gap:18px;
+  border:1px dashed transparent;border-radius:22px;
+}
+.durak-pairs[data-pairs="0"],.durak-pairs[data-pairs="1"]{--pair-cols:1}
+.durak-pairs[data-pairs="2"]{--pair-cols:2}
+.durak-pair{--table-card:78px;height:142px}
+.durak-pair>.attack-card{transform:rotate(-2deg)}
+.durak-pair>.defense-card{left:20px;top:34px;transform:rotate(2deg)}
+.defense-outline{width:78px;height:109px;top:34px;left:20px;border-color:#b1a27338;transform:rotate(2deg)}
+.table-watermark{opacity:.4;align-self:center}
+.table-watermark>span{font-size:42px}
+.table-watermark>small{font-size:8px;letter-spacing:.15em}
+.table-stock{--table-card:60px;gap:12px}
+.trump-card{--table-card:60px;left:1px;top:2px;transform:rotate(78deg) translateY(-15px)}
+.table-stock>span:not(.playing-card){font:21px Georgia,serif;color:#f3e7ca}
+.table-stock small{font:10px Arial,sans-serif;color:#d4cbb3}
+.table-discard{color:#d0c4a8;gap:7px}
+.table-discard .discard-mark{width:53px;height:74px;border-color:#a3906270;background:#0c211a55}
+.table-discard>b{font:20px Georgia,serif}.table-discard>small{font-size:10px}
+.table-hand-area{margin-top:12px}
+.table-hand-label{font-size:10px;color:#cdc6ad;font-weight:400;letter-spacing:.14em;min-height:30px}
+.table-hand-label b{background:none;border:0;padding:0;font:inherit;margin-left:7px}
+.hand-sort{min-height:32px;font-size:10px;border:0;color:#c5baa0;background:none;padding:6px}
+.table-hand{--table-card:94px;min-height:170px;padding:17px 5px 10px}
+.hand-slot+.hand-slot{margin-left:-21px}
+.hand-slot{transform:rotate(calc((var(--i) - (var(--count) - 1)/2)*2deg));transform-origin:center 180%}
+.hand-card.selected{outline:2px solid #edc276;outline-offset:3px;box-shadow:0 0 18px #ddb46226;translate:0 -15px}
+.hand-card.playable::after{display:none}
+.playing-card .poker-card-face{box-shadow:0 4px 7px #0006}
+.card-drop-ready{outline:1px dashed #d5c29480!important;outline-offset:0;border-radius:18px;background:#ead7a203}
+.card-drop-over{outline:2px solid #e8ce96!important;background:#e8c98913}
+.card-drag-ghost{filter:drop-shadow(0 15px 13px #0009)}
+.cardroom-dialog {
+  background:radial-gradient(ellipse at top,#3d38275c,transparent 70%),var(--salon-leather),#172219;
+  border:6px solid #503321;border-radius:20px;outline:1px solid #c7a16c66;
+  color:var(--salon-ivory);box-shadow:inset 0 0 0 1px #ddc69b70,0 25px 100px #000c;
+}
+.cardroom-dialog h2{color:#f3e4c4}.cardroom-dialog>p{color:#ded5bf}
+.cardroom-dialog .table-small{color:#c5b79d}.cardroom-dialog::backdrop{background:#080a08c7}
+/* Poker: padded oval rail, olive baize, live seats and cards. */
+.cardroom-poker .poker-play-main{gap:14px}
+.cardroom-poker .poker-table {
+  position:relative;isolation:isolate;container-type:size;
+  width:min(100%,850px);align-self:center;
+  padding:25px 24px!important;
+  border:12px solid #51321f!important;border-radius:44% / 27%!important;
+  background:radial-gradient(ellipse at 45% 30%,#66662b30,#0005 90%),var(--salon-grain),#303c1b;
+  box-shadow:0 0 0 1px #a1794e,0 0 0 3px #160d08,inset 0 0 0 2px #150d08,
+    inset 0 4px 22px #0009,0 10px 18px #000a;
+}
+.cardroom-poker .poker-table::before {
+  content:'';display:block;position:absolute;inset:-7px;
+  border:1px dashed #ddcbb290;border-radius:inherit;
+  pointer-events:none;background:none;z-index:1;box-shadow:none;
+}
+.cardroom-poker .poker-seat{background:transparent;border:0;min-width:0;padding:5px;box-shadow:none;border-radius:0}
+.cardroom-poker .poker-seat strong{font:600 13px Arial,sans-serif;color:#f2ead6}
+.cardroom-poker .poker-seat>div>span{font-size:11px;color:#cdc6ab}
+.cardroom-poker .poker-table-top,.cardroom-poker .poker-table-bottom{max-width:500px;min-height:0;gap:5px 18px;grid-template-columns:minmax(0,1fr) auto}
+.cardroom-poker .poker-table-bottom{grid-template-columns:auto minmax(0,1fr)}
+.cardroom-poker .poker-table-top .poker-seat{max-width:260px}
+.cardroom-poker .poker-table-bottom .poker-seat{max-width:260px}
+.cardroom-poker .poker-table-top .poker-opponent-hand{--poker-card-width:clamp(24px,8cqh,52px)}
+.cardroom-poker .poker-table-bottom .poker-own-hand{--poker-card-width:clamp(35px,11cqh,80px)}
+.cardroom-poker .poker-board-area{padding:12px 0;flex:0 1 auto}
+.cardroom-poker .poker-board{--poker-card-width:clamp(30px,10cqh,76px);gap:10px}
+.cardroom-poker .poker-card-slot{width:var(--poker-card-width);flex-basis:var(--poker-card-width);border-color:#d6c58c66;background:#1a231744}
+.cardroom-poker .poker-pot{color:#eee6cf;margin-bottom:16px}.cardroom-poker .poker-pot strong{font-size:28px}
+.cardroom-poker .poker-street-label{color:#d0c7a7;font-size:10px}
+.cardroom-poker .poker-felt-brand{color:#c6ba9559}
+.cardroom-poker .poker-bet{color:#edddac;font-size:12px}
+.cardroom-poker .poker-controls{margin-top:0}
+.cardroom-poker .poker-live-status{color:#b7ac94}
+.cardroom-poker .poker-table-meta{font-size:11px;color:#d5cdb8;min-height:26px}
+.cardroom-poker .poker-action-status{color:#d8ceb8;font-size:12px}
+.cardroom-poker .poker-your-turn{color:#f1d29c}
+.cardroom-poker .poker-raise-row input{border:1px solid #a3926c;background:#0c1712;color:#eee6cd;border-radius:9px}
+.cardroom-poker .poker-raise-form label,.cardroom-poker .poker-raise-form small{color:#cfc5aa}
+.cardroom-poker .poker-raise-presets button{font-size:12px;min-height:44px}
+.cardroom-poker .poker-table-footer{color:#baae93;min-height:36px}
+.cardroom-poker .poker-table-footer button{border:0;background:none;box-shadow:none;min-height:36px;font-size:11px}
+.cardroom-poker .poker-result,.cardroom-poker .poker-wait{background:#152116;border:1px solid #a3946b88}
+.cardroom-poker .poker-result p,.cardroom-poker .poker-wait p{color:#e0d3b4}
+/* Blackjack: the player's hand belongs inside the oxblood table. */
+.blackjack-field {
+  position:relative;isolation:isolate;align-self:center;display:grid;
+  grid-template-rows:auto auto minmax(65px,1fr) auto auto;
+  align-content:stretch;justify-content:stretch;justify-items:center;
+  width:min(100%,680px);margin:8px auto 16px;padding:30px 30px 35px;
+  border:12px solid #51321f;border-radius:45% / 28%;
+  background:radial-gradient(ellipse at 45% 30%,#a3493930,#0005 90%),var(--salon-grain),#451b1d;
+  box-shadow:0 0 0 1px #a1794e,0 0 0 3px #160d08,inset 0 0 0 2px #150d08,
+    inset 0 4px 22px #0008,0 10px 18px #000a;
+}
+.blackjack-field::before{content:'';position:absolute;inset:-7px;border:1px dashed #ddcbb290;border-radius:inherit;pointer-events:none;z-index:1}
+.cardroom-poker .poker-table,.blackjack-field{--rail:12px}
+.cardroom-poker .poker-table::after,.blackjack-field::after{
+  content:'';position:absolute;inset:calc(-1*var(--rail));padding:var(--rail);
+  background:linear-gradient(180deg,#f3cda324,transparent 20%,#0004 50%,#e0a86720 85%,#0005),var(--salon-rail),linear-gradient(95deg,#26170f,#775031 12%,#372017 40%,#69432a 85%,#20100b);
+  mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);mask-composite:exclude;
+  border-radius:inherit;pointer-events:none;z-index:0;
+}
+.blackjack-dealer-hand{order:0;--table-card:93px;min-height:130px;align-items:center}
+.table-dealer-label{order:1;margin:8px 0 0;gap:10px}
+.table-dealer-label .table-avatar{display:none}
+.table-dealer-label>span:nth-child(2){gap:2px}.table-dealer-label strong{font-size:12px}
+.table-dealer-label small{font-size:9px;color:#cdb9a3}
+.blackjack-total{font:24px Georgia,serif;border-radius:50%;padding:8px 10px;background:#160b0a88;color:#f2ddb0;border-color:#bda06f99;min-width:44px;text-align:center}
+.blackjack-inscription{order:2;flex-direction:column;justify-content:center;gap:0;margin:0;align-self:center;color:#dfbd86;width:100%;min-height:50px}
+.blackjack-inscription svg{width:min(100%,460px);height:auto;overflow:visible;max-height:115px}
+.blackjack-inscription text{font:32px Georgia,serif;letter-spacing:6px;fill:currentColor}
+.blackjack-inscription>span{font-size:7px;max-width:none;letter-spacing:.1em;color:#cfb08a}
+.blackjack-field>.table-hand-area{order:3;margin:0;width:100%}
+.blackjack-field .table-hand-label{display:none}
+.blackjack-hand{--table-card:93px;min-height:155px;padding:10px 0;align-items:center}
+.blackjack-hand .hand-slot+.hand-slot{margin-left:-10px}
+.blackjack-player-label{order:4;flex-direction:column;gap:6px;margin:0;position:relative}
+.blackjack-player-label>span{font-size:11px;color:#d6bda5;order:1}
+.blackjack-player-label>small{font-size:9px;color:#d2b99e}
+.blackjack-player-label>.blackjack-total{order:0;font-size:24px;margin:0}
+/* Solitaire: no empty dashboard-like columns, only the cloth and foundations. */
+.solitaire-field{max-width:960px;margin:16px auto 0;gap:30px}
+.sol-top,.sol-columns{gap:10px}
+.sol-column>.sol-drop{height:100%;aspect-ratio:auto;border-color:transparent}
+.sol-foundation>.sol-drop{border:1px solid #bdae8266;border-radius:7px;background:#071b1226}
+.sol-foundation .card-empty{color:#bbaa7d80}
+.sol-waste>.card-empty{border-color:#bdaa7140}
+.sol-stock>small{background:#1b271bdf;color:#e5d6ad;border-color:#c9b77945}
+.sol-card.selected{outline-color:#efcf8f;filter:drop-shadow(0 0 7px #e3be6e2b)}
+/* The card lobby flows from warm light into the same dark materials. */
+.cards-lounge #app{color:#eee5cd;background:radial-gradient(ellipse at 50% -20%,#a18e6d66,transparent 60%),#111710}
+.cards-lounge .app-header,.cards-lounge .bottom-nav{background:#121910;border-color:#b9a0702b}
+.cards-lounge .brand,.cards-lounge .sidebar-note p{color:#f1e6cc}
+.cards-lounge .header-rank,.cards-lounge .sidebar-note,.cards-lounge .sidebar-note>span:last-child{color:#c8baa0}
+.cards-lounge .bottom-nav button{color:#c9bda3}.cards-lounge .bottom-nav button.active{background:#6b523245;color:#f4d49a}
+.cards-lounge .connection-banner{color:#c7b99d}
+.cards-lounge #main{background-image:linear-gradient(180deg,#94816915,transparent 240px)}
+.cards-lounge .club-library-heading{padding:20px 0 24px;border-bottom:1px solid #d9c18d38}
+.cards-lounge .club-library-heading h1{font:normal 50px Georgia,serif;letter-spacing:-.035em;color:#f8eacf;margin:12px 0}
+.cards-lounge .club-library-heading .eyebrow{color:#c2ab7b}
+.cards-lounge .club-library-heading p:last-child,.cards-lounge .club-library-note{color:#c2b79f}
+.cards-lounge .club-count{color:#e9d4a5}.cards-lounge .club-count small{color:#bbac8b}
+.cards-lounge .club-game{border:7px solid #4e321f;border-radius:20px;min-height:300px;background:radial-gradient(ellipse at 60% 40%,#38533366,transparent),var(--salon-grain),#112b20;box-shadow:0 0 0 1px #a17a4c,inset 0 0 20px #0008}
+.cards-lounge .club-game::before{inset:-4px;border:1px dashed #d6c1a56b;border-radius:16px}
+.cards-lounge .club-game::after{content:'';right:0;top:0;bottom:0;width:24px;opacity:.5;transform:none;background:var(--salon-bandana) 40%/300px}
+.cards-lounge .club-game-blackjack{background-color:#3c191d}.cards-lounge .club-game-poker{background-color:#303c1b}
+.cards-lounge .club-game-heading>small{color:#d8c5a1}.cards-lounge .club-game-heading>span{color:#ddd0b4}
+.cards-lounge .club-game-heading>strong{font-size:35px;color:#f6e8ca}
+.cards-lounge .club-game-foot{border-color:#cbb28054}.cards-lounge .club-game-foot>span{color:#c9b996}
+.cards-lounge .club-game-foot>b{color:#edcb8f}
+.cards-lounge [data-screen="poker"]{--text:#f0e3c6;--soft:#d9c8a4;--muted:#c4b492;--line:#cbb38b44;--green:#e1c393;--red:#f5b6a2}
+.cards-lounge .poker-mode-option,.cards-lounge .poker-resume{background:#1b281c;border-color:#806344}
+.cards-lounge .poker-mode-icon{background:#4e432c;color:#e5c184}
+.cards-lounge .poker-learning-note{background:#20301f;border-color:#806344;color:#e5d8ba}
+.cards-lounge [data-screen="poker"] .primary-button{background:linear-gradient(120deg,#e7c58b,#d2a663);border:1px solid #f1d39d;color:#211b11}
+.cards-lounge [data-screen="poker"] .secondary-button{background:#26301f;border-color:#9a998170;color:#f1ecd9}
+.cards-lounge .icon-button{background:#27311f;border-color:#bda06f66;color:#eee1c3}
+@media(max-width:900px){
+  .cardroom{--room-edge:14px}
+  .cardroom.active,.cardroom.cardroom-poker.active{padding-inline:max(34px,var(--cardroom-safe-left,0px))!important}
+  .cardroom-poker .poker-table{padding:20px 18px!important}
+  .cardroom-poker .poker-board{--poker-card-width:clamp(30px,10cqh,62px)}
+  .durak-board{grid-template-columns:70px minmax(0,1fr) 56px;gap:16px}
+  .durak-pairs{--pair-track:95px;gap:15px}
+  .durak-pair{--table-card:68px;height:130px}
+  .defense-outline{width:68px;height:95px}
+}
+@media(max-width:600px){
+  .cardroom{--room-edge:7px}
+  .cardroom.active,.cardroom.cardroom-poker.active{
+    padding:max(19px,calc(var(--cardroom-safe-top,0px) + 9px)) max(23px,calc(var(--cardroom-safe-right,0px) + 16px)) max(24px,calc(var(--cardroom-safe-bottom,0px) + 14px)) max(23px,calc(var(--cardroom-safe-left,0px) + 16px))!important;
+  }
+  .cardroom::before{border-width:7px;border-radius:25px}
+  .cardroom::after{border-radius:21px;inset:max(13px,calc(var(--cardroom-safe-top,0px) + 3px)) 10px max(13px,calc(var(--cardroom-safe-bottom,0px) + 3px))}
+  .cardroom-bandana>i{background-size:auto,350px 350px}
+  .cardroom-toolbar,.cardroom .game-toolbar{gap:4px;flex-basis:47px;padding-bottom:7px}
+  .cardroom-title>span{font-size:6px;letter-spacing:.17em}
+  .cardroom-title h1,.cardroom .game-toolbar h1{font-size:21px!important}
+  .cardroom-tools{gap:0}.cardroom .table-icon{width:44px;min-width:44px;padding:10px;height:44px}
+  .cardroom .table-icon svg{width:20px;height:20px}
+  .cardroom-meta{font-size:9px;min-height:36px;gap:6px}
+  .table-opponent{min-height:76px;margin:8px auto 5px;gap:8px;justify-content:space-between}
+  .table-opponent .table-avatar{width:40px;height:40px;font-size:21px}
+  .table-opponent>div:nth-child(2){min-width:89px;flex:1}
+  .table-opponent strong{font-size:12px}.table-opponent>div>span{font-size:9px}
+  .opponent-cards{--table-card:40px;margin-left:11px}
+  .opponent-cards>.playing-card{margin-left:-24px}
+  .durak-board{grid-template-columns:43px minmax(0,1fr) 33px;gap:8px}
+  .durak-pairs{--pair-track:61px;gap:10px 7px;min-height:95px}
+  .durak-pair{--table-card:50px;height:108px}
+  .durak-pair>.defense-card,.defense-outline{left:7px;top:28px}
+  .defense-outline{width:50px;height:70px}
+  .table-stock{--table-card:36px;gap:9px}
+  .trump-card{--table-card:36px;transform:rotate(78deg) translateY(-9px)}
+  .table-stock>span:not(.playing-card){font-size:17px}.table-stock small{font-size:8px}
+  .table-discard .discard-mark{width:30px;height:43px}.table-discard>b{font-size:16px}.table-discard>small{font-size:8px}
+  .table-watermark>span{font-size:30px}.table-watermark>small{font-size:6px}
+  .table-hand-area{margin-top:10px}.table-hand-label{font-size:8px;min-height:26px;gap:8px}
+  .hand-sort{font-size:8px;min-height:30px;padding:5px 2px}
+  .table-hand{--table-card:65px;min-height:122px;padding:14px 0 9px}
+  .hand-slot+.hand-slot{margin-left:-13px}
+  .hand-card.selected{translate:0 -12px;outline-offset:2px}
+  .cardroom .table-button{min-height:54px;font-size:12px;padding:10px 5px}
+  .table-footer{padding-top:5px}.table-message{font-size:10px;margin-bottom:8px;line-height:1.4}
+  .table-actions{gap:8px}.hand-pages{margin:-3px 0 0;min-height:36px}
+  .hand-pages .table-icon{min-height:36px;height:36px}
+  .cardroom-poker .poker-play-main{gap:11px}
+  .cardroom-poker .poker-table{border-width:9px!important;padding:23px 10px!important;border-radius:45% / 23%!important}
+  .cardroom-poker .poker-table::before{inset:-5px}
+  .cardroom-poker .poker-table,.blackjack-field{--rail:9px}
+  .cardroom-poker .poker-table-meta{font-size:9px;min-height:25px}
+  .cardroom-poker .poker-table-top,.cardroom-poker .poker-table-bottom{max-width:265px;min-height:0;gap:4px 7px}
+  .cardroom-poker .poker-seat{padding:0}.cardroom-poker .poker-seat strong{font-size:10px}
+  .cardroom-poker .poker-seat>div>span{font-size:9px}.cardroom-poker .poker-avatar{width:32px;height:32px}
+  .cardroom-poker .poker-table-top .poker-opponent-hand{--poker-card-width:clamp(24px,10cqh,37px)}
+  .cardroom-poker .poker-table-bottom .poker-own-hand{--poker-card-width:clamp(35px,16cqh,56px)}
+  .cardroom-poker .poker-board{--poker-card-width:clamp(30px,13cqh,45px);gap:5px}
+  .cardroom-poker .poker-board-area{padding:5px 0}.cardroom-poker .poker-pot{margin-bottom:10px}
+  .cardroom-poker .poker-pot strong{font-size:23px}.cardroom-poker .poker-bet{font-size:10px}
+  .cardroom-poker .poker-felt-brand{font-size:6px;margin-top:7px}
+  .cardroom-poker .poker-street-label{font-size:8px;margin-bottom:8px}
+  .cardroom-poker .poker-controls button{font-size:12px;min-height:48px;padding-inline:8px}
+  .cardroom-poker .poker-action-status{font-size:10px;margin-bottom:8px}
+  .cardroom-poker .poker-raise-form{margin-top:8px}.cardroom-poker .poker-raise-form label{font-size:9px}
+  .cardroom-poker .poker-raise-row input{min-height:44px}.cardroom-poker .poker-raise-form small{font-size:8px}
+  .cardroom-poker .poker-raise-presets button{min-height:44px;font-size:10px}
+  .cardroom-poker .poker-table-footer{font-size:8px;min-height:29px}
+  .cardroom-poker .poker-table-footer button{font-size:9px;min-height:29px}
+  .blackjack-field{padding:25px 12px 23px;border-width:9px;border-radius:45% / 23%;margin:6px auto 14px}
+  .blackjack-field::before{inset:-5px}
+  .blackjack-dealer-hand{--table-card:70px;min-height:98px;gap:8px}
+  .blackjack-hand{--table-card:75px;min-height:121px;padding:10px 0}
+  .blackjack-field .table-dealer-label{margin:6px 0 0;gap:6px}
+  .table-dealer-label small{font-size:8px}.table-dealer-label strong{font-size:10px}
+  .blackjack-total,.blackjack-player-label>.blackjack-total{font-size:21px;padding:6px 8px;min-width:38px}
+  .blackjack-inscription text{font-size:31px;letter-spacing:5px}.blackjack-inscription>span{font-size:5.5px;letter-spacing:.02em}
+  .blackjack-inscription svg{max-height:93px}.blackjack-player-label>small{font-size:8px}
+  .blackjack-player-label>span{font-size:9px}.blackjack-player-label{gap:5px}
+  .solitaire-field{margin-top:10px;gap:25px}.sol-top,.sol-columns{gap:5px}
+  .sol-stock>small{font-size:7px}
+  .cards-lounge .club-library-heading{margin-bottom:20px;padding:12px 0 20px}
+  .cards-lounge .club-library-heading h1{font-size:37px}
+  .cards-lounge .club-game{min-height:237px;border-width:6px;padding:20px}
+  .cards-lounge .club-game-heading>strong{font-size:31px}.cards-lounge .club-game-heading>span{font-size:11px}
+  .cards-lounge .club-game-foot{left:20px;right:20px;bottom:17px}
+}
+@media(max-height:650px){
+  .cardroom.active,.cardroom.cardroom-poker.active{padding-top:max(12px,calc(var(--cardroom-safe-top,0px) + 4px))!important;padding-bottom:max(16px,calc(var(--cardroom-safe-bottom,0px) + 8px))!important}
+  .cardroom-toolbar,.cardroom .game-toolbar{flex-basis:44px;padding-bottom:3px}
+  .cardroom-meta{min-height:25px;font-size:9px}
+  .table-opponent{min-height:48px;margin:0 auto;max-width:470px}
+  .opponent-cards{--table-card:30px}.table-opponent .table-avatar{width:30px;height:30px;font-size:17px}
+  .durak-board{grid-template-columns:50px minmax(0,1fr) 40px;max-width:650px}
+  .durak-pairs{--pair-track:70px;min-height:70px;gap:4px}
+  .durak-pair{--table-card:35px;height:70px}.durak-pair>.defense-card,.defense-outline{top:18px;left:10px}
+  .defense-outline{width:35px;height:49px}
+  .table-stock{--table-card:28px}.trump-card{--table-card:28px}.table-stock small,.table-discard>small{font-size:7px}
+  .table-discard .discard-mark{width:26px;height:36px}
+  .table-hand{--table-card:44px;min-height:78px;padding:10px 0 5px}.table-hand-area{margin-top:3px}
+  .table-hand-label{min-height:22px}.hand-slot+.hand-slot{margin-left:-3px}
+  .hand-sort{min-height:26px}.table-footer{padding-top:1px}
+  .cardroom .table-button{min-height:44px;padding-block:6px}
+  .table-message{margin-bottom:4px;font-size:9px;min-height:14px}
+  .cardroom-poker .poker-play-main{gap:5px}.cardroom-poker .poker-table{padding:5px 35px!important;border-width:6px!important;max-width:580px}
+  .cardroom-poker .poker-table-top,.cardroom-poker .poker-table-bottom{min-height:42px;max-width:380px}
+  .cardroom-poker .poker-table-top .poker-opponent-hand{--poker-card-width:24px}
+  .cardroom-poker .poker-table-bottom .poker-own-hand{--poker-card-width:35px}
+  .cardroom-poker .poker-board{--poker-card-width:30px}
+  .cardroom-poker .poker-pot{margin-bottom:3px}.cardroom-poker .poker-pot strong{font-size:16px}
+  .cardroom-poker .poker-board-area{padding:2px 0}.cardroom-poker .poker-street-label{display:none}
+  .cardroom-poker .poker-controls button{min-height:35px;font-size:11px}
+  .cardroom-poker .poker-action-status{font-size:9px;margin-bottom:3px}
+  .cardroom-poker .poker-raise-form{margin-top:4px}.cardroom-poker .poker-raise-row input{min-height:35px}
+  .cardroom-poker .poker-table-meta{min-height:20px}.cardroom-poker .poker-table-footer{min-height:22px}
+  .cardroom-poker .poker-table-footer button{min-height:22px}
+  .blackjack-field{max-width:540px;margin:2px auto 8px;padding:8px 20px;border-width:6px;grid-template-rows:auto auto minmax(25px,1fr) auto auto}
+  .blackjack-dealer-hand{--table-card:40px;min-height:56px}.blackjack-hand{--table-card:42px;min-height:67px;padding:4px 0}
+  .blackjack-inscription svg{max-height:48px}.blackjack-inscription>span{display:none}
+  .blackjack-field .table-dealer-label{margin:2px 0}.table-dealer-label small{display:none}
+  .blackjack-total,.blackjack-player-label>.blackjack-total{font-size:16px;padding:3px 7px;min-width:27px}
+  .blackjack-player-label{flex-direction:row;gap:5px}.blackjack-player-label>small{display:none}
+  .cardroom-poker .poker-table,.blackjack-field{--rail:6px}
+  .solitaire-field{max-width:600px;margin-top:2px;gap:12px}
+}
+@container(max-height:340px){
+  .cardroom-poker .poker-board-area{padding:4px 0}
+  .cardroom-poker .poker-felt-brand{display:none}
+  .cardroom-poker .poker-street-label{font-size:9px;margin-bottom:5px}
+  .cardroom-poker .poker-pot{margin-bottom:6px}
+  .cardroom-poker .poker-pot strong{font-size:22px}
+  .cardroom-poker .poker-bet{font-size:9px}
+  .cardroom-poker .poker-seat{padding:0}
+  .cardroom-poker .poker-avatar{width:30px;height:30px}
+}
+@media(max-height:450px){
+  .durak-pairs[data-pairs="4"]{--pair-cols:4}.durak-pairs[data-pairs="5"]{--pair-cols:5}.durak-pairs[data-pairs="6"]{--pair-cols:6}
+  .cardroom-poker .poker-table{display:grid;grid-template-columns:1fr 1.35fr 1fr;grid-template-rows:minmax(0,1fr);align-items:center;padding:7px 25px!important;max-width:680px;border-radius:42% / 40%!important}
+  .cardroom-poker .poker-table-top,.cardroom-poker .poker-table-bottom{display:flex;flex-direction:column;justify-content:center;min-height:0;width:100%;gap:2px}
+  .cardroom-poker .poker-seat strong,.cardroom-poker .poker-seat>div>span{font-size:9px;line-height:11px}
+  .cardroom-poker .poker-table-bottom .poker-own-hand{--poker-card-width:29px}
+  .cardroom-poker .poker-table-top .poker-opponent-hand{--poker-card-width:22px}
+  .cardroom-poker .poker-board{--poker-card-width:27px;gap:4px}
+  .cardroom-poker .poker-board-area{padding:0}.cardroom-poker .poker-pot strong{font-size:17px}
+  .cardroom-poker .poker-bet{font-size:8px;line-height:11px}
+  .cardroom-poker .poker-bet svg{width:13px;height:13px}
+  .solitaire-field{max-width:min(100%,340px)}
+  .blackjack-field{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr auto;padding:12px 40px;gap:2px 30px;max-width:600px}
+  .blackjack-dealer-hand{grid-column:1;grid-row:1;--table-card:54px}
+  .table-dealer-label{grid-column:1;grid-row:2}
+  .blackjack-field>.table-hand-area{grid-column:2;grid-row:1}.blackjack-hand{--table-card:54px;min-height:80px}
+  .blackjack-player-label{grid-column:2;grid-row:2}.blackjack-inscription{display:none}
+}
+@media(prefers-reduced-motion:reduce){
+  .cardroom-bandana>i::after{animation:none;will-change:auto;transform:none}
+  .cardroom .table-button,.cardroom-poker .poker-controls button{transition:none}
+}
