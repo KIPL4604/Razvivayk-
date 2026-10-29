@@ -65,7 +65,7 @@ const worlds={
 };
 export function worldScene(map,phase='intro'){
  const world=worlds[map]||worlds.garden;
- return {id:`${phase}:${map}`,world:MAPS[map]?.name||MAPS.garden.name,title:phase==='intro'?({garden:'Пять пустых крюков',quarry:'Чужая версия',castle:'Приём не окончен',crater:'Замкнутое гнездо'}[map]||'Пропавшая экспедиция'):phase==='after'?'Дорога продолжается':BOSS_VARIANTS[world.boss].name,
+ return {id:`${phase}:${map}`,map:Object.hasOwn(worlds,map)?map:'garden',bossName:BOSS_VARIANTS[world.boss].name,world:MAPS[map]?.name||MAPS.garden.name,title:phase==='intro'?({garden:'Пять пустых крюков',quarry:'Чужая версия',castle:'Приём не окончен',crater:'Замкнутое гнездо'}[map]||'Пропавшая экспедиция'):phase==='after'?'Дорога продолжается':BOSS_VARIANTS[world.boss].name,
   portrait:BOSS_VARIANTS[world.boss].sprite,silhouette:phase==='intro',accent:world.accent,lines:world[phase==='before'?'before':phase==='after'?'after':'intro']};
 }
 export function bossScene(enemy,map){
@@ -75,5 +75,5 @@ export function bossScene(enemy,map){
  const lines=map==='quarry'?[line(name,enemy.bossType==='resonator'?'Несогласованный сигнал. Заглушить источник.':'Пропуск отсутствует. Вернуть нарушителя к рабочей линии.'),line('hero','Следы экспедиции ведут дальше. Я пройду.')]
   :map==='castle'?[line(name,enemy.bossType==='conductor'?'Приём ещё не окончен. Останьтесь на своих местах.':'Вход только по королевскому разрешению.'),line('hero','Открой служебный проход. Здесь остались люди.')]
   :[line('hero',enemy.guardianStage===1?'Свежие следы у распределителя. Отряд шёл здесь.':enemy.guardianStage===2?'На ветке оставили перевязку Савела. Значит, я на верном пути.':'Старый садовый пост охраняет служебную дорогу. За ней могут быть выжившие.')];
- return {id:`boss:${enemy.id}`,world:MAPS[map].name,title:name,portrait,silhouette:false,accent:worlds[map]?.accent||'#99bd89',lines};
+ return {id:`boss:${enemy.id}`,map,world:MAPS[map].name,title:name,bossName:name,portrait,silhouette:false,accent:worlds[map]?.accent||'#99bd89',lines};
 }

@@ -92,7 +92,7 @@ export function createGame(context) {
     const enemy=state.enemies.find(enemy=>enemy.hp>0&&['guardian','arena-boss'].includes(enemy.kind)&&!sceneSeen('boss:'+enemy.id));
     if(!enemy)return false;
     const runId=state.runId,scene=bossScene(enemy,state.map);paused=true;clearInput();soundSuspend();save();
-    story.play(scene,{hero:CHARACTERS[state.character].name}).then(done=>{
+    story.play(scene,{hero:CHARACTERS[state.character].name,heroId:state.character}).then(done=>{
       if(screen!=='lumen-game'||state?.runId!==runId)return;
       if(done){markScene(scene.id);if(document.hidden||appInactive||!document.hasFocus()){showPause();return;}paused=false;unlockAudio();runLoop();}
       else showPause();
@@ -154,7 +154,7 @@ export function createGame(context) {
     waitingForStart=true;clearInput();preview?.destroy();preview=null;
     const load=()=>prepareArt(value=>{if(ticket===sceneTicket)story.progress(value);},world,selected).then(value=>({value}),error=>({error}));
     const ready=load();
-    const proceed=await story.play(worldScene(world),{hero:CHARACTERS[selected].name,hold:true,onCancel:cancelLaunch});
+    const proceed=await story.play(worldScene(world),{hero:CHARACTERS[selected].name,heroId:selected,hold:true,onCancel:cancelLaunch});
     if(!proceed){if(ticket===sceneTicket)cancelLaunch();return;}
     const finish=async result=>{
       if(ticket!==sceneTicket||screen!=='lumen')return;
@@ -272,7 +272,7 @@ export function createGame(context) {
     const ending='after:'+state.map;
     if(state.status==='won'&&!sceneSeen(ending)){
       const runId=state.runId;paused=true;clearInput();soundSuspend();
-      story.play(worldScene(state.map,'after'),{hero:CHARACTERS[state.character].name}).then(()=>{
+      story.play(worldScene(state.map,'after'),{hero:CHARACTERS[state.character].name,heroId:state.character}).then(()=>{
         if(screen!=='lumen-game'||state?.runId!==runId)return;markScene(ending);showResult();
       });return;
     }

@@ -25,24 +25,41 @@ export class StoryOverlay{
   },true);
  }
  get active(){return !this.root.hidden;}
- play(scene,{hero='Герой',hold=false,onCancel}={}){
-  this.close();this.scene=scene;this.hero=hero;this.hold=hold;this.onCancel=onCancel;this.index=0;this.previousFocus=document.activeElement;
+ play(scene,{hero='Герой',heroId='scout',hold=false,onCancel}={}){
+  this.close();this.scene=scene;this.hero=hero;this.hold=hold;this.onCancel=onCancel;this.index=0;this.lastLines={};this.previousFocus=document.activeElement;
   this.inert=[...document.querySelectorAll('#lumenGameMount,#lumenSetupMount')].map(el=>[el,el.inert]);this.inert.forEach(([el])=>el.inert=true);
   this.root.style.setProperty('--story-accent',scene.accent);this.root.hidden=false;this.root.dataset.phase='dialogue';
+  this.root.dataset.world=scene.map||'garden';this.root.dataset.silhouette=String(scene.silhouette);
   this.root.innerHTML=`<div class="lumen-story-shell" role="dialog" aria-modal="true" aria-labelledby="lumenStoryTitle" data-lumen-scroll>
    <header class="lumen-story-header"><span>ЛЮМЕН <i>/</i> ${escape(scene.world)}</span><button type="button" data-story-action="skip">Пропустить <span aria-hidden="true">↗</span></button></header>
-   <div class="lumen-story-stage${scene.silhouette?' is-silhouette':''}" aria-hidden="true"><div class="lumen-story-orbit"></div><img src="${new URL('story-'+scene.portrait+'.png',asset)}" alt="" width="384" height="384"></div>
-   <div class="lumen-story-copy"><p class="lumen-story-chapter">ГЛАВА I <span>ПРОПАВШАЯ ЭКСПЕДИЦИЯ</span></p><h2 id="lumenStoryTitle">${escape(scene.title)}</h2>
-    <div class="lumen-story-dialogue"><div class="lumen-story-speaker" id="lumenStorySpeaker"></div><button type="button" class="lumen-story-line" data-story-action="advance"><span id="lumenStoryText" aria-hidden="true"></span><span class="lumen-story-caret" aria-hidden="true">▾</span></button><p class="sr-only" id="lumenStoryAccessible" aria-live="polite" aria-atomic="true"></p></div>
+   <div class="lumen-story-landscape" aria-hidden="true"><picture><source media="(max-width:767px)" srcset="${new URL('story-world-'+(scene.map||'garden')+'-small.webp',asset)}"><img src="${new URL('story-world-'+(scene.map||'garden')+'.webp',asset)}" alt="" width="1536" height="1024" fetchpriority="low"></picture>${scene.silhouette?`<img class="lumen-story-foreshadow" src="${new URL('story-'+scene.portrait+'.png',asset)}" alt="" width="384" height="384">`:''}</div>
+   <div class="lumen-story-heading"><p class="lumen-story-chapter">ГЛАВА I <span>ПРОПАВШАЯ ЭКСПЕДИЦИЯ</span></p><h2 id="lumenStoryTitle">${escape(scene.title)}</h2></div>
+   <div class="lumen-story-copy">
+    <button type="button" class="lumen-story-line" data-story-action="advance">
+     <span class="lumen-story-turn is-partner" data-side="partner"><span class="lumen-story-bubble" hidden><span class="lumen-story-speaker"></span><span class="lumen-story-words" aria-hidden="true"><span class="lumen-story-measure"></span><span class="lumen-story-typed"></span></span><span class="lumen-story-caret" aria-hidden="true">▾</span></span><span class="lumen-story-stage${scene.silhouette?' is-silhouette':''}" aria-hidden="true"><img src="${new URL('story-'+scene.portrait+'.png',asset)}" alt="" width="384" height="384"></span><span class="lumen-story-radio" aria-hidden="true"><svg viewBox="0 0 48 48" fill="none"><path d="M12 16h24v21H12zM17 16l15-9M18 24h12M18 29h7M30 31h1" stroke="currentColor" stroke-width="2"/><path d="M8 9C3 15 3 25 8 31M40 9c5 6 5 16 0 22" stroke="currentColor" stroke-width="1.5"/></svg><span>СВЯЗЬ</span></span></span>
+     <span class="lumen-story-turn is-hero" data-side="hero"><img class="lumen-story-hero" src="${new URL('story-hero-'+escape(heroId)+'.png',asset)}" alt="" width="192" height="256"><span class="lumen-story-bubble" hidden><span class="lumen-story-speaker"></span><span class="lumen-story-words" aria-hidden="true"><span class="lumen-story-measure"></span><span class="lumen-story-typed"></span></span><span class="lumen-story-caret" aria-hidden="true">▾</span></span></span>
+    </button><p class="sr-only" id="lumenStoryAccessible" aria-live="polite" aria-atomic="true"></p>
     <div class="lumen-story-footer"><span id="lumenStoryCount"></span><span id="lumenStoryHint">Нажми, чтобы раскрыть реплику</span></div>
-   </div><div class="lumen-story-loading" hidden><span class="lumen-story-kicker">ПОДГОТОВКА ЭКСПЕДИЦИИ</span><h2>Подождите…</h2><p id="lumenLoadPhase" role="status">Загружаем мир</p><div class="lumen-story-progress" role="progressbar" aria-label="Загрузка графики мира" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i></i></div><div class="lumen-story-load-meta"><strong id="lumenLoadPercent">0%</strong><span id="lumenLoadEta">Оцениваем время…</span></div><button type="button" data-story-action="retry" hidden>Повторить загрузку</button></div>
+   </div><div class="lumen-story-loading" hidden><span class="lumen-story-kicker">ПОДГОТОВКА ЭКСПЕДИЦИИ</span><h2 id="lumenLoadTitle">Подождите…</h2><p id="lumenLoadPhase" role="status">Загружаем мир</p><div class="lumen-story-progress" role="progressbar" aria-label="Загрузка графики мира" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i></i></div><div class="lumen-story-load-meta"><strong id="lumenLoadPercent">0%</strong><span id="lumenLoadEta">Оцениваем время…</span></div><button type="button" data-story-action="retry" hidden>Повторить загрузку</button></div>
    <button type="button" class="lumen-story-back" data-story-action="cancel">${hold?'Вернуться в меню':'Закрыть · Esc'}</button></div>`;
-  this.renderLine();this.root.querySelector('[data-story-action="advance"]').focus({preventScroll:true});
+  const landscape=this.root.querySelector('.lumen-story-landscape picture img'),backdrop=landscape.parentElement.parentElement;
+  landscape.addEventListener('error',()=>backdrop.classList.add('is-unavailable'));landscape.addEventListener('load',()=>backdrop.classList.remove('is-unavailable'));
+  this.root.scrollTop=0;this.renderLine();this.root.querySelector('[data-story-action="advance"]').focus({preventScroll:true});
   return new Promise(resolve=>this.resolve=resolve);
  }
  renderLine(){
   cancelAnimationFrame(this.raf);const line=this.scene.lines[this.index],speaker=line.speaker==='hero'?this.hero:line.speaker;
-  this.root.querySelector('#lumenStorySpeaker').textContent=speaker;
+  const side=line.speaker==='hero'?'hero':'partner';this.root.dataset.speaker=side;
+  this.lastLines[side]={speaker,text:line.text,radio:side==='partner'&&line.speaker!==this.scene.bossName};
+  this.root.dataset.radio=String(Boolean(this.lastLines.partner?.radio));
+  this.root.querySelectorAll('#lumenStoryText,#lumenStorySpeaker').forEach(el=>el.removeAttribute('id'));
+  for(const turn of this.root.querySelectorAll('[data-side]')){
+   const active=turn.dataset.side===side,previous=this.lastLines[turn.dataset.side],bubble=turn.querySelector('.lumen-story-bubble');
+   turn.classList.toggle('is-active',active);bubble.hidden=!previous;if(!previous)continue;
+   turn.querySelector('.lumen-story-speaker').textContent=previous.speaker;
+   turn.querySelector('.lumen-story-measure').textContent=previous.text;turn.querySelector('.lumen-story-typed').textContent=previous.text;
+   if(active){turn.querySelector('.lumen-story-speaker').id='lumenStorySpeaker';turn.querySelector('.lumen-story-typed').id='lumenStoryText';}
+  }
   this.root.querySelector('#lumenStoryAccessible').textContent=speaker+': '+line.text;
   this.root.querySelector('#lumenStoryCount').textContent=`${String(this.index+1).padStart(2,'0')} / ${String(this.scene.lines.length).padStart(2,'0')}`;
   this.letters=typeof Intl.Segmenter==='function'?[...new Intl.Segmenter('ru',{granularity:'grapheme'}).segment(line.text)].map(part=>part.segment):Array.from(line.text);
@@ -67,6 +84,7 @@ export class StoryOverlay{
  }
  loading(){
   cancelAnimationFrame(this.raf);this.root.dataset.phase='loading';
+  this.root.querySelector('.lumen-story-shell').setAttribute('aria-labelledby','lumenLoadTitle');
   this.root.querySelector('.lumen-story-copy').hidden=true;this.root.querySelector('.lumen-story-loading').hidden=false;
   this.root.querySelector('[data-story-action="skip"]').hidden=true;
   this.root.querySelector('[data-story-action="cancel"]').focus({preventScroll:true});

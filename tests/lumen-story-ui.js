@@ -37,7 +37,7 @@ async(page)=>{
  }
  async function skip(){await p.locator('#lumenStory [data-story-action="skip"]').click();}
  try{
-  await setup();await p.locator('.lumen-story-stage').tap();
+  await setup();await p.locator('.lumen-story-hero').tap();
   assert(await p.locator('#lumenStory').getAttribute('data-typing')==='false','touch must reveal the whole line');
   assert((await p.locator('#lumenStoryCount').innerText()).startsWith('01'),'revealing must not change the line');
   await p.locator('[data-story-action="advance"]').tap();assert((await p.locator('#lumenStoryCount').innerText()).startsWith('02'),'second tap advances');

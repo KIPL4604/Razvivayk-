@@ -1,0 +1,224 @@
+{
+  "sources": {
+    "garden": {
+      "file": "garden.png",
+      "bytes": 2488650,
+      "sha256": "9f31ab8ee30615505f1b842141e97b4a328a3e806c655fc28702030271799ad4",
+      "size": [
+        1536,
+        1024
+      ]
+    },
+    "quarry": {
+      "file": "quarry.png",
+      "bytes": 2850134,
+      "sha256": "4c5a14610f4d35e8afd9c9604c56506bd3faeeabc7de25c8834aa9b37ad11f90",
+      "size": [
+        1536,
+        1024
+      ]
+    },
+    "castle": {
+      "file": "castle.png",
+      "bytes": 2268389,
+      "sha256": "15953d24ff11514ab3da16286315048c0bdbe1b4057a7f202546f782795f0d9b",
+      "size": [
+        1536,
+        1024
+      ]
+    },
+    "crater": {
+      "file": "crater.png",
+      "bytes": 2596533,
+      "sha256": "c21b22a974834cace40ab92559af68917b7da16e07627742d5a16c54d4f02775",
+      "size": [
+        1536,
+        1024
+      ]
+    }
+  },
+  "worlds": {
+    "garden": {
+      "file": "story-world-garden.webp",
+      "bytes": 218268,
+      "sha256": "05d377a6fa1b1e0eb2ff4e8c98db325a8290e1a5f5cb1bc6ddfe7b29e1e3ffbe",
+      "size": [
+        1536,
+        1024
+      ]
+    },
+    "garden-small": {
+      "file": "story-world-garden-small.webp",
+      "bytes": 64872,
+      "sha256": "724580d7ca5b1e9175acd00528179e1b80d1910d4d4b97d07ff7098ad2e400d5",
+      "size": [
+        768,
+        512
+      ]
+    },
+    "quarry": {
+      "file": "story-world-quarry.webp",
+      "bytes": 285602,
+      "sha256": "c083745bb0989d140d7835ae73de8123998925a89e8b67f5b05c44cce5789886",
+      "size": [
+        1536,
+        1024
+      ]
+    },
+    "quarry-small": {
+      "file": "story-world-quarry-small.webp",
+      "bytes": 79604,
+      "sha256": "31ddd8265ae22c162f8078491e61b134695a38f75fb9c6eae9999fcc6d4150a1",
+      "size": [
+        768,
+        512
+      ]
+    },
+    "castle": {
+      "file": "story-world-castle.webp",
+      "bytes": 195470,
+      "sha256": "0ebf2f7dae922b7bd27b9c8fdb232ca21a978caad49a6c3349b5b863b0725c0c",
+      "size": [
+        1536,
+        1024
+      ]
+    },
+    "castle-small": {
+      "file": "story-world-castle-small.webp",
+      "bytes": 53864,
+      "sha256": "d3fb0219f497128d1362119f0657243f48b48963a00a8125f3bb0a7a753fedaa",
+      "size": [
+        768,
+        512
+      ]
+    },
+    "crater": {
+      "file": "story-world-crater.webp",
+      "bytes": 233288,
+      "sha256": "56b402e5168514cc0c2724e640b89aad208a40383c667616005c75bcba9b6852",
+      "size": [
+        1536,
+        1024
+      ]
+    },
+    "crater-small": {
+      "file": "story-world-crater-small.webp",
+      "bytes": 64876,
+      "sha256": "5cf0787577150b8acb6387a87e39674fe46a518c7f003c38de2e773bb8119e4d",
+      "size": [
+        768,
+        512
+      ]
+    }
+  },
+  "heroes": {
+    "scout": {
+      "file": "story-hero-scout.png",
+      "bytes": 2946,
+      "sha256": "2672582fdb8733fb174eb821624a0e6f41c82f725578d0248c9cdea8fb651832",
+      "size": [
+        192,
+        256
+      ]
+    },
+    "keeper": {
+      "file": "story-hero-keeper.png",
+      "bytes": 3094,
+      "sha256": "00a29b51b769600d86fcab63a0d7bce98ae95ce826fd959aebeb5369e2b75bb4",
+      "size": [
+        192,
+        256
+      ]
+    },
+    "alchemist": {
+      "file": "story-hero-alchemist.png",
+      "bytes": 3556,
+      "sha256": "9f083540fcb3ef73c0fe199c4b092a490a2a38c255ecc8e20975256a2429423d",
+      "size": [
+        192,
+        256
+      ]
+    },
+    "ranger": {
+      "file": "story-hero-ranger.png",
+      "bytes": 3476,
+      "sha256": "5bd50e2e9d63e514fb73bc72f3808472bdb329784688a3c41cc42f06d1025ed3",
+      "size": [
+        192,
+        256
+      ]
+    },
+    "duelist": {
+      "file": "story-hero-duelist.png",
+      "bytes": 3557,
+      "sha256": "f79a651fa5d7934a953e330f0a87d5224e65e527370f0ec80050b34fb4aecabc",
+      "size": [
+        192,
+        256
+      ]
+    },
+    "stormcaller": {
+      "file": "story-hero-stormcaller.png",
+      "bytes": 3322,
+      "sha256": "64f056c6f889b57898f096353870e18568a569f9042746ef47775a1ae3166a46",
+      "size": [
+        192,
+        256
+      ]
+    },
+    "artificer": {
+      "file": "story-hero-artificer.png",
+      "bytes": 3599,
+      "sha256": "7ee020b552c84b187e2d21fd13a5f58be363be634d2248fc5eee0b8e5df66a63",
+      "size": [
+        192,
+        256
+      ]
+    },
+    "sentinel": {
+      "file": "story-hero-sentinel.png",
+      "bytes": 3016,
+      "sha256": "bb9567937d4eed96b5dfc8f156dd5b84bfc013d8a76ea2891ee9b2c97890b5fc",
+      "size": [
+        192,
+        256
+      ]
+    },
+    "tinkerer": {
+      "file": "story-hero-tinkerer.png",
+      "bytes": 3487,
+      "sha256": "c0a497b125fb3dd739193749d8344545f09749fb75cc31c2902745c73118ce9a",
+      "size": [
+        192,
+        256
+      ]
+    },
+    "cantor": {
+      "file": "story-hero-cantor.png",
+      "bytes": 2949,
+      "sha256": "7482c2efb743dabe76e51afbb5803f8fe4f7fe703fc13dc38ce56bc720e42708",
+      "size": [
+        192,
+        256
+      ]
+    },
+    "astronomer": {
+      "file": "story-hero-astronomer.png",
+      "bytes": 3145,
+      "sha256": "6acae98469bf6084ce75d0954aa11f1a4a8d8121f71c948bacc713ea68590011",
+      "size": [
+        192,
+        256
+      ]
+    },
+    "heliarch": {
+      "file": "story-hero-heliarch.png",
+      "bytes": 2698,
+      "sha256": "d1e7ac20a3428369852217ebfc0e8775536a959257fccaa1031981e57fc61abe",
+      "size": [
+        192,
+        256
+      ]
+    }
+  }
+}
