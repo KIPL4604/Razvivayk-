@@ -7,6 +7,12 @@ export const ARENA_HAZARD_INSET=65;
 export const ARENA_PHASES=Object.freeze(['forming','fighting','reward','celebrating','complete']);
 const TAU=Math.PI*2;
 const inBattle=arena=>arena&&['forming','fighting'].includes(arena.phase);
+export const WORLD_FINALS=Object.freeze({
+  garden:Object.freeze({goal:30,bossType:'rootwarden',reward:300}),
+  quarry:Object.freeze({goal:35,bossType:'overseer',reward:500}),
+  crater:Object.freeze({goal:40,bossType:'matriarch',reward:800}),
+  castle:Object.freeze({goal:45,bossType:'monarch',reward:800}),
+});
 const emit=(state,effect,kind,x,y,radius,life)=>{
   if(state.effects.length>=80)state.effects.shift();
   effect(state,kind,x,y,radius,life);
@@ -14,15 +20,16 @@ const emit=(state,effect,kind,x,y,radius,life)=>{
 
 export function startArena(state,{effect}){
   if(state.map==='castle')return startCastleArena(state,{effect});
-  if(state.map!=='crater'||state.level<40||state.arena||state.status==='lost')return false;
+  const final=WORLD_FINALS[state.map];
+  if(!final||state.level<final.goal||state.arena||['lost','won'].includes(state.status))return false;
   const p=state.player,direction=Math.hypot(p.facingX,p.facingY)||1;
   const x=p.x+(p.facingX||0)/direction*150,y=p.y+(p.facingY||0)/direction*150;
   for(const enemy of state.enemies)emit(state,effect,'dissolve',enemy.x,enemy.y,enemy.radius+8,.4);
   state.enemies=[];state.projectiles=[];state.zones=[];state.gems=[];state.chests=[];
   state.choices=[];state.status='playing';state.endReason='';state.remainder=0;
-  const stats=BOSS_VARIANTS.matriarch,bossId=state.nextId++;
+  const stats=BOSS_VARIANTS[final.bossType],bossId=state.nextId++;
   state.arena={phase:'forming',x,y,radius:ARENA_RADIUS,time:0,bossId,rewardId:0};
-  state.enemies.push({id:bossId,kind:'arena-boss',bossType:'matriarch',attackStage:0,x,y,hp:stats.hp,maxHp:stats.hp,
+  state.enemies.push({id:bossId,kind:'arena-boss',bossType:final.bossType,attackStage:0,x,y,hp:stats.hp,maxHp:stats.hp,
     radius:stats.radius,speed:0,damage:stats.damage,value:0,phase:0,hitFlash:0,guardianStage:0,fireTimer:.8,elite:false,slowTime:0,actionTimer:0});
   for(let n=0;n<ARENA_TICK_COUNT;n++){
     const phase=n/ARENA_TICK_COUNT*TAU;
@@ -103,7 +110,7 @@ export function bossDeath(state,enemy,{effect,limits={chests:12}}){
     state.chests=retained;
   }
   arena.rewardId=state.nextId++;arena.phase='reward';arena.time=0;
-  state.chests.push({id:arena.rewardId,x:arena.x,y:arena.y,coins:800,upgrade:true,boss:true,mega:true});
+  state.chests.push({id:arena.rewardId,x:arena.x,y:arena.y,coins:WORLD_FINALS[state.map].reward,upgrade:true,boss:true,mega:true});
   return true;
 }
 
@@ -115,11 +122,13 @@ export function markArenaChestOpened(state,chest){
 
 export function validateArena(value,state){
   if(value===null)return (state.map!=='crater'||state.level<40)&&
+    (!['garden','quarry'].includes(state.map)||state.status!=='won'||state.legacyLevelWin===true)&&
     !state.enemies.some(e=>e.kind==='arena-boss'||e.kind==='arena-tick')&&!state.chests.some(c=>c.mega);
   const number=(n,min,max)=>Number.isFinite(n)&&n>=min&&n<=max;
   const integer=(n,min,max)=>Number.isInteger(n)&&n>=min&&n<=max;
   if(state.map==='castle')return validateCastleArena(value,state,number,integer);
-  if(!value||typeof value!=='object'||Array.isArray(value)||state.map!=='crater'||state.level<40||!ARENA_PHASES.includes(value.phase)||
+  const final=WORLD_FINALS[state.map];
+  if(!value||typeof value!=='object'||Array.isArray(value)||Object.hasOwn(value,'kind')||!final||state.level<final.goal||!ARENA_PHASES.includes(value.phase)||
     !number(value.x,-1e7,1e7)||!number(value.y,-1e7,1e7)||value.radius!==ARENA_RADIUS||!number(value.time,0,3)||
     !integer(value.bossId,1,state.nextId-1)||!integer(value.rewardId,0,state.nextId-1))return false;
   const ticks=state.enemies.filter(e=>e.kind==='arena-tick'),bosses=state.enemies.filter(e=>e.kind==='arena-boss'),mega=state.chests.filter(c=>c.mega);
@@ -127,8 +136,9 @@ export function validateArena(value,state){
     if(value.rewardId!==0||mega.length||ticks.length!==ARENA_TICK_COUNT||bosses.length!==1||state.enemies.length!==33||
       (value.phase==='forming'?value.time>2.5:value.time!==0)||!['playing','lost'].includes(state.status))return false;
     const boss=bosses[0];
-    if(boss.id!==value.bossId||boss.bossType!=='matriarch'||!validateBossFields(boss)||boss.maxHp!==BOSS_VARIANTS.matriarch.hp||boss.radius!==48||
-      boss.damage!==32||boss.value!==0||boss.guardianStage!==0||Math.abs(boss.x-value.x)>1e-6||Math.abs(boss.y-value.y)>1e-6||boss.speed!==0)return false;
+    const stats=BOSS_VARIANTS[final.bossType];
+    if(boss.id!==value.bossId||boss.bossType!==final.bossType||!validateBossFields(boss)||boss.maxHp!==stats.hp||boss.radius!==stats.radius||
+      boss.damage!==stats.damage||boss.value!==0||boss.guardianStage!==0||Math.abs(boss.x-value.x)>1e-6||Math.abs(boss.y-value.y)>1e-6||boss.speed!==0)return false;
     const phases=new Set();
     for(const tick of ticks){
       const index=Math.round(tick.phase/TAU*ARENA_TICK_COUNT);
@@ -140,7 +150,7 @@ export function validateArena(value,state){
     return true;
   }
   if(ticks.length||bosses.length||!value.rewardId)return false;
-  if(value.phase==='reward')return value.time===0&&mega.length===1&&mega[0].id===value.rewardId&&mega[0].coins===800&&mega[0].boss===true&&mega[0].upgrade===true&&['playing','lost'].includes(state.status);
+  if(value.phase==='reward')return value.time===0&&mega.length===1&&mega[0].id===value.rewardId&&mega[0].coins===final.reward&&mega[0].boss===true&&mega[0].upgrade===true&&['playing','lost'].includes(state.status);
   if(mega.length)return false;
   if(value.phase==='celebrating')return value.time<3&&['playing','lost'].includes(state.status);
   return value.time===3&&state.status==='won'&&state.endReason==='boss';

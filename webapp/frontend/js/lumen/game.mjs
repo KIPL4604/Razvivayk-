@@ -1,6 +1,9 @@
 import {createRun,step,chooseUpgrade,serialize,restore,UPGRADES} from './engine.mjs';
 import {Renderer} from './renderer.mjs';
 import {loadArt} from './assets.mjs';
+import {StoryOverlay} from './story-overlay.mjs';
+import {worldScene,bossScene} from './story.mjs';
+import {WORLD_FINALS} from './arena.mjs';
 import {renderMenu,MENU_PAGES} from './menu.mjs';
 import {buyTraining} from './training.mjs';
 import {WEAPONS,upgradeSummary} from './presentation.mjs';
@@ -28,7 +31,8 @@ export function createGame(context) {
   const {getSaved,persist,navigate,telegram:tg,toast}=context;
   const $=s=>document.querySelector(s), gameMount=$('#lumenGameMount'),setupMount=$('#lumenSetupMount');
   let state=null,renderer=null,preview=null,previewState=null,raf=0,lastFrame=0,lastSave=0,lastHud=0,paused=false,screen='',character='scout',overlayKey='',resultRecorded=false;
-  let art=null,artLoading=null,waitingForStart=false;
+  let art=null,waitingForStart=false,sceneTicket=0,appInactive=false;
+  const readyArt=new Set(),story=new StoryOverlay();
   let pointer=null,stickOrigin=null,input={x:0,y:0},keys=new Set(),audio=null,fullscreenOwned=false;
   let terminalFrameStart=0,map='garden',menuPage='home',book='weapons',selectionLoaded=false;
   const handlers=new AbortController(),signal=handlers.signal;
@@ -73,26 +77,32 @@ export function createGame(context) {
     const target=control.disabled?control.closest('article'):control;
     if(target){if(target!==control)target.tabIndex=-1;target.focus({preventScroll:true});}
   }
-  function artFailure(){
-    if(screen!=='lumen')return;
-    const inTelegram=Boolean(tg?.initData&&typeof tg.close==='function');
-    setupMount.innerHTML='<div class="lumen-loading" role="alert">Не удалось загрузить графику.<span>'+
-      (inTelegram?'Закрой Mini App и открой её снова через бота, чтобы получить действующий адрес. Локальный забег может не перенестись между временными адресами.':'Проверь соединение и перезагрузи страницу.')+
-      '</span><button class="primary-button" data-lumen-action="reload" type="button">'+
-      (inTelegram?'Закрыть Mini App':'Перезагрузить страницу')+'</button></div>';
+  function prepareArt(onProgress,world=map,selected=character){
+    return loadArt({map:world,character:selected,onProgress}).then(loaded=>{art=loaded;readyArt.add(world+':'+selected);return loaded;});
   }
-  function prepareArt(){
-    if(art)return Promise.resolve(art);
-    artLoading ||= loadArt().then(loaded=>{
-      art=loaded;
-      if(screen==='lumen'&&!waitingForStart)drawPreview();
-      return loaded;
-    }).catch(error=>{artLoading=null;artFailure();throw error;});
-    return artLoading;
+  function storyScope(){
+    const r=record();
+    if(!r.story||r.story.runId!==state.runId||!Array.isArray(r.story.seen))r.story={runId:state.runId,seen:[]};
+    return r.story;
   }
+  const sceneSeen=id=>Boolean(state&&storyScope().seen.includes(id));
+  function markScene(id){const scope=storyScope();if(!scope.seen.includes(id))scope.seen.push(id);save();persist();}
+  function bossDialogue(){
+    if(!state||state.status!=='playing'||story.active)return false;
+    const enemy=state.enemies.find(enemy=>enemy.hp>0&&['guardian','arena-boss'].includes(enemy.kind)&&!sceneSeen('boss:'+enemy.id));
+    if(!enemy)return false;
+    const runId=state.runId,scene=bossScene(enemy,state.map);paused=true;clearInput();soundSuspend();save();
+    story.play(scene,{hero:CHARACTERS[state.character].name}).then(done=>{
+      if(screen!=='lumen-game'||state?.runId!==runId)return;
+      if(done){markScene(scene.id);if(document.hidden||appInactive||!document.hasFocus()){showPause();return;}paused=false;unlockAudio();runLoop();}
+      else showPause();
+    });
+    return true;
+  }
+  function cancelLaunch(){sceneTicket++;waitingForStart=false;story.close();if(screen==='lumen')setup(menuPage);}
   function drawPreview(){
     const canvas=$('#lumenPreview');
-    if(!canvas||!art||screen!=='lumen')return;
+    if(!canvas||!art||!readyArt.has(map+':'+character)||screen!=='lumen')return;
     preview?.destroy();
     preview=new Renderer(canvas,art);preview.resize();
     const demo=createRun({seed:17,character,map});demo.player.x=0;demo.player.y=110;demo.time=9;
@@ -110,11 +120,11 @@ export function createGame(context) {
     setupMount.innerHTML=renderMenu({page,book,character,map,record:record(),icon:pixelIcon,recipes:recipeBook});
     lockScreen(true);
     drawPreview();
-    if(!art)requestAnimationFrame(()=>{if(screen==='lumen')prepareArt().catch(()=>{});});
     if(preserveScroll)$('#lumenMenuContent').scrollTop=scroll;
     else $('#lumenMenuHeading')?.focus({preventScroll:true});
   }
   function back(){
+    if(story.active){story.cancel();return true;}
     if(screen==='lumen-game'){if(overlayKey==='pause'||['won','lost'].includes(state?.status))setup();else showPause();return true;}
     if(screen!=='lumen')return false;
     if(menuPage!=='home')setup();else navigate('home');return true;
@@ -133,42 +143,41 @@ export function createGame(context) {
     $('#lumenCanvas').addEventListener('lostpointercapture',pointerEnd,{signal});
     updateHud();renderer.draw(state);$('#lumenCanvas').focus({preventScroll:true});
   }
-  function start(){
-    if(!record().meta.unlocked.includes(character)||!mapAvailable(record().meta,map))return;
-    if(!art){
-      if(waitingForStart)return;
-      waitingForStart=true;
-      const button=setupMount.querySelector('[data-lumen-action="start"]');
-      if(button){button.disabled=true;button.textContent='Загружаем графику…';}
-      prepareArt().then(()=>{waitingForStart=false;if(screen==='lumen')start();},()=>{waitingForStart=false;});
-      return;
-    }
-    if(record().run&&!window.confirm('Начать заново? Текущая экспедиция будет заменена.'))return;
-    state=createRun({training:record().meta.training,seed:crypto.getRandomValues(new Uint32Array(1))[0],character,map,runId:crypto.randomUUID()});state.player.y=85;resultRecorded=false;paused=false;overlayKey='';
-    navigate('lumen-game');screen='lumen-game';mountRun();save();unlockAudio();
-    if(tg?.initData&&tg.isVersionAtLeast?.('8.0')){try{tg.requestFullscreen();}catch(_){}}
-    lastFrame=performance.now();raf=requestAnimationFrame(frame);
+  async function launchRun(resumeSaved=false){
+    if(waitingForStart)return;
+    let restored=resumeSaved?restore(record().run):null;
+    if(resumeSaved&&!restored){record().run=null;persist();setup();toast('Сохранение повреждено или устарело. Можно начать новую экспедицию.');return;}
+    if(!resumeSaved&&(!record().meta.unlocked.includes(character)||!mapAvailable(record().meta,map)))return;
+    if(!resumeSaved&&record().run&&!window.confirm('Начать заново? Текущая экспедиция будет заменена.'))return;
+    if(screen!=='lumen')setup();
+    const world=restored?.map||map,selected=restored?.character||character,ticket=++sceneTicket;
+    waitingForStart=true;clearInput();preview?.destroy();preview=null;
+    const load=()=>prepareArt(value=>{if(ticket===sceneTicket)story.progress(value);},world,selected).then(value=>({value}),error=>({error}));
+    const ready=load();
+    const proceed=await story.play(worldScene(world),{hero:CHARACTERS[selected].name,hold:true,onCancel:cancelLaunch});
+    if(!proceed){if(ticket===sceneTicket)cancelLaunch();return;}
+    const finish=async result=>{
+      if(ticket!==sceneTicket||screen!=='lumen')return;
+      if(result.error){story.failure(()=>{story.retrying();load().then(finish);});return;}
+      story.close();waitingForStart=false;
+      state=restored||createRun({training:record().meta.training,seed:crypto.getRandomValues(new Uint32Array(1))[0],character:selected,map:world,runId:crypto.randomUUID()});
+      character=state.character;map=state.map;selectionLoaded=true;resultRecorded=false;paused=resumeSaved||document.hidden||appInactive||!document.hasFocus();overlayKey='';
+      if(!restored)state.player.y=85;
+      storyScope();navigate('lumen-game');screen='lumen-game';mountRun();save();unlockAudio();
+      if(tg?.initData&&tg.isVersionAtLeast?.('8.0')){try{tg.requestFullscreen();}catch(_){}}
+      if(state.status==='upgrade'){paused=false;showUpgrade();}else if(paused)showPause('Экспедиция ждёт');
+      lastFrame=performance.now();raf=requestAnimationFrame(frame);
+    };
+    await finish(await ready);
   }
-  function resume(){
-    if(!art){
-      if(waitingForStart)return;
-      if(screen!=='lumen')setup();
-      waitingForStart=true;
-      prepareArt().then(()=>{waitingForStart=false;if(screen==='lumen')resume();},()=>{waitingForStart=false;});
-      return;
-    }
-    state=restore(record().run);
-    if(!state){record().run=null;persist();setup();toast('Сохранение повреждено или устарело. Можно начать новую экспедицию.');return;}
-    character=state.character;map=state.map;selectionLoaded=true;resultRecorded=false;paused=true;overlayKey='';navigate('lumen-game');screen='lumen-game';mountRun();
-    if(state.status==='upgrade'){paused=false;showUpgrade();}else showPause('Экспедиция ждёт');
-    lastFrame=performance.now();raf=requestAnimationFrame(frame);
-  }
+  function start(){launchRun();}
+  function resume(){launchRun(true);}
   function updateHud(){
     if(!state||!$('#lumenHealth'))return;
     const p=state.player;
     $('#lumenHealth').textContent=`${Math.ceil(Math.max(0,p.hp))} / ${p.maxHp}`;
     const hp=$('#lumenHealthMeter');hp.setAttribute('aria-valuemax',p.maxHp);hp.setAttribute('aria-valuenow',Math.ceil(Math.max(0,p.hp)));hp.firstElementChild.style.width=`${Math.max(0,p.hp/p.maxHp)*100}%`;
-    const capped=state.map==='castle'&&state.level>=45,guidance=Boolean(castleGuidance(state));
+    const capped=state.level>=MAPS[state.map].goal,guidance=Boolean(castleGuidance(state));
     $('#lumenTimer').textContent=clock(state.time);$('#lumenGoal').textContent=MAPS[state.map].name;$('#lumenLevel').textContent=`Уровень ${state.level} / ${MAPS[state.map].goal}`;$('#lumenXpLabel').textContent=capped?'МАКСИМАЛЬНЫЙ УРОВЕНЬ':`${state.xp} / ${state.xpNext}`;
     const xp=$('#lumenXpMeter');xp.setAttribute('aria-valuemax',state.xpNext);xp.setAttribute('aria-valuenow',capped?state.xpNext:state.xp);xp.firstElementChild.style.width=`${capped?100:Math.min(100,state.xp/state.xpNext*100)}%`;
     if(guidance&&gameMount.dataset.guidance!=='true')$('#lumenAnnouncement').textContent='Достигнут 45-й уровень. Следуй за золотой стрелкой к залу Полого монарха.';
@@ -194,12 +203,16 @@ export function createGame(context) {
     }
     const phase=waveAt(state.time);
     const trapped=touchingEnemies(state).length>=3;
-    const arenaText=state.map==='castle'?(arena?.phase==='forming'?'ПОЛЫЙ МОНАРХ · ПРИГОТОВЬСЯ К БОЮ':arena?.phase==='fighting'?'СЛЕДИ ЗА ПРОСВЕТАМИ МЕЖДУ СНАРЯДАМИ':arena?.phase==='reward'?'МОНАРХ ПОВЕРЖЕН · ОТКРОЙ СОКРОВИЩНИЦУ':arena?.phase==='celebrating'?'+800 МОНЕТ · СОКРОВИЩЕ ЗАМКА':guidance?'УРОВЕНЬ 45 · СЛЕДУЙ ЗА ЗОЛОТОЙ СТРЕЛКОЙ':''):(arena?.phase==='forming'?'УРОВЕНЬ 40 · ПРИГОТОВЬСЯ К БОЮ':arena?.phase==='fighting'?'ОСТАВАЙСЯ ВНУТРИ · КОЛЬЦО СМЕРТЕЛЬНО':arena?.phase==='reward'?'КОЛЬЦО РАЗРУШЕНО · ОТКРОЙ СОКРОВИЩНИЦУ':arena?.phase==='celebrating'?'+800 МОНЕТ · СОКРОВИЩЕ МАТРИАРХА':'');
+    const arenaText=arena?(arena.phase==='forming'?'ПРИГОТОВЬСЯ К ФИНАЛЬНОМУ БОЮ':arena.phase==='fighting'?'СЛЕДИ ЗА ПРЕДУПРЕЖДЕНИЯМИ И ПРОСВЕТАМИ':arena.phase==='reward'?'СТРАЖ ПОВЕРЖЕН · ОТКРОЙ СОКРОВИЩНИЦУ':arena.phase==='celebrating'?`+${WORLD_FINALS[state.map].reward} МОНЕТ · ПУТЬ ОТКРЫТ`:''):(guidance?'УРОВЕНЬ 45 · СЛЕДУЙ ЗА ЗОЛОТОЙ СТРЕЛКОЙ':'');
     const text=arenaText||(trapped?'ТЕБЯ ЗАЖАЛИ · ПРОБЕЙ ПРОХОД':wave?bossName.toUpperCase():state.chests.length?'СУНДУК НА ПОЛЕ · ПОДОЙДИ И ОТКРОЙ':state.time<8?'СОБИРАЙ ОСКОЛКИ СВЕТА':phase.kind==='harvest'?'СЛАБЫЙ РОЙ · СОБИРАЙ ОПЫТ':phase.kind==='pressure'&&phase.age<5?`НОВАЯ ВОЛНА · ЭТАП ${phase.stage}`:'');
     $('#lumenWave').dataset.phase=arena?'arena':trapped?'contact':wave?'guardian':phase.kind;
     if($('#lumenWave').textContent!==text)$('#lumenWave').textContent=text;
-    $('#lumenMoveHint').hidden=state.time>12||pointer!==null||keys.size>0;
+    $('#lumenMoveHint').hidden=Boolean(arena)||state.time>12||pointer!==null||keys.size>0;
     const sb=$('[data-lumen-action="sound"]',gameMount);if(sb){sb.setAttribute('aria-pressed',String(record().settings.sound));sb.setAttribute('aria-label',record().settings.sound?'Выключить звук':'Включить звук');sb.innerHTML=pixelIcon(record().settings.sound?'sound':'mute');}
+    if(state.arena&&state.map!=='castle'&&renderer){
+      const top=Math.max($('#lumenBossHud').getBoundingClientRect().bottom,$('#lumenWave').getBoundingClientRect().bottom);
+      renderer.arenaInsets={top:top-gameMount.getBoundingClientRect().top+18,bottom:$('.lumen-bottom').getBoundingClientRect().top-gameMount.getBoundingClientRect().top-24};
+    }
     if(state.map==='castle'&&renderer){
       const mountTop=gameMount.getBoundingClientRect().top,hud=$('.lumen-hud'),boss=$('#lumenBossHud'),wave=$('#lumenWave');
       const hudBottom=hud.getBoundingClientRect().bottom-mountTop;
@@ -215,7 +228,7 @@ export function createGame(context) {
   function frame(now){
     if(screen!=='lumen-game'||!renderer)return;
     const dt=Math.min(.1,Math.max(0,(now-lastFrame)/1000));lastFrame=now;
-    if(!paused&&state.status==='playing'){
+    if(!paused&&state.status==='playing'&&!bossDialogue()){
       const x=(keys.has('KeyD')||keys.has('ArrowRight')?1:0)-(keys.has('KeyA')||keys.has('ArrowLeft')?1:0),y=(keys.has('KeyS')||keys.has('ArrowDown')?1:0)-(keys.has('KeyW')||keys.has('ArrowUp')?1:0);
       const hp=state.player.hp,kills=state.kills,coins=state.coinsEarned;
       const direction=pointer===null?{x,y}:input;state.moving=Math.hypot(direction.x,direction.y)>.01;step(state,direction,dt,renderer.captureTick);
@@ -223,6 +236,7 @@ export function createGame(context) {
       if(state.coinsEarned>coins){save();sound('level');updateHud();}
       if(state.status==='upgrade'){sound('level');save();showUpgrade();}
       if(['won','lost'].includes(state.status)){updateHud();showResult();}
+      else if(state.status==='playing')bossDialogue();
       if(now-lastSave>5000)save();
     }
     // Finish only the presentation of death. No step(), reward or save mutation.
@@ -240,7 +254,7 @@ export function createGame(context) {
   }
   function hideOverlay(){const overlay=$('#lumenOverlay');if(overlay){overlay.hidden=true;overlay.innerHTML='';}overlayKey='';gameMount.querySelectorAll('[inert]').forEach(el=>el.inert=false);$('#lumenCanvas')?.focus({preventScroll:true});}
   function showPause(title='Маяк подождёт'){
-    if(!state||['won','lost'].includes(state.status))return;
+    if(story.active||!state||['won','lost'].includes(state.status))return;
     paused=true;save();if(state.status==='upgrade'){showUpgrade();return;}
     showOverlay('pause',`<span class="lumen-dialog-kicker">ПАУЗА / ${clock(state.time)}</span><h2 id="lumenDialogTitle">${title}</h2><p>Экспедиция сохранена на этом устройстве. Когда будешь готов — продолжай.</p><button class="lumen-launch" data-lumen-action="continue" type="button">Продолжить экспедицию <span>→</span></button><button class="lumen-menu-button" data-lumen-action="exit" type="button">Сохранить и выйти в меню</button><button class="lumen-menu-button" data-lumen-action="sound" type="button" aria-pressed="${record().settings.sound}">Звук: ${record().settings.sound?'включён':'выключен'}</button>${Object.keys(state.archivedWeapons).length?`<p class="lumen-migration-note">Лимит обновлён: 4 оружия. В архив сохранения перенесены ${Object.keys(state.archivedWeapons).map(id=>WEAPONS[id].title+' '+roman[state.archivedWeapons[id]]).join(', ')}. Их стадии сохранены для оружейных испытаний.</p>`:''}<div class="lumen-pause-help">Двигайся джойстиком или WASD / стрелками.<br>Оружие атакует само. Собирай свет для улучшений.</div><details class="lumen-recipes"><summary>Рецепты слияний · VIII + VIII</summary>${recipeBook(state.upgrades)}</details>${Object.keys(ARTIFACTS).some(id=>state.upgrades[id])?`<div class="lumen-pause-artifacts">${Object.entries(ARTIFACTS).filter(([id])=>state.upgrades[id]).map(([id,a])=>`<p>${pixelIcon(id)}<span>${a.title} ${roman[state.upgrades[id]]}<small>${a.description}</small></span></p>`).join('')}</div>`:''}`);
     soundSuspend();
@@ -255,6 +269,13 @@ export function createGame(context) {
   }
   function showResult(){
     if(!resultRecorded){const r=record();r.stats.runs++;if(state.status==='won')r.stats.wins++;r.stats.bestTime=Math.max(r.stats.bestTime,state.time);r.stats.bestKills=Math.max(r.stats.bestKills,state.kills);resultRecorded=true;save();}
+    const ending='after:'+state.map;
+    if(state.status==='won'&&!sceneSeen(ending)){
+      const runId=state.runId;paused=true;clearInput();soundSuspend();
+      story.play(worldScene(state.map,'after'),{hero:CHARACTERS[state.character].name}).then(()=>{
+        if(screen!=='lumen-game'||state?.runId!==runId)return;markScene(ending);showResult();
+      });return;
+    }
     const won=state.status==='won',biome=MAPS[state.map],next=won&&biome.next;
     showOverlay('result',`<span class="lumen-dialog-kicker">${won?'ЭКСПЕДИЦИЯ ЗАВЕРШЕНА':'СВЕТ НЕ ПОГАС НАВСЕГДА'}</span><div class="lumen-result-mark" aria-hidden="true">${pixelIcon(won?'stars':'light')}</div><h2 id="lumenDialogTitle">${won?`${biome.name} пройден`:'Новая ночь. Новый шанс.'}</h2><p>${won?next?`Уровень ${biome.goal} достигнут. Открыта следующая карта: ${MAPS[next].name}.`:state.endReason==='boss'?(state.map==='castle'?'Полый монарх повержен. Сокровищница замка открыта. Все три мира пройдены — попробуй другое сочетание оружия.':'Матриарх повержен, кольцо разрушено. Сокровищница открыта. Все три мира пройдены — попробуй другое сочетание оружия.'):`Уровень ${biome.goal} достигнут — можно вернуться с другим героем.`:'Сохрани монеты и попробуй новое сочетание оружия. Результат оружейного испытания тоже остаётся.'}</p><div class="lumen-result-stats"><span><b>${clock(state.time)}</b>время</span><span><b>${state.kills}</b>побеждено</span><span><b>${state.level}</b>уровень</span></div><p class="lumen-earned">${pixelIcon('coin')} +${state.coinsEarned} монет за забег <small>В кошельке: ${record().meta.coins}</small></p>${next?`<button class="lumen-launch" data-lumen-action="next" data-lumen-value="${next}" type="button">Следующая карта · ${MAPS[next].name} <span>→</span></button><button class="lumen-menu-button" data-lumen-action="start" type="button">Повторить эту карту</button>`:'<button class="lumen-launch" data-lumen-action="start" type="button">Новая экспедиция <span>→</span></button>'}<button class="lumen-menu-button" data-lumen-action="exit" type="button">Главное меню</button><small class="lumen-result-note">Прогресс сохранён на устройстве. XP кампаний не начисляется.</small>`);
   }
@@ -272,6 +293,7 @@ export function createGame(context) {
   function pointerEnd(e){if(pointer===e.pointerId)clearInput();}
   function soundSuspend(){if(audio?.state==='running')audio.suspend().catch(()=>{});}
   function action(name,value){
+    if(story.active)return;
     if(name==='setup'){setup();return;}
     if(name==='catalog'){navigate('home');return;}
     if(name==='menu'&&MENU_PAGES.includes(value)){setup(value);return;}
@@ -287,13 +309,14 @@ export function createGame(context) {
     if(name==='start'){start();return;}
     if(name==='resume'){resume();return;}
     if(name==='pause'){showPause();return;}
-    if(name==='continue'){paused=false;hideOverlay();unlockAudio();runLoop();return;}
+    if(name==='continue'){hideOverlay();if(!bossDialogue()){paused=false;unlockAudio();runLoop();}return;}
     if(name==='fullscreen'){fullscreen();return;}
     if(name==='sound'){const r=record();r.settings.sound=!r.settings.sound;if(r.settings.sound)unlockAudio();else soundSuspend();persist();if(screen==='lumen'){setup('settings',true);focusControl('[data-lumen-action="sound"]');return;}updateHud();const button=$('#lumenOverlay [data-lumen-action="sound"]');if(button){button.textContent=`Звук: ${r.settings.sound?'включён':'выключен'}`;button.setAttribute('aria-pressed',String(r.settings.sound));}return;}
     if(name==='upgrade'&&state?.status==='upgrade'&&chooseUpgrade(state,value)){hideOverlay();paused=false;save();updateHud();if(state.status==='upgrade')showUpgrade();else if(state.status==='won')showResult();else{unlockAudio();runLoop();}return;}
     if(name==='exit'){save();setup();}
   }
   function onScreen(name){
+    if(!['lumen','lumen-game'].includes(name)&&story.active){sceneTicket++;waitingForStart=false;story.close();}
     document.documentElement.classList.toggle('lumen-menu-active',name==='lumen');
     if(screen==='lumen-game'&&name!=='lumen-game'){paused=true;save();stopRenderer();soundSuspend();}
     if(screen==='lumen'&&name!=='lumen'){preview?.destroy();preview=null;}
@@ -316,13 +339,14 @@ export function createGame(context) {
     record().settings.volume=volume;persist();$('#lumenVolumeValue').textContent=volume+'%';e.target.setAttribute('aria-valuetext',volume+'%');
   },{signal});
   document.addEventListener('keyup',e=>keys.delete(e.code),{signal});
-  function deactivate(){if(screen==='lumen-game'&&state?.status==='playing')showPause('Экспедиция на паузе');clearInput();}
+  function deactivate(){appInactive=true;if(screen==='lumen-game'&&state?.status==='playing'&&!story.active)showPause('Экспедиция на паузе');clearInput();}
   window.addEventListener('blur',deactivate,{signal});
+  window.addEventListener('focus',()=>{appInactive=false;},{signal});
   document.addEventListener('visibilitychange',()=>{if(document.hidden)deactivate();},{signal});
   window.addEventListener('pagehide',()=>{if(screen==='lumen-game'&&state){paused=true;save();soundSuspend();}},{signal});
   window.addEventListener('resize',()=>{viewport();if(preview&&screen==='lumen'){preview.resize();preview.draw(previewState,true);}},{signal});
   window.visualViewport?.addEventListener('resize',viewport,{signal});
   document.addEventListener('fullscreenchange',()=>{viewport();if(screen==='lumen-game'&&!document.fullscreenElement&&fullscreenOwned){fullscreenOwned=false;deactivate();}},{signal});
-  try{tg?.onEvent?.('deactivated',deactivate);tg?.onEvent?.('viewportChanged',viewport);tg?.onEvent?.('safeAreaChanged',viewport);tg?.onEvent?.('contentSafeAreaChanged',viewport);tg?.onEvent?.('fullscreenFailed',()=>{if(screen==='lumen-game')toast('Telegram не разрешил полный экран. Игра занимает доступную область.');});}catch(_){}
+  try{tg?.onEvent?.('activated',()=>{appInactive=false;});tg?.onEvent?.('deactivated',deactivate);tg?.onEvent?.('viewportChanged',viewport);tg?.onEvent?.('safeAreaChanged',viewport);tg?.onEvent?.('contentSafeAreaChanged',viewport);tg?.onEvent?.('fullscreenFailed',()=>{if(screen==='lumen-game')toast('Telegram не разрешил полный экран. Игра занимает доступную область.');});}catch(_){}
   return {setup,resume,action,onScreen,back};
 }

@@ -117,7 +117,8 @@ class LumenArtTests(unittest.TestCase):
     @unittest.skipIf(Image is None, 'Offline pixel checks: install design/lumen-pixel/requirements.txt')
     def test_actor_frames_have_hard_alpha_shared_palette_and_baseline(self):
         manifest = json.loads((ART / 'manifest.json').read_text(encoding='utf-8'))
-        self.assertEqual(len(manifest['actors']), 34)
+        self.assertEqual(len(manifest['actors']), 38)
+        self.assertTrue({'boss-rootwarden','boss-overseer','boss-drillguard','boss-resonator'}.issubset(manifest['actors']))
         for actor, data in manifest['actors'].items():
             palette = {tuple(bytes.fromhex(color[1:])) for color in manifest.get('palettes', {}).get(actor, manifest['palette'])}
             size=data['frameSize']; baseline=data['anchor'][1]

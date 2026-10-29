@@ -166,7 +166,7 @@ test('version8 legacy garden/quarry/crater saves migrate without replacement of 
     const s=createRun({map,seed:200});
     if(map==='crater'){s.level=40;step(s,{},dt);advance(s,2.5);s.enemies[0].hp-=123;}
     const old=serialize(s);old.version=8;delete old.castle;
-    const r=restore(old);assert(r);assert.equal(r.version,10);assert.equal(r.map,map);assert.equal(r.castle,null);
+    const r=restore(old);assert(r);assert.equal(r.version,11);assert.equal(r.map,map);assert.equal(r.castle,null);
     assert.deepEqual(r.arena,s.arena);assert.deepEqual(r.enemies,s.enemies);
   }
   const illegal=serialize(goal());illegal.castle.targetY=-100;assert.equal(restore(illegal),null);
@@ -178,7 +178,7 @@ test('version9 castle exploring, guidance and active boss saves migrate without 
     const s=phase==='guidance'?goal():createRun({map:'castle',seed:25});
     const old=serialize(s);old.version=9;old.castle={phase,targetX:0,targetY:-2000};
     old.enemies=old.enemies.filter(e=>e.kind!=='castle-door');old.player.y=7500;
-    const migrated=restore(old);assert(migrated);assert.equal(migrated.version,10);
+    const migrated=restore(old);assert(migrated);assert.equal(migrated.version,11);
     if(phase==='exploring'){assert.equal(migrated.castle.doorY,null);assert.equal(migrated.castle.hallY,null);}
     else{assert(migrated.castle.doorY<7500-639);assert.equal(migrated.enemies.find(e=>e.kind==='castle-door').hp,6000);}
     roundTrip(migrated);

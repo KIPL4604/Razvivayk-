@@ -14,7 +14,7 @@ const hash = (x, y) => ((Math.imul(x, 374761393) ^ Math.imul(y, 668265263)) >>> 
 const distance = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 const castleSprites={'palace-guard':'castle-guard','wax-servant':'castle-wax','paper-moth':'castle-moth'};
 const spriteKey=e=>e.bossType&&BOSS_VARIANTS[e.bossType]?BOSS_VARIANTS[e.bossType].sprite:e.kind==='arena-boss'?BOSS_VARIANTS.matriarch.sprite:e.kind==='guardian'?BOSSES[e.guardianStage||1].sprite:castleSprites[e.kind]||e.kind;
-const actorSize=e=>e.bossType==='monarch'?CASTLE_HALL_VISUAL.monarchSize:e.bossType==='conductor'?250:e.bossType==='gatekeeper'?280:e.kind==='arena-boss'?252:e.kind==='arena-tick'?86:e.kind==='guardian'?220:e.elite?128:({'palace-guard':112,'wax-servant':108,'paper-moth':94,beetle:90,wasp:76,crawler:92,spitter:90,wisp:76,quartzling:86,shardback:110,moonmoth:86}[e.kind]||80);
+const actorSize=e=>e.bossType==='rootwarden'?460:e.bossType==='overseer'?500:e.bossType==='monarch'?CASTLE_HALL_VISUAL.monarchSize:e.bossType==='conductor'?250:e.bossType==='gatekeeper'?280:e.kind==='arena-boss'?252:e.kind==='arena-tick'?86:e.kind==='guardian'?220:e.elite?128:({'palace-guard':112,'wax-servant':108,'paper-moth':94,beetle:90,wasp:76,crawler:92,spitter:90,wisp:76,quartzling:86,shardback:110,moonmoth:86}[e.kind]||80);
 
 /** Presentation only. Simulation coordinates, collisions and save records are untouched. */
 export class Renderer {
@@ -35,6 +35,7 @@ export class Renderer {
     this.floorPatterns={};
     this.castleView=new CastleView(this);
     for(const [id,map] of Object.entries(MAPS)){
+      if(!art.images[map.tiles])continue;
       const floor = document.createElement('canvas');floor.width=256;floor.height=256;
       const floorContext=floor.getContext('2d');floorContext.imageSmoothingEnabled=false;
       for(let y=0;y<8;y++)for(let x=0;x<8;x++){
@@ -270,9 +271,9 @@ export class Renderer {
       ? Math.min(1,state.remainder/FIXED_STEP) : 1;
     const c = this.ctx, p = {...state.player,...this.pose(state.player)}, t = state.time || 0;
     this.map=state.map||'garden';
-    this.arena=['crater','castle'].includes(this.map)?state.arena:null;
+    this.arena=state.arena;
     const bossArt=this.art.manifest.actors['boss-monarch'],heroArt=this.art.manifest.actors[state.character];
-    const proposed=this.map==='castle'?this.castleView.camera(this.width,this.height,this.baseScale,p,this.arena,{...this.castleInsets,layout:castleLayout(state),bossAnchor:bossArt?.anchor?.[1]/bossArt?.frameSize||.94,heroAnchor:heroArt?.anchor?.[1]/heroArt?.frameSize||.94}):arenaCamera(this.width,this.height,this.baseScale,p,this.arena);
+    const proposed=this.map==='castle'?this.castleView.camera(this.width,this.height,this.baseScale,p,this.arena,{...this.castleInsets,layout:castleLayout(state),bossAnchor:bossArt?.anchor?.[1]/bossArt?.frameSize||.94,heroAnchor:heroArt?.anchor?.[1]/heroArt?.frameSize||.94}):arenaCamera(this.width,this.height,this.baseScale,p,this.arena,['garden','quarry'].includes(this.map)?{...this.arenaInsets,bossHeight:this.map==='garden'?460:500}:undefined);
     const target=this.map==='castle'?this.castleView.follow(state,proposed,this.width,this.height):proposed;
     const transition=this.map!=='castle'&&this.arena?.phase==='forming'&&!this.media.matches?Math.min(1,(this.arena.time||0)/.75):1;
     const blend=transition*transition*(3-2*transition);
@@ -335,7 +336,7 @@ export class Renderer {
           p.y + Math.sin(angle) * radius, 48, 48, .5);
       }
     }
-    const entities = [...props, ...(['crater','castle'].includes(this.map)?[]:[{ kind: 'prop', index: 0, x: 0, y: 0, size: 178 }]),
+    const entities = [...props, ...(this.arena||['crater','castle'].includes(this.map)?[]:[{ kind: 'prop', index: 0, x: 0, y: 0, size: 178 }]),
       ...(state.chests||[]).map(e=>({...e,kind:'chest'})),...(state.enemies || []), ...this.ghosts.map(e => ({ ...e, kind: 'dead' })), { ...p, kind: 'hero' }]
       .sort((a, b) => a.y - b.y);
     for (const entity of entities) {

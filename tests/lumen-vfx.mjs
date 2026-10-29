@@ -79,3 +79,14 @@ test('weapon effects stay finite, light budget is bounded and reduced motion rem
   }
   assert(draws>50);assert(!vfx.effect(r,{kind:'warning',life:1,maxLife:1}),'danger telegraphs retain their own renderer');
 });
+
+
+test('large garden/quarry finals and their perimeter fit between actual HUD and loadout insets',()=>{
+  for(const [width,height] of [[375,667],[375,812],[768,1024],[1440,900],[1920,1080]])for(const bossHeight of [460,500]){
+    const top=230,bottom=height-130,arena={x:0,y:0,radius:330};
+    const view=arenaCamera(width,height,1,{x:0,y:150},arena,{top,bottom,bossHeight});
+    assert(view.screenY-bossHeight*(154/160)*view.scale>=top,'boss head overlaps HUD');
+    assert(view.screenY+arena.radius*view.scale<=bottom,'perimeter overlaps loadout');
+    assert(arena.radius*2*view.scale<width,'perimeter clips horizontally');
+  }
+});

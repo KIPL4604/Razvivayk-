@@ -336,6 +336,22 @@
     "castle-fidelity/monarch-walk-raw.png": {
       "bytes": 2843218,
       "sha256": "a8ba6c6c1ebf411d9db513ce008506132bb3c8cec5757c658c53d784eb742e9c"
+    },
+    "story-bosses/boss-rootwarden-raw.png": {
+      "bytes": 2789234,
+      "sha256": "760d298bf8985cf82dcfdf8472e5d489c642bbbab0ca9a0d4e69fc38c7df1028"
+    },
+    "story-bosses/boss-overseer-raw.png": {
+      "bytes": 2683550,
+      "sha256": "5ee8a99621a5a070183c323a54323231e71705b36bdaed1d551370d344e88058"
+    },
+    "story-bosses/boss-drillguard-raw.png": {
+      "bytes": 2901100,
+      "sha256": "cf67137b146405640c8943211aae3d684c1f69269e9868203a489e942b17cc25"
+    },
+    "story-bosses/boss-resonator-raw.png": {
+      "bytes": 2010958,
+      "sha256": "b6920aee4cd558ce41941b91de83b02a00d48e17d8d3d8acbc47761433592fa7"
     }
   },
   "font": {
@@ -804,6 +820,34 @@
           "bytes": 1970
         }
       ]
+    },
+    "boss-rootwarden.png": {
+      "bytes": 568569,
+      "sha256": "b72c86f09149ba9829ad69ea06805639cb36fc50a8fe8b730431b64f37bdfd38",
+      "pack": "sprites-18.pack",
+      "offset": 1970,
+      "packBytes": 170766
+    },
+    "boss-overseer.png": {
+      "bytes": 689916,
+      "sha256": "2e4122f949eadf4539c77f6f050f5682e5ff463827347650421b5c6e8715c887",
+      "pack": "sprites-19.pack",
+      "offset": 0,
+      "packBytes": 203924
+    },
+    "boss-drillguard.png": {
+      "bytes": 262090,
+      "sha256": "111f2b9e989d3b9e1450d2bd2dfa755e642816adae777b400d87e1b24d1a2261",
+      "pack": "sprites-20.pack",
+      "offset": 0,
+      "packBytes": 69562
+    },
+    "boss-resonator.png": {
+      "bytes": 132782,
+      "sha256": "dca4d6dc959076f7144db9c03e9efe2b248558ada0f7e08f9eece7e7169c6d64",
+      "pack": "sprites-20.pack",
+      "offset": 69562,
+      "packBytes": 37828
     }
   },
   "actors": {
@@ -1109,6 +1153,42 @@
       "anchor": [
         160,
         308
+      ],
+      "columns": 6,
+      "rows": 5
+    },
+    "boss-rootwarden": {
+      "frameSize": 160,
+      "anchor": [
+        80,
+        154
+      ],
+      "columns": 6,
+      "rows": 5
+    },
+    "boss-overseer": {
+      "frameSize": 160,
+      "anchor": [
+        80,
+        154
+      ],
+      "columns": 6,
+      "rows": 5
+    },
+    "boss-drillguard": {
+      "frameSize": 96,
+      "anchor": [
+        48,
+        90
+      ],
+      "columns": 6,
+      "rows": 5
+    },
+    "boss-resonator": {
+      "frameSize": 96,
+      "anchor": [
+        48,
+        90
       ],
       "columns": 6,
       "rows": 5
@@ -2518,6 +2598,270 @@
       "#0b0102",
       "#050103",
       "#010001"
+    ],
+    "boss-rootwarden": [
+      "#c1a359",
+      "#948047",
+      "#a0723f",
+      "#697142",
+      "#9d6438",
+      "#7f6238",
+      "#656333",
+      "#506241",
+      "#8f552f",
+      "#7e5331",
+      "#6b5336",
+      "#6a5229",
+      "#545337",
+      "#535320",
+      "#475131",
+      "#39513e",
+      "#7b4526",
+      "#6a4329",
+      "#60452b",
+      "#5f3c25",
+      "#504630",
+      "#4f4522",
+      "#503b26",
+      "#404532",
+      "#41451d",
+      "#403b2c",
+      "#403b1d",
+      "#36422d",
+      "#2c4134",
+      "#313927",
+      "#5c321e",
+      "#4e3120",
+      "#473020",
+      "#3e3326",
+      "#3e321d",
+      "#3e281b",
+      "#333428",
+      "#332f25",
+      "#33311b",
+      "#332921",
+      "#33281a",
+      "#322218",
+      "#2b3223",
+      "#2b2b1f",
+      "#233024",
+      "#232a20",
+      "#292721",
+      "#292619",
+      "#23261d",
+      "#1c261d",
+      "#28211b",
+      "#21201c",
+      "#261f14",
+      "#1e1f19",
+      "#181f18",
+      "#1f1b15",
+      "#111b25",
+      "#111a15",
+      "#0e1a16",
+      "#231711",
+      "#1b1612",
+      "#171512",
+      "#131512",
+      "#0f0e0c"
+    ],
+    "boss-overseer": [
+      "#e6c2a6",
+      "#d1a07d",
+      "#c88f66",
+      "#b78a6e",
+      "#b57c69",
+      "#b47842",
+      "#a17467",
+      "#a47043",
+      "#99636e",
+      "#986343",
+      "#9c6237",
+      "#8f5b36",
+      "#7c5969",
+      "#815747",
+      "#835535",
+      "#7d4956",
+      "#71484a",
+      "#6b464b",
+      "#7f492b",
+      "#73442a",
+      "#6b402a",
+      "#604254",
+      "#5c3e49",
+      "#5a3d44",
+      "#613f32",
+      "#613a2c",
+      "#563935",
+      "#623153",
+      "#56323e",
+      "#51323d",
+      "#4d303c",
+      "#5f3422",
+      "#5d2c1e",
+      "#562f21",
+      "#502f23",
+      "#4f271e",
+      "#47303c",
+      "#452f34",
+      "#442838",
+      "#472e29",
+      "#452926",
+      "#452622",
+      "#44211c",
+      "#3d2d34",
+      "#3c2932",
+      "#3b2633",
+      "#3a262e",
+      "#36252f",
+      "#36222f",
+      "#3a2627",
+      "#382224",
+      "#312127",
+      "#321e2b",
+      "#301e26",
+      "#341d1d",
+      "#381a22",
+      "#2d1a21",
+      "#281920",
+      "#111b25",
+      "#30141e",
+      "#25131a",
+      "#221218",
+      "#1b0f15",
+      "#13070c"
+    ],
+    "boss-drillguard": [
+      "#f4e7e1",
+      "#e5cdcd",
+      "#d8b9be",
+      "#c8b2ba",
+      "#c0a1ba",
+      "#c39d8f",
+      "#a9949f",
+      "#ac8078",
+      "#9b818c",
+      "#92818d",
+      "#907684",
+      "#867885",
+      "#81717f",
+      "#7e6d7c",
+      "#925e4a",
+      "#7f5e5e",
+      "#776876",
+      "#775757",
+      "#6f6275",
+      "#6d5f66",
+      "#6c5358",
+      "#635866",
+      "#5f515f",
+      "#5b4d5a",
+      "#58495b",
+      "#5a4749",
+      "#504652",
+      "#673a29",
+      "#573730",
+      "#4f404c",
+      "#4f312a",
+      "#483d4d",
+      "#473b42",
+      "#472e2c",
+      "#413a46",
+      "#3f3644",
+      "#3f363b",
+      "#3c3240",
+      "#3c3137",
+      "#3b2c36",
+      "#3d241c",
+      "#36313a",
+      "#352d37",
+      "#332a35",
+      "#2e2933",
+      "#32292c",
+      "#2f2631",
+      "#2a252f",
+      "#2f2527",
+      "#2b212d",
+      "#2b2126",
+      "#251f28",
+      "#2f1f1c",
+      "#241d20",
+      "#2d1a19",
+      "#20191f",
+      "#111b25",
+      "#2b1310",
+      "#211314",
+      "#1d1315",
+      "#1a1113",
+      "#150e12",
+      "#11090c",
+      "#0b0406"
+    ],
+    "boss-resonator": [
+      "#ece5cd",
+      "#dfbdab",
+      "#d299db",
+      "#cf9a67",
+      "#8ecbcb",
+      "#2ec1d1",
+      "#868b93",
+      "#b96ecb",
+      "#b46f76",
+      "#9e67b9",
+      "#9d6c3f",
+      "#8766a9",
+      "#886239",
+      "#3f678f",
+      "#9a4bb6",
+      "#8447b5",
+      "#904b6c",
+      "#7f4a55",
+      "#7344a3",
+      "#734830",
+      "#6242ae",
+      "#61427e",
+      "#634332",
+      "#613a2b",
+      "#4f3f78",
+      "#264478",
+      "#7b3192",
+      "#6b2f80",
+      "#632f73",
+      "#5b2d95",
+      "#5b2f33",
+      "#532c91",
+      "#532d33",
+      "#4a2f96",
+      "#492e7d",
+      "#492386",
+      "#4a2e36",
+      "#482332",
+      "#3f2b88",
+      "#3e296b",
+      "#3d2076",
+      "#34226e",
+      "#222669",
+      "#3d2932",
+      "#3b212a",
+      "#3a1e26",
+      "#2d223a",
+      "#162544",
+      "#421a53",
+      "#331a44",
+      "#281945",
+      "#121a3f",
+      "#111b25",
+      "#121a20",
+      "#0a193f",
+      "#3d134d",
+      "#31133d",
+      "#2d133a",
+      "#271253",
+      "#27111c",
+      "#1c0f4a",
+      "#170d33",
+      "#1b101d",
+      "#150717"
     ]
   },
   "packs": [
@@ -2613,8 +2957,18 @@
     },
     {
       "file": "sprites-18.pack",
-      "bytes": 1970,
-      "sha256": "bcb3c1f4b3e2618d846f4942362754b79958e694346bf1b4a39c89ac592175db"
+      "bytes": 172736,
+      "sha256": "40312ad93385b1a78fbc27fc627807046c1b1756c9dd805cf4bd83967f07c0f3"
+    },
+    {
+      "file": "sprites-19.pack",
+      "bytes": 203924,
+      "sha256": "6d809d748bbbf10db0a9f260e1c85df9ca9d67841c6c97158d3b21495e511df2"
+    },
+    {
+      "file": "sprites-20.pack",
+      "bytes": 107390,
+      "sha256": "74f495035e6fe2d68cf020b28421d56d74b04f9d42f4463c6d5e917621aa79e8"
     }
   ],
   "packFormat": "image/webp",
@@ -2661,5 +3015,62 @@
       ]
     },
     "reference": "lumen-castle-concept/world-boss-creatures-v2.png"
+  },
+  "storyPortraits": {
+    "boss-rootwarden": {
+      "file": "story-boss-rootwarden.png",
+      "bytes": 9444,
+      "sha256": "13eaca0b7a2159448f46849a1a525aec59f5de5b36e8a90f2948e40a917d2e26"
+    },
+    "boss-overseer": {
+      "file": "story-boss-overseer.png",
+      "bytes": 9980,
+      "sha256": "7a87b2963f329302a8e76eaa70c17f8230fcac3e031bdb22c6b7eddf455f7d21"
+    },
+    "boss-drillguard": {
+      "file": "story-boss-drillguard.png",
+      "bytes": 5464,
+      "sha256": "afa6533d624f873ea5972ea52d7479207dbafd3778952b906d7454d3344fe38b"
+    },
+    "boss-resonator": {
+      "file": "story-boss-resonator.png",
+      "bytes": 3970,
+      "sha256": "99c56003699e59144b4b75515c0206b36c4ab2e72d6ca0c3022768e1e06e064f"
+    },
+    "boss-briar": {
+      "file": "story-boss-briar.png",
+      "bytes": 5983,
+      "sha256": "438b0e69d8dda468ce6e49b6be4cb81c46dd8d271a01fb1e7ec4940d164d94b5"
+    },
+    "boss-queen": {
+      "file": "story-boss-queen.png",
+      "bytes": 4824,
+      "sha256": "453f3fde7c69171929ad1e7c21747bee25d1ba62236bfe676b568b2202a851b5"
+    },
+    "boss-ash": {
+      "file": "story-boss-ash.png",
+      "bytes": 5049,
+      "sha256": "2a96f7b141609bfb63b77974cd52e5578001a93287849f7d86ee12ce45550639"
+    },
+    "boss-conductor": {
+      "file": "story-boss-conductor.png",
+      "bytes": 8073,
+      "sha256": "404504069e76481bde6f9a24160a5420d4776969cda0b92cb35a748088fe0646"
+    },
+    "boss-gatekeeper": {
+      "file": "story-boss-gatekeeper.png",
+      "bytes": 7957,
+      "sha256": "79e52862122aa86d64c4760dae55f2a54ac4b2013b1c59e06965a5bc95fc1273"
+    },
+    "boss-monarch": {
+      "file": "story-boss-monarch.png",
+      "bytes": 29210,
+      "sha256": "af2025905d60827147bcca9a465fb003e8e521e9c287912e256994ed8c85e6e0"
+    },
+    "boss-matriarch": {
+      "file": "story-boss-matriarch.png",
+      "bytes": 4946,
+      "sha256": "75221d8326a5e52eb53e0c852eadea2634f7145b25fbfa4e9b5fe0ae5a04c382"
+    }
   }
 }

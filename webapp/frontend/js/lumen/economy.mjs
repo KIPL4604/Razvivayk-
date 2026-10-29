@@ -32,7 +32,7 @@ export function recordProgress(meta,run){
     const rank=run.masteredWeapons?.includes(id)?MAX_WEAPON_STAGE:run.upgrades?.[id]||run.archivedWeapons?.[id];
     if(Number.isInteger(rank)&&rank>0&&rank<=MAX_WEAPON_STAGE)meta.weaponBest[id]=Math.max(meta.weaponBest[id]||0,rank);
   }
-  if(run.status==='won'&&Object.hasOwn(MAPS,run.map)&&run.level>=MAPS[run.map].goal&&(!MAPS[run.map].bossGoal||run.endReason==='boss'&&run.arena?.phase==='complete')&&mapAvailable(meta,run.map)&&!meta.clearedMaps.includes(run.map))meta.clearedMaps.push(run.map);
+  if(run.status==='won'&&Object.hasOwn(MAPS,run.map)&&run.level>=MAPS[run.map].goal&&(!MAPS[run.map].bossGoal||run.endReason==='boss'&&run.arena?.phase==='complete'||['garden','quarry'].includes(run.map)&&run.legacyLevelWin===true&&run.endReason==='level'&&run.arena===null)&&mapAvailable(meta,run.map)&&!meta.clearedMaps.includes(run.map))meta.clearedMaps.push(run.map);
 }
 // Credit a monotonically increasing run total once. Wallet and run are persisted
 // together by the UI; resume, autosave and result rendering cannot duplicate it.

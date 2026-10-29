@@ -1,8 +1,8 @@
 // Art style is shared; color belongs to an entity or biome, never the whole game.
 export const MAX_WEAPON_STAGE=8;
 export const MAPS=Object.freeze({
-  garden:{name:'Биосад',sector:'БИОСАД 07 / СЕКТОР МАЯКА',goal:30,next:'quarry',hp:1,tiles:'tiles',props:'garden',accent:'#83cda4'},
-  quarry:{name:'Лунный карьер',sector:'ЛУННЫЙ КАРЬЕР / МИНЕРАЛЬНЫЙ РАЗЛОМ',goal:35,next:'castle',hp:1.2,tiles:'quarry-tiles',props:'quarry-props',accent:'#d7b8ef'},
+  garden:{name:'Биосад',sector:'БИОСАД 07 / СЕКТОР МАЯКА',goal:30,next:'quarry',hp:1,tiles:'tiles',props:'garden',accent:'#83cda4',bossGoal:true},
+  quarry:{name:'Лунный карьер',sector:'ЛУННЫЙ КАРЬЕР / МИНЕРАЛЬНЫЙ РАЗЛОМ',goal:35,next:'castle',hp:1.2,tiles:'quarry-tiles',props:'quarry-props',accent:'#d7b8ef',bossGoal:true},
   crater:{name:'Кратер роя',sector:'КРАТЕР РОЯ / ЗАМКНУТОЕ ГНЕЗДО',goal:40,next:null,hp:1.35,tiles:'crater-tiles',props:'crater-props',accent:'#e5b783',bossGoal:true},
   castle:{name:'Замок угасшего света',sector:'ЗАМОК / КРАСНАЯ ГАЛЕРЕЯ',goal:45,next:null,hp:1.35,tiles:'castle-tiles',props:'castle-props',accent:'#dfbb76',bossGoal:true},
 });

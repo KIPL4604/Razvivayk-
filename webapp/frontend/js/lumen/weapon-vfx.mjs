@@ -13,7 +13,13 @@ const rowFor = weapon => ['ice', 'frostnova', 'prism'].includes(weapon) ? 1
       : ['gravity', 'eclipse'].includes(weapon) ? 4 : 3;
 
 /** Fit the entire dangerous perimeter without changing any world coordinates. */
-export function arenaCamera(width, height, baseScale, player, arena) {
+export function arenaCamera(width, height, baseScale, player, arena, insets) {
+  if(arena&&insets){
+    const top=insets.top??220,bottom=insets.bottom??height-140,available=Math.max(80,bottom-top);
+    const upper=Math.max(arena.radius+32,(insets.bossHeight||252)*.96+16),lower=arena.radius+32;
+    const scale=Math.min(baseScale,width/(arena.radius*2+160),available/(upper+lower));
+    return {x:arena.x,y:arena.y,scale,screenY:top+upper*scale+(available-(upper+lower)*scale)/2};
+  }
   const radius = arena?.radius || 330;
   const scale = Math.min(baseScale, width / (radius * 2 + 160), Math.max(140, height - 320) / (radius * 2 + 140));
   return arena ? { x: arena.x, y: arena.y, scale } : { x: player.x, y: player.y, scale: baseScale };

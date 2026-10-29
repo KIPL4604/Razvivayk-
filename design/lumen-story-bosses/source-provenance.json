@@ -1,0 +1,32 @@
+{
+  "date": "2026-10-29",
+  "tool": "built-in imagegen",
+  "transparent_background": true,
+  "selected_sources": [
+    {
+      "id": "rootwarden",
+      "source": "sources/boss-rootwarden-raw.png",
+      "sha256": "760d298bf8985cf82dcfdf8472e5d489c642bbbab0ca9a0d4e69fc38c7df1028",
+      "prompt": "Create a finished ORIGINAL 2D pixel-art sprite animation sheet for Lumen, an atmospheric top-down fantasy survival game. Subject: massive ancient arboretum keeper, a living ceramic-and-root colossus with broad mossy shoulders, branching hollow crown like pruning hooks, deep emerald and old copper armor, warm amber single lantern heart, asymmetrical root arms, squat imposing silhouette. No deer skull, no recognizable franchise character. EXACT layout: 6 equally spaced columns by 5 equally spaced rows, 30 separate full-body frames on transparent background, no labels, no text, no floor or shadows outside body, generous transparent gutters, all frames fully contained. Row1 idle subtle breathing six frames. Row2 walking/floating cycle six frames. Row3 attack wind-up to strike six frames. Row4 hurt recoil six frames. Row5 death/collapse six frames, progressively lower. Consistent character anatomy, equipment, identical scale in every cell and bottom-center feet anchor. Game-camera three-quarter frontal/top-down view. Carefully hand-crafted pixel clusters, crisp hard pixels, rich readable silhouette, restrained 48-color palette, warm copper and deep atmospheric shadows, comparable to detailed 96px game sprites, no smooth 3D, no painterly blur, no outline boxes. This must be a directly usable actor animation atlas."
+    },
+    {
+      "id": "overseer",
+      "source": "sources/boss-overseer-raw.png",
+      "sha256": "5ee8a99621a5a070183c323a54323231e71705b36bdaed1d551370d344e88058",
+      "prompt": "Create a finished ORIGINAL 2D pixel-art sprite animation sheet for Lumen, an atmospheric top-down fantasy survival game. Subject: massive lunar-quarry overseer automaton, wide dark plum stone and aged brass body, enormous hanging ring-shaped survey instrument around shoulders, faceless narrow glowing violet slit, two monumental articulated hammer arms, crystal pressure vessel in chest. Industrial regal mine warden, no crown, no humanoid skull. EXACT layout: 6 equally spaced columns by 5 equally spaced rows, 30 separate full-body frames on transparent background, no labels, no text, no floor or shadows outside body, generous transparent gutters, all frames fully contained. Row1 idle subtle breathing six frames. Row2 walking/floating cycle six frames. Row3 attack wind-up to strike six frames. Row4 hurt recoil six frames. Row5 death/collapse six frames, progressively lower. Consistent character anatomy, equipment, identical scale in every cell and bottom-center feet anchor. Game-camera three-quarter frontal/top-down view. Carefully hand-crafted pixel clusters, crisp hard pixels, rich readable silhouette, restrained 48-color palette, warm copper and deep atmospheric shadows, comparable to detailed 96px game sprites, no smooth 3D, no painterly blur, no outline boxes. This must be a directly usable actor animation atlas."
+    },
+    {
+      "id": "drillguard",
+      "source": "sources/boss-drillguard-raw.png",
+      "sha256": "cf67137b146405640c8943211aae3d684c1f69269e9868203a489e942b17cc25",
+      "prompt": "Create a finished ORIGINAL 2D pixel-art sprite animation sheet for Lumen, an atmospheric top-down fantasy survival game. Subject: heavy squat drilling golem, slate and pale lavender quartz body, one oversized conical spiral drill arm and one square clamp arm, small recessed amber eyes, asymmetrical broad rock shoulders, worn copper joints. Readable heavy mining automaton. EXACT layout: 6 equally spaced columns by 5 equally spaced rows, 30 separate full-body frames on transparent background, no labels, no text, no floor or shadows outside body, generous transparent gutters, all frames fully contained. Row1 idle subtle breathing six frames. Row2 walking/floating cycle six frames. Row3 attack wind-up to strike six frames. Row4 hurt recoil six frames. Row5 death/collapse six frames, progressively lower. Consistent character anatomy, equipment, identical scale in every cell and bottom-center feet anchor. Game-camera three-quarter frontal/top-down view. Carefully hand-crafted pixel clusters, crisp hard pixels, rich readable silhouette, restrained 48-color palette, warm copper and deep atmospheric shadows, comparable to detailed 96px game sprites, no smooth 3D, no painterly blur, no outline boxes. This must be a directly usable actor animation atlas."
+    },
+    {
+      "id": "resonator",
+      "source": "sources/boss-resonator-raw.png",
+      "sha256": "b6920aee4cd558ce41941b91de83b02a00d48e17d8d3d8acbc47761433592fa7",
+      "prompt": "Create a finished ORIGINAL 2D pixel-art sprite animation sheet for Lumen, an atmospheric top-down fantasy survival game. Subject: floating angular crystalline resonator creature, tall three-pronged violet quartz formation held in a brass suspension frame, thin dangling chain-like appendages, bright cyan central void, wing-like irregular shard arms, noticeably slender silhouette compared with drilling golem. EXACT layout: 6 equally spaced columns by 5 equally spaced rows, 30 separate full-body frames on transparent background, no labels, no text, no floor or shadows outside body, generous transparent gutters, all frames fully contained. Row1 idle subtle breathing six frames. Row2 walking/floating cycle six frames. Row3 attack wind-up to strike six frames. Row4 hurt recoil six frames. Row5 death/collapse six frames, progressively lower. Consistent character anatomy, equipment, identical scale in every cell and bottom-center feet anchor. Game-camera three-quarter frontal/top-down view. Carefully hand-crafted pixel clusters, crisp hard pixels, rich readable silhouette, restrained 48-color palette, warm copper and deep atmospheric shadows, comparable to detailed 96px game sprites, no smooth 3D, no painterly blur, no outline boxes. This must be a directly usable actor animation atlas."
+    }
+  ],
+  "normalization": "Grid extraction, one scale per actor, nearest resampling, 64-color palette, binary alpha, bottom-center anchor. Existing PNG assets preserved."
+}

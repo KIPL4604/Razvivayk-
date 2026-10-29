@@ -10,7 +10,7 @@ const hooks={limits:{projectiles:100,effects:80},effect:(s,kind,x,y,radius,life)
 const advance=(s,e,seconds)=>{for(let i=0;i<Math.round(seconds/dt);i++)updateBossAttacks(s,e,dt,hooks);};
 
 test('original and castle boss variants have immutable distinct attack sequences',()=>{
-  assert.deepEqual(Object.keys(BOSS_VARIANTS),['carapace','tempest','matriarch','conductor','gatekeeper','monarch']);
+  assert.deepEqual(Object.keys(BOSS_VARIANTS),['rootwarden','overseer','drillguard','resonator','carapace','tempest','matriarch','conductor','gatekeeper','monarch']);
   for(const [id,v]of Object.entries(BOSS_VARIANTS)){
     assert(v.name&&v.sprite===`boss-${id}`);assert(Object.isFrozen(v)&&Object.isFrozen(v.attacks));
     assert(v.attacks.length>=3);for(const a of v.attacks)assert(Object.isFrozen(a)&&a.windup>=.6&&a.cooldown<=4);
@@ -58,11 +58,11 @@ test('every configured attack releases after its warning and slams can be escape
   updateBossAttacks(s,e,dt,hooks);s.player.x=260;advance(s,e,1.2);assert.equal(s.player.hp,150);
 });
 
-test('engine spawns distinct third-map guardians while both earlier maps keep their original boss path',()=>{
+test('engine spawns distinct quarry and crater guardians while garden keeps its original bosses',()=>{
   for(const map of ['garden','quarry','crater'])for(const [time,stage,type]of [[120,1,'carapace'],[240,2,'tempest'],[420,3,'carapace']]){
     const s=createRun({map,seed:stage});s.time=time-dt;s.spawnedGuardians=stage-1;s.spawnedElites=4;s.spawnTimer=3;
     step(s,{},dt);const boss=s.enemies.find(e=>e.kind==='guardian');assert(boss);
-    assert.equal(boss.guardianStage,stage);assert.equal(boss.bossType,map==='crater'?type:undefined);
+    assert.equal(boss.guardianStage,stage);assert.equal(boss.bossType,map==='crater'?type:map==='quarry'?(stage===2?'resonator':'drillguard'):undefined);
     const saved=restore(serialize(s));assert(saved,`${map} stage ${stage} cannot restore`);assert.deepEqual(serialize(saved),serialize(s));
     if(map==='crater'){
       boss.fireTimer=0;step(s,{},dt);assert(boss.actionTimer>.6);assert(s.effects.some(e=>['charge','shards','warning'].includes(e.kind)));

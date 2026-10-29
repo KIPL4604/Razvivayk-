@@ -1,6 +1,7 @@
 /* Original Teramont simulation. No DOM, wall clock, network, or third-party code.
  * step() accepts seconds and advances at 60 Hz, with at most 0.25 seconds per call.
- * Reach the selected map's target level to win. Time only paces encounters.
+ * Reach the selected map's target level to confront its final boss, then collect
+ * its unique reward to win. Time only paces encounters.
  * Local results are entertainment data and never award campaign/server XP.
  */
 import {waveAt,xpForLevel,crystalLoot,crystalTier,creatureStats} from './progression.mjs';
@@ -69,7 +70,7 @@ export function createRun({ seed = 0x1a71be, character = 'scout',runId,map='gard
   const normalizedSeed = Number.isInteger(seed) ? seed >>> 0 : 0x1a71be;
   const selected = own(CHARACTERS, character) ? character : 'scout';
   const state = {
-    version: 10, castle:map==='castle'?createCastle():null,arena:null,relicState:{shield:0,recharge:0,surge:0},archivedWeapons:{}, training:normalizeTraining(training),map:own(MAPS,map)?map:'garden',foundWeapons:[],masteredWeapons:[], seed: normalizedSeed, rngState: normalizedSeed || 0x9e3779b9,
+    version: 11, legacyLevelWin:false,castle:map==='castle'?createCastle():null,arena:null,relicState:{shield:0,recharge:0,surge:0},archivedWeapons:{}, training:normalizeTraining(training),map:own(MAPS,map)?map:'garden',foundWeapons:[],masteredWeapons:[], seed: normalizedSeed, rngState: normalizedSeed || 0x9e3779b9,
     runId:typeof runId==='string'&&/^[a-zA-Z0-9-]{1,90}$/.test(runId)?runId:`run-${normalizedSeed.toString(16)}-${selected}`,
     character: selected, time: 0, status: 'playing', endReason: '',
     player: { x: 0, y: 0, hp: CHARACTERS[selected].hp, maxHp: CHARACTERS[selected].hp,
@@ -198,6 +199,7 @@ function spawn(state, guardianStage = 0, wave = waveAt(state.time),elite=false) 
   state.enemies.push({ id: state.nextId++, kind, x: state.player.x + Math.cos(angle) * range,
     y: state.player.y + Math.sin(angle) * range, ...base, value, maxHp: base.hp,
     phase: random(state) * TAU, hitFlash: 0, guardianStage, fireTimer: 2.8,elite,slowTime:0,actionTimer:0 });
+  if(guardianStage&&state.map==='quarry')Object.assign(state.enemies.at(-1),{bossType:guardianStage===2?'resonator':'drillguard',attackStage:0});
   if(guardianStage&&state.map==='crater')Object.assign(state.enemies.at(-1),{bossType:guardianStage===2?'tempest':'carapace',attackStage:0});
   if(guardianStage&&state.map==='castle')Object.assign(state.enemies.at(-1),{bossType:guardianStage===2?'conductor':'gatekeeper',attackStage:0});
   if(state.map==='castle'){
@@ -573,7 +575,10 @@ export function restore(snapshot) {
     if(object(snapshot)&&snapshot.version===7)snapshot={...snapshot,version:8,arena:null};
     if(object(snapshot)&&snapshot.version===8)snapshot={...snapshot,version:9,castle:snapshot.map==='castle'?{...createCastle(),phase:snapshot.arena?'arena':snapshot.level>=45?'guidance':'exploring'}:null};
     if(object(snapshot)&&snapshot.version===9)snapshot=migrateCastle(snapshot);
-    if (!object(snapshot) || snapshot.version !== 10 || !own(snapshot,'castle')||!own(snapshot,'arena')||!validTraining(snapshot.training)||!own(MAPS,snapshot.map)||!own(CHARACTERS, snapshot.character) ||
+    if(object(snapshot)&&snapshot.version===10)snapshot={...snapshot,version:11,
+      legacyLevelWin:['garden','quarry'].includes(snapshot.map)&&snapshot.status==='won'&&snapshot.endReason==='level'&&snapshot.arena===null};
+    if (!object(snapshot) || snapshot.version !== 11 || typeof snapshot.legacyLevelWin!=='boolean'||
+      snapshot.legacyLevelWin&&(!['garden','quarry'].includes(snapshot.map)||snapshot.status!=='won'||snapshot.endReason!=='level'||snapshot.arena!==null) || !own(snapshot,'castle')||!own(snapshot,'arena')||!validTraining(snapshot.training)||!own(MAPS,snapshot.map)||!own(CHARACTERS, snapshot.character) ||
       !integer(snapshot.seed, 0, 0xffffffff) || !integer(snapshot.rngState, 1, 0xffffffff) ||
       !number(snapshot.time, 0, 1e7) || !['playing', 'upgrade', 'won', 'lost'].includes(snapshot.status) ||
       !['', 'health', 'beacon', 'dawn','level','boss'].includes(snapshot.endReason) ||
@@ -623,7 +628,7 @@ export function restore(snapshot) {
       snapshot.choices.some((id) => !CATALOG.has(id)||rank(state,id)>=CATALOG.get(id).max||(id!=='repair'&&!availableUpgrade(state,id)))) return null;
     if ((snapshot.status === 'upgrade') !== (snapshot.choices.length > 0) ||
       (snapshot.status !== 'lost' && player.hp <= 0) ||
-      (snapshot.status === 'won' && (snapshot.level<MAPS[state.map].goal||snapshot.endReason!==(MAPS[state.map].bossGoal?'boss':'level')))) return null;
+      (snapshot.status === 'won' && (snapshot.level<MAPS[state.map].goal||snapshot.endReason!==(snapshot.legacyLevelWin?'level':MAPS[state.map].bossGoal?'boss':'level')))) return null;
     const ids = new Set();
     for (const enemy of snapshot.enemies) {
       if (!position(enemy) || !integer(enemy.id, 1, 0x7fffffff) || ids.has(enemy.id) || !TYPES.includes(enemy.kind) ||
@@ -632,8 +637,8 @@ export function restore(snapshot) {
         !integer(enemy.value, ['arena-boss','arena-tick','castle-door'].includes(enemy.kind)?0:1, 1e5) || !number(enemy.phase, 0, TAU) || !number(enemy.hitFlash, 0, 1) ||
         !integer(enemy.guardianStage, 0, 3) || (enemy.kind === 'guardian') !== (enemy.guardianStage > 0) ||
         !number(enemy.fireTimer, -H, 4) ||(own(enemy,'elite')&&typeof enemy.elite!=='boolean')||
-        !number(enemy.slowTime??0,0,2)||!number(enemy.actionTimer??0,0,2)||!validateBossFields(enemy)||own(enemy,'bossType')&&!['crater','castle'].includes(state.map)||
-        own(enemy,'bossType')&&(state.map==='castle'?!['conductor','gatekeeper','monarch'].includes(enemy.bossType):!['carapace','tempest','matriarch'].includes(enemy.bossType))||
+        !number(enemy.slowTime??0,0,2)||!number(enemy.actionTimer??0,0,2)||!validateBossFields(enemy)||own(enemy,'bossType')&&!({garden:['rootwarden'],quarry:['drillguard','resonator','overseer'],crater:['carapace','tempest','matriarch'],castle:['conductor','gatekeeper','monarch']}[state.map]||[]).includes(enemy.bossType)||
+        own(enemy,'bossType')&&['rootwarden','overseer','matriarch','monarch'].includes(enemy.bossType)!==(enemy.kind==='arena-boss')||
         ['palace-guard','wax-servant','paper-moth','castle-door'].includes(enemy.kind)&&state.map!=='castle') return null;
       ids.add(enemy.id);
       state.enemies.push({ id: enemy.id, kind: enemy.kind, x: enemy.x, y: enemy.y, hp: enemy.hp, maxHp: enemy.maxHp,
@@ -695,6 +700,7 @@ export function restore(snapshot) {
     for (const key of ['rngState', 'time', 'status', 'endReason', 'level', 'xp', 'xpNext', 'kills', 'bossesDefeated',
       'spawnedGuardians', 'finalGuardianDefeated', 'nextId', 'remainder', 'contactTimer', 'spawnTimer', 'boltTimer', 'pulseTimer', 'orbitTimer', 'orbitAngle',
       'coinsEarned','openedChests','spawnedElites','attackSerial']) state[key] = snapshot[key];
+    state.legacyLevelWin=snapshot.legacyLevelWin;
     state.choices = snapshot.choices.slice();
     state.arena=snapshot.arena===null?null:{...snapshot.arena};
     state.castle=snapshot.castle===null?null:{...snapshot.castle};

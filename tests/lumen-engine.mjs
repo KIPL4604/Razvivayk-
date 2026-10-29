@@ -97,9 +97,9 @@ test('guardians spawn at the three milestones, including with a crowded arena', 
   }
 });
 
-test('target level ends the map, while time and boss kills alone do not', () => {
+test('target level starts the final arena, while time and guardian kills alone do not win', () => {
   const won=createRun({seed:1});won.level=29;won.xp=won.xpNext;
-  step(won,{},1/60);assert.equal(won.status,'won');assert.equal(won.level,30);assert.equal(won.endReason,'level');
+  step(won,{},1/60);assert.equal(won.status,'playing');assert.equal(won.level,30);assert.equal(won.arena.phase,'forming');assert.equal(won.endReason,'');
   assert.deepEqual(won.choices,[]);assert.equal(won.bossesDefeated,0);assert.ok(restore(serialize(won)));
   const ongoing=createRun({seed:1});ongoing.time=480;ongoing.spawnedGuardians=3;ongoing.spawnedElites=4;ongoing.finalGuardianDefeated=true;
   step(ongoing,{},1/60);assert.equal(ongoing.status,'playing');assert.ok(ongoing.time>480);assert.ok(restore(serialize(ongoing)));
