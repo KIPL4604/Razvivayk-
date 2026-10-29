@@ -8,7 +8,7 @@ const worldFiles={
  crater:['mote','crawler','spitter','crater-tiles','crater-props','quartzling','shardback','moonmoth','beetle','wasp','wisp','boss-carapace','boss-tempest','boss-matriarch','arena-tick'],
  castle:['castle-tiles','castle-props','castle-floor','castle-hall-floor','castle-hall-decor','castle-door','castle-guard','castle-wax','castle-moth','boss-conductor','boss-gatekeeper','boss-monarch'],
 };
-const shared=['arsenal','combat','fx','ui','weapons','expansion-items','arena-fx','arena-tick','enemy-projectiles','mega-chest'];
+const shared=['arsenal','combat','fx','ui','expedition','expansion-items','arena-fx','arena-tick','enemy-projectiles','mega-chest'];
 const notify=()=>listeners.forEach(listener=>listener());
 export function selectArtFiles(manifest,{map,character}={}){
  if(!map)return Object.entries(manifest.files);

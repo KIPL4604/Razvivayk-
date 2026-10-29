@@ -43,7 +43,7 @@ test('selected-world artwork includes every spawned creature and arena boundary 
  const names=map=>new Set(selectArtFiles(manifest,{map,character:'keeper'}).map(([file])=>file.replace('.png','')));
  for(const map of ['garden','quarry','crater']){
   const files=names(map);
-  for(const id of ['mote','beetle','wasp','crawler','spitter','wisp','arena-tick','arena-fx','mega-chest','keeper'])assert(files.has(id),map+': '+id);
+  for(const id of ['mote','beetle','wasp','crawler','spitter','wisp','arena-tick','arena-fx','mega-chest','keeper','expedition'])assert(files.has(id),map+': '+id);
   assert(files.has('boss-'+WORLD_FINALS[map].bossType));assert(!files.has('boss-monarch'));assert(!files.has('castle-hall-floor'));
  }
  const quarry=names('quarry');for(const id of ['boss-drillguard','boss-resonator','boss-briar','boss-queen','boss-ash'])assert(quarry.has(id));

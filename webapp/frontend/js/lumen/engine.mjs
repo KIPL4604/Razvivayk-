@@ -84,6 +84,7 @@ export function createRun({ seed = 0x1a71be, character = 'scout',runId,map='gard
     pulseTimer: 0, orbitTimer: 0, orbitAngle: 0, pickupRadius: 58,
   };
   derived(state);state.player.hp=state.player.maxHp;
+  state.nextUpgrade=upcomingUpgrade(state);
   return state;
 }
 
@@ -322,17 +323,12 @@ function projectiles(state, dt) {
   state.enemies = state.enemies.filter((enemy) => enemy.hp > 0);
 }
 
-function offerUpgrade(state) {
-  if (state.status !== 'playing' || state.arena || state.map==='castle'&&state.level>=45 || state.xp < state.xpNext) return;
-  state.xp -= state.xpNext;
-  state.level += 1;
-  state.xpNext = xpForLevel(state.level);
-  if(state.level>=MAPS[state.map].goal){
-    state.choices=[];state.remainder=0;
-    if(state.map==='castle')state.xp=0;
-    if(MAPS[state.map].bossGoal){updateCastleGoal(state);startArena(state,{effect});}else{state.status='won';state.endReason='level';}
-    return;
-  }
+// The offer has its own deterministic stream. Network timing and combat draws
+// cannot change a promised weapon, and forecasting never consumes combat RNG.
+function upgradeLoadout(state){
+  return state.character+'|'+Object.keys(state.upgrades).sort().map(id=>id+'='+state.upgrades[id]).join(',')+'|'+Object.keys(state.archivedWeapons||{}).sort().join(',');
+}
+function rollUpgradeChoices(state){
   const candidates = UPGRADES.filter(u=>availableUpgrade(state,u.id)&&(u.id!=='repair'||state.player.hp<state.player.maxHp||state.level>35)).map(u=>u.id);
   const pick=items=>items.length?items[Math.floor(random(state)*items.length)]:null;
   const existing=pick(candidates.filter(id=>WEAPONS[id]&&rank(state,id)));
@@ -354,7 +350,40 @@ function offerUpgrade(state) {
   // overwrite another promised category when it happened to be there already.
   state.choices=[...new Set([fusion,recovery,existing,discovery,...remainder].filter(Boolean))].slice(0,3);
   if (!state.choices.length && rank(state, 'repair') < CATALOG.get('repair').max) state.choices = ['repair'];
-  if (!state.choices.length) return;
+  return state.choices;
+}
+export function upcomingUpgrade(state){
+  if(!state||state.status!=='playing'||state.arena||state.level+1>=MAPS[state.map].goal)return null;
+  const level=state.level+1,loadout=upgradeLoadout(state),plan=state.nextUpgrade;
+  if(plan?.level===level&&plan.loadout===loadout&&plan.choices.length&&plan.choices.every(id=>availableUpgrade(state,id)))return {...plan,choices:plan.choices.slice()};
+  const choices=rollUpgradeChoices({...state,level,rngState:state.rngState});
+  return choices.length?{level,loadout,choices}:null;
+}
+
+function offerUpgrade(state) {
+  if (state.status !== 'playing' || state.arena || state.map==='castle'&&state.level>=45 || state.xp < state.xpNext) return;
+  const planned=upcomingUpgrade(state);
+  state.xp -= state.xpNext;
+  state.level += 1;
+  state.xpNext = xpForLevel(state.level);
+  if(state.level>=MAPS[state.map].goal){
+    state.choices=[];state.nextUpgrade=null;state.remainder=0;
+    if(state.map==='castle')state.xp=0;
+    if(MAPS[state.map].bossGoal){updateCastleGoal(state);startArena(state,{effect});}else{state.status='won';state.endReason='level';}
+    return;
+  }
+  // Keep the encounter stream's established advancement at promotion. Moving
+  // the offer earlier must not also reshuffle creature spawns while playing.
+  const encounterRoll={...state};rollUpgradeChoices(encounterRoll);state.rngState=encounterRoll.rngState;
+  state.choices=(planned?.choices||[]).filter(id=>availableUpgrade(state,id));
+  // A dangerous-health recovery may replace support, never a foretold weapon.
+  if(state.player.hp<state.player.maxHp*.35&&!state.choices.some(id=>['repair','vitality'].includes(id))){
+    const support=state.choices.findIndex(id=>!WEAPONS[id]);
+    const recovery=['vitality','repair'].find(id=>availableUpgrade(state,id));
+    if(support>=0&&recovery)state.choices[support]=recovery;
+  }
+  state.nextUpgrade=null;
+  if(!state.choices.length)return;
   state.status = 'upgrade';
   state.remainder = 0;
 }
@@ -374,11 +403,12 @@ function collect(state, dt) {
     remaining.push(crystal);
   }
   state.gems = remaining;
+  let chestChangedKit=false;
   state.chests=state.chests.filter(chest=>{
     if(distanceSquared(chest,state.player)>(state.player.radius+24)**2)return true;
     const candidates=WEAPON_IDS.filter(id=>rank(state,id)>0&&rank(state,id)<WEAPONS[id].max);
     const weapon=chest.upgrade&&candidates.length?candidates[Math.floor(random(state)*candidates.length)]:'';
-    if(weapon)state.upgrades[weapon]++;
+    if(weapon){state.upgrades[weapon]++;chestChangedKit=true;}
     rememberMastery(state);
     const coins=chest.coins+(!chest.mega&&chest.upgrade&&!candidates.length?25:0);
     state.coinsEarned+=coins;state.openedChests++;
@@ -386,6 +416,7 @@ function collect(state, dt) {
     state.lootLog.push({id:chest.id,coins,weapon,stage:weapon?state.upgrades[weapon]:0,time:state.time});state.lootLog=state.lootLog.slice(-4);
     effect(state,'chest',chest.x,chest.y,chest.mega?100:40,.6);if(chest.mega)state.effects.at(-1).mega=true;return false;
   });
+  if(chestChangedKit)state.nextUpgrade=upcomingUpgrade(state);
   offerUpgrade(state);
 }
 
@@ -495,6 +526,7 @@ export function chooseUpgrade(state, id) {
   state.choices = [];
   state.status = 'playing';
   state.remainder = 0;
+  state.nextUpgrade=upcomingUpgrade(state);
   offerUpgrade(state);
   return true;
 }
@@ -702,9 +734,15 @@ export function restore(snapshot) {
       'coinsEarned','openedChests','spawnedElites','attackSerial']) state[key] = snapshot[key];
     state.legacyLevelWin=snapshot.legacyLevelWin;
     state.choices = snapshot.choices.slice();
+    if(own(snapshot,'nextUpgrade')&&snapshot.nextUpgrade!==null){
+      const plan=snapshot.nextUpgrade;
+      if(!object(plan)||!integer(plan.level,2,1000)||typeof plan.loadout!=='string'||plan.loadout.length>1500||!Array.isArray(plan.choices)||!plan.choices.length||plan.choices.length>3||new Set(plan.choices).size!==plan.choices.length||plan.choices.some(id=>!CATALOG.has(id)))return null;
+      state.nextUpgrade={level:plan.level,loadout:plan.loadout,choices:plan.choices.slice()};
+    }else state.nextUpgrade=null;
     state.arena=snapshot.arena===null?null:{...snapshot.arena};
     state.castle=snapshot.castle===null?null:{...snapshot.castle};
     if(!validateCastle(snapshot.castle,state)||!validateArena(snapshot.arena,state))return null;
+    if(!own(snapshot,'nextUpgrade'))state.nextUpgrade=upcomingUpgrade(state);
     return state;
   } catch { return null; }
 }

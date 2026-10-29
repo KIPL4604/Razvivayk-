@@ -54,7 +54,9 @@ test('a normal Keeper castle expedition reaches45, follows guidance, defeats the
   step(run,steer(run,frame,memory),1/60);
   while(run.status==='upgrade'){
    const recovery=run.player.hp<run.player.maxHp*.55&&['vitality','repair'].find(id=>run.choices.includes(id));
-   const discovery=WEAPON_IDS.filter(id=>run.upgrades[id]).length<3&&pref.find(id=>WEAPON_IDS.includes(id)&&!run.upgrades[id]&&run.choices.includes(id));
+   // The controller may discover any offered catalog weapon, including the
+   // expanded arsenal. Restricting it to five old weapons hides legal builds.
+   const discovery=WEAPON_IDS.filter(id=>run.upgrades[id]).length<3&&WEAPON_IDS.find(id=>!run.upgrades[id]&&run.choices.includes(id));
    const defense=run.player.hp<run.player.maxHp*.8&&['aegis','stride'].find(id=>run.choices.includes(id));
    const choice=recovery||discovery||defense||pref.find(id=>run.choices.includes(id))||run.choices[0];
    assert(run.choices.includes(choice));assert(chooseUpgrade(run,choice));upgradeChoices++;

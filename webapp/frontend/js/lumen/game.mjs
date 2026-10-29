@@ -1,8 +1,9 @@
-import {createRun,step,chooseUpgrade,serialize,restore,UPGRADES} from './engine.mjs';
+import {createRun,step,chooseUpgrade,serialize,restore,UPGRADES,upcomingUpgrade} from './engine.mjs';
 import {Renderer} from './renderer.mjs';
 import {loadArt} from './assets.mjs';
 import {StoryOverlay} from './story-overlay.mjs';
 import {worldScene,bossScene} from './story.mjs';
+import {weaponIcon,prefetchWeaponChoices} from './weapon-icons.mjs';
 import {WORLD_FINALS} from './arena.mjs';
 import {renderMenu,MENU_PAGES} from './menu.mjs';
 import {buyTraining} from './training.mjs';
@@ -19,8 +20,7 @@ const roman=['','I','II','III','IV','V','VI','VII','VIII'];
 const iconIndex={spark:0,orbit:1,pulse:2,focus:3,haste:4,stride:5,magnet:6,vitality:7,repair:8,pause:9,fullscreen:10,sound:11,mute:12,gem:13,light:14,stars:15};
 const itemIcon=index=>`<span class="lumen-new-icon" style="--item-x:${index%5};--item-y:${Math.floor(index/5)}" aria-hidden="true"></span>`;
 const expansionIcon=index=>`<span class="lumen-expansion-icon" style="--item-x:${index%8};--item-y:${Math.floor(index/8)}" aria-hidden="true"></span>`;
-const pixelIcon = name => ARTIFACTS[name]?.index>=4?expansionIcon(10+ARTIFACTS[name].index-4):WEAPONS[name]?.index>=14?expansionIcon(WEAPONS[name].index-14):ARTIFACTS[name]?itemIcon(6+ARTIFACTS[name].index):WEAPONS[name]?.index>=8?itemIcon(WEAPONS[name].index-8):WEAPONS[name]
-  ? `<span class="lumen-weapon-icon ${WEAPONS[name].className}" style="--weapon:${WEAPONS[name].index}" aria-hidden="true"></span>`
+const pixelIcon = name => WEAPONS[name]?weaponIcon(name):ARTIFACTS[name]?.index>=4?expansionIcon(10+ARTIFACTS[name].index-4):ARTIFACTS[name]?itemIcon(6+ARTIFACTS[name].index)
   : name==='coin'?'<span class="lumen-coin-icon" aria-hidden="true"></span>'
   : `<span class="lumen-pixel-icon" style="--icon:${iconIndex[name] ?? 0}" aria-hidden="true"></span>`;
 
@@ -174,6 +174,7 @@ export function createGame(context) {
   function resume(){launchRun(true);}
   function updateHud(){
     if(!state||!$('#lumenHealth'))return;
+    void prefetchWeaponChoices(upcomingUpgrade(state)?.choices||[]);
     const p=state.player;
     $('#lumenHealth').textContent=`${Math.ceil(Math.max(0,p.hp))} / ${p.maxHp}`;
     const hp=$('#lumenHealthMeter');hp.setAttribute('aria-valuemax',p.maxHp);hp.setAttribute('aria-valuenow',Math.ceil(Math.max(0,p.hp)));hp.firstElementChild.style.width=`${Math.max(0,p.hp/p.maxHp)*100}%`;
