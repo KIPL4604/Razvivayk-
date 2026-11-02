@@ -1,3 +1,4 @@
+import {latestMenuSector} from './menu-background.mjs';
 import {createRun,step,serialize,restore,interaction,objective,currentRoom,ROOMS,FORMS,formFor} from './engine.mjs';
 import {createRenderer} from './renderer.mjs?v=9';
 import {SOUND_CUES} from './presentation.mjs';
@@ -11,7 +12,7 @@ export async function createGame(context){
     <div class="sp-hud"><div class="sp-mass"><span>БИОМАССА <b id="spMassValue">32 / 100</b></span><div role="progressbar" aria-label="Запас биомассы" aria-valuemin="0" aria-valuemax="100" id="spMassBar"><i></i></div><small id="spForm">Малая форма</small></div><div class="sp-sector"><b id="spSector"></b><span id="spObjective"></span></div>${button('pause',icon('pause'),'sp-pause')}</div>
     <p class="sp-message" role="status" aria-live="polite"></p>
     <div class="sp-controls"><button class="sp-stick sp-move" type="button" aria-label="Джойстик движения"><span></span><small>ДВИЖЕНИЕ</small></button><button class="sp-stick sp-grab" type="button" aria-label="Направить щупальце и захватить">${icon('aim')}<span></span><small>ЗАХВАТ</small></button>${button('burst',icon('burst')+'<small>РЫВОК</small>','sp-burst')}${button('use','<kbd>E</kbd><span>Взаимодействие</span>','sp-use')}<span class="sp-desktop-hint">WASD · мышь: удерживай, чтобы схватить · E · пробел</span></div>
-    <video class="sp-menu-reel" data-menu-reel muted loop playsinline preload="metadata" poster="/static/assets/specimen/menu-poster.jpg" aria-hidden="true" tabindex="-1"><source src="/static/assets/specimen/menu-loop.webm" type="video/webm"></video><div class="sp-reel-shade" aria-hidden="true"></div><button class="sp-scene-toggle" type="button" data-ui-motion data-motion-label>Фон: движение</button><div class="sp-panel-wrap"><section class="sp-panel" tabindex="-1" aria-labelledby="spPanelTitle"></section></div>
+    <img class="sp-menu-background" alt="" aria-hidden="true"><div class="sp-reel-shade" aria-hidden="true"></div><span class="sp-background-caption"></span><div class="sp-panel-wrap"><section class="sp-panel" tabindex="-1" aria-labelledby="spPanelTitle"></section></div>
     <div class="sp-rotate" hidden><b>Поверни телефон</b><p>В альбомном положении лучше видны лаборатория и оба щупальца управления.</p>${button('portrait','Играть вертикально','sp-secondary')}</div>
   </div>`;
   const shell=mount.querySelector('.sp-shell'),canvas=mount.querySelector('canvas'),panel=mount.querySelector('.sp-panel'),panelWrap=mount.querySelector('.sp-panel-wrap');
@@ -32,13 +33,24 @@ export async function createGame(context){
   }
   function save(checkpoint=false){if(!state||state.status!=='playing')return;const r=record();r.run=serialize(state);if(checkpoint)r.checkpoint=serialize(state);r.lastTouchedAt=Date.now();context.persist();lastSave=performance.now();}
   function resetInput(){keys.clear();pointers.clear();Object.assign(input,{x:0,y:0,grabbing:false,burst:false,interact:false,echo:false});for(const stick of mount.querySelectorAll('.sp-stick')){stick.style.setProperty('--stick-x','0px');stick.style.setProperty('--stick-y','0px');stick.classList.remove('held');}}
-  function introPreview(){preview=restore({...serialize(createRun()),mass:100,x:542,y:556});preview.nodes.forEach((n,i)=>{n.x=542-(i%5)*19;n.y=542+Math.floor(i/5)*18+(i%2)*10;n.px=n.x;n.py=n.y;});preview.x=542;preview.y=556;}
+  let stillKey='';
+  function introPreview(){
+    const r=record(),sector=latestMenuSector(r),source=restore(r.run)||restore(r.checkpoint)||createRun();
+    preview=restore({...serialize(source),room:sector,x:ROOMS[sector].spawn[0],y:ROOMS[sector].spawn[1]});
+    stillKey='';
+  }
+  function menuStill(){
+    if(!preview)introPreview();renderer.resize();
+    const key=preview.room+':'+canvas.width+'x'+canvas.height;
+    if(key!==stillKey){const image=$('.sp-menu-background');image.src=renderer.snapshot(preview);image.dataset.backgroundSector=preview.room;stillKey=key;}
+    $('.sp-background-caption').textContent='Фон: '+ROOMS[preview.room].title;
+  }
   function sound(kind){if(!record().settings.sound)return;try{audio||=new AudioContext();if(audio.state!=='running')return;const [from,to,duration,volume]=SOUND_CUES[kind]||[94,46,.16,.045],o=audio.createOscillator(),g=audio.createGain(),now=audio.currentTime;o.type='triangle';o.frequency.setValueAtTime(from,now);o.frequency.exponentialRampToValueAtTime(to,now+duration*.8);g.gain.setValueAtTime(volume,now);g.gain.exponentialRampToValueAtTime(.0001,now+duration);o.connect(g);g.connect(audio.destination);o.onended=()=>{o.disconnect();g.disconnect();};o.start();o.stop(now+duration+.01);}catch{record().settings.sound=false;}}
   function title(name,kicker=''){return `<h1 id="spPanelTitle">${name.replaceAll('<br>',' ').replace(/<\/?em>/g,'')}</h1>`;}
   function settings(){return `<div class="sp-settings">${button('sound',icon('sound')+`Звук: ${record().settings.sound?'вкл':'выкл'}`)}${button('fullscreen',icon('full')+(document.fullscreenElement||context.telegram?.isFullscreen?'В оконный режим':'Во весь экран'))}</div>`;}
   function showPanel(direction=1){
     panelWrap.hidden=mode==='playing';panel.innerHTML='';shell.dataset.mode=mode;
-    if(mode==='playing'){shell.dataset.front='false';$('[data-menu-reel]').pause();canvas.focus({preventScroll:true});return;}
+    if(mode==='playing'){shell.dataset.front='false';canvas.focus({preventScroll:true});return;}
     if(mode==='menu'){
       const resumedRun=restore(record().run),resumable=!!resumedRun;
       const recoverable=!resumable&&!record().completed&&!!restore(record().checkpoint);
@@ -51,7 +63,7 @@ export async function createGame(context){
     else if(mode==='help')panel.innerHTML=title('Почувствуй<br><em>каждый отросток</em>','УПРАВЛЕНИЕ ОБРАЗЦОМ')+`<dl class="sp-help"><div><dt>Двигайся</dt><dd>Левый джойстик или WASD / стрелки. Щупальца сами цепляются за стены, галереи и потолок и перехватываются при движении.</dd></div><div><dt>Хватай</dt><dd>Правым джойстиком направляй щупальце. Удерживай, чтобы притянуть и поглотить человека. Отпусти захваченный ящик — он полетит по прицелу, отскочит от стен и собьёт человека. На компьютере — удерживай левую кнопку мыши. Так же можно сорвать подвесную лампу.</dd></div><div><dt>Меняй массу</dt><dd>Подойди к резервуару и нажми «Оставить массу». Вернись к нему, чтобы забрать её.</dd></div><div><dt>Пробивай путь</dt><dd>Большая форма разрушает перегородку рывком: кнопка со стрелками или пробел.</dd></div><div><dt>Взаимодействуй</dt><dd>Рычаг и терминал: потяни захватом или нажми E. Зелёное живое ядро в стене сохраняет побег при сближении. R или кнопка эхолокации — кратко обнаружить пищу после открытия в секторе персонала. Escape — пауза.</dd></div></dl>`+button('help-back','Понятно','sp-primary');
     const front=mode==='menu'||((mode==='help'&&helpReturn==='menu')||(mode==='settings'&&settingsReturn==='menu'))||mode==='new';
     shell.dataset.front=String(front);
-    const reel=$('[data-menu-reel]');if(front)window.MenuUI?.syncMedia(reel);else reel.pause();
+    if(front)menuStill();
     if(mode==='menu'){panel.removeAttribute('role');panel.removeAttribute('aria-modal');}
     else{panel.setAttribute('role','dialog');panel.setAttribute('aria-modal','true');}
     if(mode==='help'||mode==='settings'){
@@ -123,7 +135,7 @@ export async function createGame(context){
     echoButton.hidden=!state.abilities.echo;echoButton.disabled=state.echoCooldown>0;echoButton.querySelector('span').textContent=state.echoCooldown>0?'Импульс · '+Math.ceil(state.echoCooldown)+'с':'Эхолокация';echoButton.setAttribute('aria-label','Эхолокация'+(state.echoCooldown>0?': восстановление '+Math.ceil(state.echoCooldown)+' секунд':': готова'));
   }
   function pausedByLifecycle(){if(active&&mode==='playing'){save();setMode('paused');}}
-  function onScreen(name){if(name==='specimen'||!active)return;active=false;$('[data-menu-reel]').pause();save();cancelAnimationFrame(raf);resetInput();leaveFullscreen();}
+  function onScreen(name){if(name==='specimen'||!active)return;active=false;save();cancelAnimationFrame(raf);resetInput();leaveFullscreen();}
   function back(){if(mode==='help'){action('help-back');return true;}if(mode==='settings'){action('settings-back');return true;}if(mode==='playing'){action('pause');return true;}if(mode!=='menu'){action('title');return true;}action('exit');return true;}
   document.addEventListener('keydown',event=>{
     if(!active)return;if(event.key==='Tab'&&mode!=='menu'&&mode!=='playing'){window.MenuUI?.trap(panel,event);return;}const key=event.key.length===1?event.key.toLowerCase():event.key;
@@ -133,7 +145,7 @@ export async function createGame(context){
     if(['w','a','s','d','ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' ','e','r'].includes(key)){event.preventDefault();keys.add(key);if(!event.repeat){if(key===' ')input.burst=true;if(key==='e')input.interact=true;if(key==='r')input.echo=true;}}
   });
   document.addEventListener('keyup',event=>keys.delete(event.key.length===1?event.key.toLowerCase():event.key));
-  window.addEventListener('blur',pausedByLifecycle);document.addEventListener('visibilitychange',()=>{if(document.hidden)pausedByLifecycle();});window.addEventListener('pagehide',()=>{save();resetInput();});window.addEventListener('resize',()=>{resetInput();updateRotation();});
+  window.addEventListener('blur',pausedByLifecycle);document.addEventListener('visibilitychange',()=>{if(document.hidden)pausedByLifecycle();});window.addEventListener('pagehide',()=>{save();resetInput();});window.addEventListener('resize',()=>{resetInput();updateRotation();if(active&&shell.dataset.front==='true')menuStill();});
   function setStick(event,stick,p){const r=stick.getBoundingClientRect(),dx=event.clientX-p.x,dy=event.clientY-p.y,d=Math.hypot(dx,dy),max=32,x=d?dx/Math.max(max,d):0,y=d?dy/Math.max(max,d):0;stick.style.setProperty('--stick-x',`${x*max}px`);stick.style.setProperty('--stick-y',`${y*max}px`);if(p.kind==='move'){input.x=x;input.y=y;}else{input.grabbing=true;if(d>4){input.aimX=x;input.aimY=y;}}}
   for(const [kind,selector]of [['move','.sp-move'],['grab','.sp-grab']]){
     const stick=$(selector);

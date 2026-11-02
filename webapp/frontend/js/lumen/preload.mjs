@@ -1,9 +1,9 @@
 import {assetBytes,progressReporter} from './asset-cache.mjs';
+import {latestMenuMap,menuBackgroundFile} from './menu-background.mjs';
 import {preloadWeaponIcons} from './weapon-icons.mjs';
 import {WEAPON_ICONS} from './weapon-icon-data.mjs';
 const base=new URL('../../assets/lumen/',import.meta.url),urls=new Map(),decoded=new Map();
-let manifestPromise,menuPromise,lastMenuProgress;
-const menuListeners=new Set();
+let manifestPromise,fontPromise;
 async function manifest(){
  manifestPromise ||= fetch(new URL('menu-manifest.json',base),{cache:'no-store'}).then(r=>{if(!r.ok)throw new Error('Menu manifest unavailable');return r.json();}).catch(e=>{manifestPromise=null;throw e;});
  return manifestPromise;
@@ -22,29 +22,26 @@ async function batch(entries,onProgress){
   }
  }));report(null,0,'decode');
 }
-export async function preloadMenu(onProgress){
- if(onProgress){menuListeners.add(onProgress);if(lastMenuProgress)onProgress(lastMenuProgress);}
- if(!menuPromise)menuPromise=(async()=>{
-  const emit=value=>{lastMenuProgress=value;menuListeners.forEach(listener=>listener(value));};
-  const value=await manifest();
-  // Finish the reel first so other image requests cannot starve its transfer.
-  const videoEntry=value.files.find(e=>e.file==='menu-loop.mp4'),rest=value.files.filter(e=>e!==videoEntry);
-  const report=progressReporter(value.files,emit);
-  await batch([videoEntry],p=>report(videoEntry,p.received,'video'));
-  await batch(rest,p=>{
-   // The nested batch reports aggregate bytes; its synthetic key never enters the cache.
-   report({file:'menu-images'},p.received,p.phase==='decode'?'decode':'images');
-  });
-  if(!await preloadWeaponIcons(Object.keys(WEAPON_ICONS),{visible:true}))throw new Error('Weapon artwork unavailable');
-  const video=document.createElement('video');video.muted=true;video.playsInline=true;video.preload='auto';video.src=assetURL('menu-loop.mp4');
-  await new Promise((resolve,reject)=>{const timer=setTimeout(()=>{clean();reject(new Error('Video decode timeout'));},15000);const clean=()=>{clearTimeout(timer);video.onloadeddata=null;video.onerror=null;};video.onloadeddata=()=>{clean();resolve();};video.onerror=()=>{clean();reject(new Error('Video decode failed'));};video.load();});
-  video.pause();video.removeAttribute('src');video.load();
-  const font=new FontFace('LumenSquare',`url("${assetURL('fonts/Tektur-game.ttf')}")`);await font.load();document.fonts.add(font);
-  for(const [file,id]of [['ui.png','ui'],['panel.png','panel'],['weapons.png','weapons'],['arsenal.png','arsenal'],['expedition.png','expedition'],['expansion-items.png','expansion']])document.documentElement.style.setProperty('--lumen-cached-'+id,`url("${assetURL(file)}")`);
-  document.documentElement.style.setProperty('--lumen-cached-scout',`url("${assetURL('scout.png')}")`);
-  emit({phase:'ready',percent:100,remainingSeconds:0});
- })().catch(e=>{menuPromise=null;throw e;});
- try{return await menuPromise;}finally{menuListeners.delete(onProgress);}
+export const backgroundReady=meta=>decoded.has(menuBackgroundFile(latestMenuMap(meta)));
+export async function preloadMenuBackground(meta,onProgress){
+ const value=await manifest(),file=menuBackgroundFile(latestMenuMap(meta));
+ const entry=value.backgrounds.find(entry=>entry.file===file);
+ if(!entry)throw new Error('Map background unavailable');
+ await batch([entry],onProgress);
+}
+export async function preloadMenu(onProgress,meta){
+ const value=await manifest(),file=menuBackgroundFile(latestMenuMap(meta));
+ const background=value.backgrounds.find(entry=>entry.file===file);
+ if(!background)throw new Error('Map background unavailable');
+ await batch([...value.files,background],onProgress);
+ if(!await preloadWeaponIcons(Object.keys(WEAPON_ICONS),{visible:true}))throw new Error('Weapon artwork unavailable');
+ fontPromise ||= (async()=>{const font=new FontFace('LumenSquare',`url("${assetURL('fonts/Tektur-game.ttf')}")`);await font.load();document.fonts.add(font);})().catch(error=>{fontPromise=null;throw error;});
+ await fontPromise;
+ for(const [file,id]of [['ui.png','ui'],['panel.png','panel'],['weapons.png','weapons'],['arsenal.png','arsenal'],['expedition.png','expedition'],['expansion-items.png','expansion']])document.documentElement.style.setProperty('--lumen-cached-'+id,`url("${assetURL(file)}")`);
+ document.documentElement.style.setProperty('--lumen-cached-scout',`url("${assetURL('scout.png')}")`);
+ onProgress?.({phase:'ready',percent:100,remainingSeconds:0});
+ // Retire only the old public reel files; game worlds and personal saves stay intact.
+ try{const cache=await caches.open('teramont-lumen-assets-v1');for(const key of await cache.keys())if(/\/lumen\/menu-(loop\.(mp4|webm)|poster\.jpg)$/.test(new URL(key.url).pathname))await cache.delete(key);}catch(_){}
 }
 export async function preloadScene(scene,hero,onProgress){
  const value=await manifest(),world=scene.map||'garden';

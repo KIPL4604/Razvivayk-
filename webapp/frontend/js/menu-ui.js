@@ -10,18 +10,12 @@
     document.querySelector('meta[name="theme-color"]')?.setAttribute('content', preferences.theme === 'light' ? '#f4f4f2' : '#141414');
     const telegram=window.Telegram?.WebApp,color=preferences.theme==='light'?'#f4f4f2':'#141414';
     if(telegram?.initData){for(const method of ['setHeaderColor','setBackgroundColor']){try{telegram[method]?.(color);}catch{}}if(telegram.isVersionAtLeast?.('7.10')){try{telegram.setBottomBarColor?.(color);}catch{}}}
-    document.querySelectorAll('[data-menu-reel]').forEach(syncMedia);
     document.querySelectorAll('[data-ui-theme]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.uiTheme===document.documentElement.dataset.theme)));
     const moving=preferences.motion!==false&&!reduced.matches;
-    document.querySelectorAll('[data-motion-label]').forEach(b=>{b.textContent=moving?'Фон: движение':'Фон: пауза';b.setAttribute('aria-pressed',String(moving));});
+    document.querySelectorAll('[data-motion-label]').forEach(b=>{b.textContent=moving?'Эффекты: вкл':'Эффекты: выкл';b.setAttribute('aria-pressed',String(moving));});
     document.dispatchEvent(new CustomEvent('menu-preferences'));
   }
   function set(name, value) { preferences[name] = value; try {localStorage.setItem(key, JSON.stringify(preferences));} catch {} apply(); }
-  function syncMedia(video) {
-    const hidden = !video.closest('.screen.active') || !video.getClientRects().length || document.hidden;
-    if (hidden || preferences.motion === false || reduced.matches) { video.pause(); return; }
-    video.play().catch(() => {}); // Poster remains if autoplay or decoding is unavailable.
-  }
   function animate(element,direction=1){window.PageMotion?.reveal(element,direction);}
   // Iconimate Arrow Right 7453ab9b2fcf; Muhammad Ammar / Phosphor, MIT.
   // Vanilla adaptation: one deliberate pass, no ambient replay or dependencies.
@@ -43,9 +37,8 @@
     if(event.shiftKey && index<=0){event.preventDefault();items.at(-1).focus();}
     else if(!event.shiftKey && (index===items.length-1 || index===-1)){event.preventDefault();items[0].focus();}
   }
-  window.MenuUI={set,get:name=>preferences[name],apply,pager,animate,trap,syncMedia,arrow,screenTransition:(...args)=>window.PageMotion?.screenTransition(...args),transition:(...args)=>window.PageMotion?.transition(...args)};
+  window.MenuUI={set,get:name=>preferences[name],apply,pager,animate,trap,arrow,screenTransition:(...args)=>window.PageMotion?.screenTransition(...args),transition:(...args)=>window.PageMotion?.transition(...args)};
   for(const name of ['pointerover','pointerdown','focusin'])document.addEventListener(name,arrowFeedback);
-  document.addEventListener('visibilitychange',()=>document.querySelectorAll('[data-menu-reel]').forEach(syncMedia));
   reduced.addEventListener('change',apply);
   document.addEventListener('click',e=>{
     const control=e.target.closest('[data-ui-theme],[data-ui-motion]');

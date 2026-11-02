@@ -11,13 +11,11 @@ async(page)=>{
   await p.locator('[data-lumen-action="open"]').click();await p.locator('.lumen-title-screen').waitFor();await p.locator('[data-lumen-value="characters"]').click();
   await swipe(295,225,-210);assert(await p.locator('.lumen-shell').getAttribute('data-page')==='characters','Real touch: shop is an independent window');
   await swipe(75,225,220);assert(await p.locator('.lumen-shell').getAttribute('data-page')==='characters','Real touch: reverse drag keeps shop window');
-  const video=p.locator('.lumen-menu-reel');await p.waitForFunction(()=>document.querySelector('.lumen-menu-reel').readyState>=2);
-  const duration=await video.evaluate(v=>v.duration);
-  await video.evaluate(v=>{v.currentTime=14.6;return v.play();});await p.waitForTimeout(1000);
-  assert(await video.evaluate(v=>!v.ended&&v.currentTime<2),'Lumen 15-second reel loops');
-  await p.emulateMedia({reducedMotion:'reduce'});await p.waitForFunction(()=>document.querySelector('.lumen-menu-reel').paused);assert(await video.evaluate(v=>v.paused),'OS reduced motion stops reel');
+  const background=p.locator('.lumen-menu-background');await p.waitForFunction(()=>document.querySelector('.lumen-menu-background')?.complete);
+  const frame=await background.getAttribute('src');await p.waitForTimeout(1000);assert(await background.getAttribute('src')===frame,'Lumen map screenshot stays still');
+  await p.emulateMedia({reducedMotion:'reduce'});assert(await p.locator('video').count()===0,'OS reduced motion has no video to play');
   await p.emulateMedia({reducedMotion:'no-preference'});await p.locator('.lumen-window-toolbar button').click();await p.locator('[data-lumen-action="catalog"]').click();
-  assert(await video.evaluate(v=>v.paused),'Leaving menu stops reel');
+  assert(!await background.isVisible(),'Leaving menu hides background');
   await p.locator('[data-sp-action="open"]').click();await p.locator('[data-sp-action="settings"]').click();
   await swipe(295,210,-210);assert(await p.locator('.sp-shell').getAttribute('data-mode')==='settings','Real touch: Specimen settings remain independent');
   await swipe(70,210,220);assert(await p.locator('.sp-shell').getAttribute('data-mode')==='settings','Real touch: reverse drag keeps settings window');
@@ -27,6 +25,6 @@ async(page)=>{
   await p.evaluate(async()=>{showScreen('home');const {createDurak}=await import('/static/js/cards/durak.mjs');const run=createDurak({seed:18});run.attacker=run.turn=0;run.hands[0].push(...run.stock.splice(0,2));saved.cardGames={runs:{durak:run}};});
   await p.locator('#campaignCards [data-cardgame-action="open"][data-cardgame-value="durak"]').click();await p.locator('.hand-card').first().waitFor();const hand=await p.locator('.table-hand').boundingBox();
   await swipe(hand.x+hand.width*.7,hand.y+hand.height*.6,-160);assert(await p.locator('#cardGameMount').getAttribute('data-hand-page')==='1','Real touch: paginated cards');await p.locator('[data-cardgame-action="page"][data-cardgame-value="-1"]').click();assert(await p.locator('#cardGameMount').getAttribute('data-hand-page')==='0','Card page button alternative');
-  return {checks,duration};
+  return {checks};
  }finally{await context.close();}
 }

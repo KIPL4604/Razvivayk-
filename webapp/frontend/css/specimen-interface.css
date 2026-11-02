@@ -1,11 +1,11 @@
-/* A game title screen, with small windows over the recorded laboratory. */
+/* A game title screen, with small windows over the last unlocked sector. */
 .sp-shell{font-family:inherit;--sp-paper:var(--text);--sp-muted:var(--muted);--sp-line:var(--line);--sp-coral:var(--text);isolation:isolate}
-.sp-menu-reel{position:absolute;inset:0;z-index:0;display:none;width:100%;height:100%;object-fit:cover;image-rendering:pixelated}
+.sp-menu-background{position:absolute;inset:0;z-index:0;display:none;width:100%;height:100%;object-fit:cover;image-rendering:pixelated}
 .sp-reel-shade{display:none;position:absolute;inset:0;z-index:1;background:linear-gradient(90deg,#08060c40,#08060ca8 50%,#08060c40),linear-gradient(0deg,#08060c88,transparent 50%)}
-.sp-shell[data-front=true] .sp-menu-reel,.sp-shell[data-front=true] .sp-reel-shade{display:block}
+.sp-shell[data-front=true] .sp-menu-background,.sp-shell[data-front=true] .sp-reel-shade{display:block}
 .sp-shell[data-front=true] .sp-canvas{visibility:hidden}
-.sp-scene-toggle{display:none;position:absolute;z-index:3;bottom:16px;right:20px;min-height:44px;padding:10px 14px;background:#160d19b0;border:1px solid #fff4;color:#f5eef2;font-size:12px;border-radius:6px!important}
-.sp-shell[data-mode=menu] .sp-scene-toggle{display:block}
+.sp-background-caption{display:none;pointer-events:none;position:absolute;z-index:3;bottom:16px;right:20px;min-height:44px;padding:10px 0;background:none;border:0;color:#f5eef2;font-size:12px;border-radius:6px!important}
+.sp-shell[data-mode=menu] .sp-background-caption{display:block}
 .sp-panel-wrap{position:absolute;inset:0;z-index:2;display:flex;align-items:center;justify-content:center;padding:24px;background:#0002;overflow:hidden}
 .sp-panel-wrap:before{display:none!important}.sp-panel-wrap[hidden]{display:none}
 .sp-panel{position:relative;width:min(560px,76vw);max-width:560px;max-height:78%;padding:28px;border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--text);box-shadow:var(--menu-shadow);overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;outline:none}
@@ -40,7 +40,7 @@
 .sp-exit{position:fixed;inset:calc(24px + var(--safe-top)) auto auto 32px;margin:0;min-height:44px;padding:10px 16px;border:1px solid #fff5!important;color:#f5eef2!important;background:#160d1999;font-size:14px}
 .sp-edition{color:var(--muted);font-size:12px;line-height:1.6;font-family:inherit;letter-spacing:0;margin-bottom:24px}
 .sp-shell .sp-panel :focus-visible{outline:2px solid currentColor;outline-offset:4px}
-@media(orientation:portrait){.sp-menu-reel{object-position:15% center}}
+@media(orientation:portrait){.sp-menu-background{object-position:15% center}}
 .sp-help dd{color:var(--muted)}
 .sp-shell[data-mode=settings] .sp-panel,.sp-shell[data-mode=help] .sp-panel{padding:0}
 @media(max-width:800px){.sp-panel{width:76vw;max-height:78%;padding:24px}.sp-exit{top:calc(16px + var(--safe-top));left:20px}.sp-shell[data-mode=help] .sp-panel{max-width:560px}}

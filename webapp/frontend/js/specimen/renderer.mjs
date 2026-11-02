@@ -263,5 +263,12 @@ export async function createRenderer(canvas){
     ctx.restore();ctx.drawImage(vignette,0,0);
   }
   const observer=new ResizeObserver(resize);observer.observe(canvas);resize();
-  return{draw,resize,worldPoint:(x,y)=>{const r=canvas.getBoundingClientRect();return{x:(x-r.left)/r.width*viewW+camX-viewW/2,y:(y-r.top)/r.height*viewH+camY-viewH/2};},destroy:()=>observer.disconnect(),metrics:()=>({width:viewW,height:viewH,cameraX:camX,cameraY:camY,visualStyle:'industrial-crimson',lightRays:VISUAL_LIMITS.rays,dust:VISUAL_LIMITS.dust})};
+  function snapshot(state){
+    const savedCamera={x:camX,y:camY,previous};
+    camX=viewW>=WIDTH?WIDTH/2:clamp(state.x,viewW/2,WIDTH-viewW/2);
+    camY=viewH>=HEIGHT?HEIGHT/2:clamp(state.y,viewH/2,HEIGHT-viewH/2);
+    try{draw(state,previous||performance.now());return canvas.toDataURL('image/webp',.88);}
+    finally{camX=savedCamera.x;camY=savedCamera.y;previous=savedCamera.previous;roomId=-1;}
+  }
+  return{draw,snapshot,resize,worldPoint:(x,y)=>{const r=canvas.getBoundingClientRect();return{x:(x-r.left)/r.width*viewW+camX-viewW/2,y:(y-r.top)/r.height*viewH+camY-viewH/2};},destroy:()=>observer.disconnect(),metrics:()=>({width:viewW,height:viewH,cameraX:camX,cameraY:camY,visualStyle:'industrial-crimson',lightRays:VISUAL_LIMITS.rays,dust:VISUAL_LIMITS.dust})};
 }

@@ -187,3 +187,11 @@ Server-side QR generation uses python-qrcode 8.2 (BSD-3-Clause),
 https://github.com/lincolnloop/python-qrcode. Codes are generated locally;
 no external QR service receives account codes. The H.264 menu video is a
 transcode of the project's existing Lumen gameplay recording, without audio.
+
+
+## Static map menu backgrounds (2 November 2026)
+
+Lumen menu stills are captures of this project's original renderer in preview
+mode, using the existing licensed game assets. Specimen creates a frozen frame
+of its own renderer. These replace the earlier menu recordings; no video is
+loaded by either game menu.

@@ -51,19 +51,17 @@ try{
  const cdp=await a.context().newCDPSession(a);
  await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:320,y:170}]});for(let i=1;i<=10;i++)await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:320-i*24,y:170}]});await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
  check(await a.evaluate(()=>activeScreen)==='home','Horizontal drag does not join independent sections');check(await a.locator('.menu-motion-layer').count()===0,'No stale screen behind library');
- // Fresh anonymous context measures the complete reel gate without private data.
+ // Fresh anonymous context measures the complete map background gate without private data.
  const p=await pageFor(null);let release;
- const gate=new Promise(resolve=>release=resolve);await p.route('**/menu-loop.mp4?*',async r=>{await gate;await r.continue();});
+ const gate=new Promise(resolve=>release=resolve);await p.route('**/menu-backgrounds/garden.webp?*',async r=>{await gate;await r.continue();});
  await p.locator('#campaignCards [data-lumen-action=open]').click();await p.locator('#lumenEntryPercent').waitFor();
- check(await p.locator('.lumen-shell').count()===0,'Menu hidden while reel transfer is incomplete');check(await p.locator('.lumen-load-dots i').count()===8,'Loading progress has eight circles');await p.screenshot({path:path.join(output,`loading-375-${iteration}.png`)});release();
+ check(await p.locator('.lumen-shell').count()===0,'Menu hidden while background transfer is incomplete');check(await p.locator('.lumen-load-dots i').count()===8,'Loading progress has eight circles');await p.screenshot({path:path.join(output,`loading-375-${iteration}.png`)});release();
  await p.locator('.lumen-title-screen').waitFor({timeout:60000});
- check(await p.locator('video.lumen-menu-reel source').getAttribute('src').then(s=>s.startsWith('blob:')),'Reel uses a complete local blob');
- await p.waitForFunction(()=>{const v=document.querySelector('video.lumen-menu-reel');return v?.readyState>=2&&v.currentTime>0;});
- const video=await p.locator('video.lumen-menu-reel').evaluate(v=>({width:v.videoWidth,height:v.videoHeight,buffered:v.buffered.length?v.buffered.end(v.buffered.length-1):0,duration:v.duration,quality:v.getVideoPlaybackQuality()}));check(video.width===960,'Hardware-friendly H264 reel at 960px');
+ const background=await p.locator('.lumen-menu-background').evaluate(img=>({src:img.src,width:img.naturalWidth,complete:img.complete}));check(background.src.startsWith('blob:')&&background.complete&&background.width===1440,'Complete decoded map screenshot uses local blob');check(await p.locator('video').count()===0,'Menu has no video element');
  await p.locator('.lumen-main-actions [data-lumen-value=play]').click();check(await p.locator('.lumen-window-pager').count()===0,'Independent Lumen windows have no next-section pager');
  await p.screenshot({path:path.join(output,`lumen-play-375-${iteration}.png`)});
  await p.locator('[data-lumen-action=start]').click();await p.locator('#lumenStory:not([hidden])').waitFor();await p.locator('[data-story-action=skip]:visible').click({timeout:60000});await p.locator('#lumenCanvas').waitFor({timeout:60000});check(true,'World and story decode before playable canvas');
  await p.screenshot({path:path.join(output,`lumen-world-375-${iteration}.png`)});
  check(errors.length===0,'No browser JavaScript errors: '+errors.join(';'));
- await writeFile(path.join(output,'results.json'),JSON.stringify({checks,video,errors},null,2));console.log(JSON.stringify({checks:checks.length,video,errors}));
+ await writeFile(path.join(output,'results.json'),JSON.stringify({checks,background,errors},null,2));console.log(JSON.stringify({checks:checks.length,background,errors}));
 }catch(error){for(const [i,c]of contexts.entries())for(const p of c.pages()){await p.screenshot({path:path.join(output,'failure-'+i+'.png')}).catch(()=>{});}throw error;}finally{await browser.close();}

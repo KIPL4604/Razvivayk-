@@ -2,16 +2,6 @@
   "version": 1,
   "files": [
     {
-      "file": "menu-loop.mp4",
-      "bytes": 1690497,
-      "sha256": "872a90cd49ae6cda79005e7491bfd431bfbe6240afeffa57bb6deb86efdce728"
-    },
-    {
-      "file": "menu-poster.jpg",
-      "bytes": 185737,
-      "sha256": "98b9c80636c145aa16bd16816c44f21b213d8723905827d1156cce37843dfb98"
-    },
-    {
       "file": "fonts/Tektur-game.ttf",
       "bytes": 19212,
       "sha256": "87e6f24ce10a1b45e388bcf34244b58410d83a95fe2518d6f691c954c58ee95d"
@@ -382,6 +372,23 @@
       "file": "story-world-quarry.webp",
       "bytes": 285602,
       "sha256": "c083745bb0989d140d7835ae73de8123998925a89e8b67f5b05c44cce5789886"
+    }
+  ],
+  "backgrounds": [
+    {
+      "file": "menu-backgrounds/castle.webp",
+      "bytes": 236588,
+      "sha256": "77eb5b492b4ba8752deaa89c03ca1320ff363ab46f8146568f46bf3ef069a142"
+    },
+    {
+      "file": "menu-backgrounds/garden.webp",
+      "bytes": 157774,
+      "sha256": "5cb9d6b14ecf31fcc3fd19f718c3bbf770b3c2a45d1c2cf1ba2b68a3ffcba56d"
+    },
+    {
+      "file": "menu-backgrounds/quarry.webp",
+      "bytes": 137132,
+      "sha256": "e1c8a251e515e5a665c496b559a334a3342caa6e757417915335c3540b3606fb"
     }
   ]
 }

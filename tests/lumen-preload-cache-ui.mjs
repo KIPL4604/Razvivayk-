@@ -9,23 +9,23 @@ const context=await browser.newContext({viewport:{width:375,height:812},hasTouch
 const p=await context.newPage();p.on('pageerror',e=>errors.push(e.message));
 await p.route('https://telegram.org/**',r=>r.fulfill({body:'',contentType:'text/javascript'}));
 const cdp=await context.newCDPSession(p);
-let failVideo=true,failWorld=false,assetRequests=[];
-await p.route('**/menu-loop.mp4?*',r=>failVideo?r.abort('failed'):r.continue());
+let failBackground=true,failWorld=false,assetRequests=[];
+await p.route('**/menu-backgrounds/garden.webp?*',r=>failBackground?r.abort('failed'):r.continue());
 await p.route('**/sprites-*.pack?*',r=>failWorld?r.abort('failed'):r.continue());
 p.on('request',r=>{if(/\/assets\/lumen\/.*\?v=/.test(r.url()))assetRequests.push(r.url());});
 try{
- await p.goto(origin);await p.locator('#campaignCards [data-lumen-action=open]').click();await p.locator('[data-lumen-action=open]').filter({hasText:'Повторить загрузку'}).waitFor();check(await p.locator('.lumen-shell').count()===0,'Failed video never exposes incomplete menu');
- failVideo=false;
- await cdp.send('Network.emulateNetworkConditions',{offline:false,latency:80,downloadThroughput:300000,uploadThroughput:150000});
+ await p.goto(origin);await p.locator('#campaignCards [data-lumen-action=open]').click();await p.locator('[data-lumen-action=open]').filter({hasText:'Повторить загрузку'}).waitFor();check(await p.locator('.lumen-shell').count()===0,'Failed background never exposes incomplete menu');
+ failBackground=false;
+ await cdp.send('Network.emulateNetworkConditions',{offline:false,latency:80,downloadThroughput:60000,uploadThroughput:150000});
  const start=Date.now();await p.getByRole('button',{name:'Повторить загрузку',exact:true}).click();await p.waitForFunction(()=>{const e=document.querySelector('#lumenEntryPercent');return e&&parseInt(e.textContent)>5&&parseInt(e.textContent)<90;});
- check(await p.locator('.lumen-shell').count()===0,'Throttled menu waits for complete reel and interface');
+ check(await p.locator('.lumen-shell').count()===0,'Throttled menu waits for complete map background and interface');
  await p.waitForFunction(()=>document.querySelector('#lumenEntryEta')?.textContent.startsWith('≈'));
  await p.screenshot({path:path.join(out,'loading-slow-375-i2.png')});
  check(/с/.test(await p.locator('#lumenEntryEta').textContent()),'ETA is derived from measured bytes during slow transfer');
- await p.locator('.lumen-title-screen').waitFor({timeout:90000});times.coldMenuMs=Date.now()-start;
- const video=await p.locator('video').evaluate(v=>({source:v.currentSrc,width:v.videoWidth,buffered:v.buffered.length?v.buffered.end(0):0,duration:v.duration}));check(video.source.startsWith('blob:'),'Complete MP4 comes from blob');
+ await p.locator('.lumen-title-screen').waitFor({timeout:90000});times.retryMenuMs=Date.now()-start;
+ const background=await p.locator('.lumen-menu-background').evaluate(img=>({source:img.src,width:img.naturalWidth,complete:img.complete}));check(background.source.startsWith('blob:')&&background.complete,'Decoded map screenshot comes from blob');
  await cdp.send('Network.emulateNetworkConditions',{offline:false,latency:0,downloadThroughput:-1,uploadThroughput:-1});
- await p.emulateMedia({reducedMotion:'reduce'});check(await p.locator('video').evaluate(v=>v.paused),'Reduced motion pauses reel');
+ await p.emulateMedia({reducedMotion:'reduce'});check(await p.locator('video').count()===0,'Static menu has no video in reduced motion');
  await p.emulateMedia({reducedMotion:'no-preference'});
  for(const width of [375,768,1440,1920]){
   await p.setViewportSize({width,height:width<800?812:1000});
@@ -52,5 +52,5 @@ try{
  const keys=await p.evaluate(async()=>{const c=await caches.open('teramont-lumen-assets-v1');return(await c.keys()).map(r=>r.url);});check(keys.every(url=>/\/static\/assets\/lumen\/.+\?v=[a-f0-9]{64}$/.test(url)),'Persistent cache contains only versioned public Lumen assets');
  check(!keys.some(url=>/api|initData/.test(url)),'No account data in asset cache');
  check(errors.length===0,'No JS errors: '+errors.join(';'));
- await writeFile(path.join(out,'loading-results.json'),JSON.stringify({checks,times,video,errors},null,2));console.log(JSON.stringify({checks:checks.length,times,errors}));
+ await writeFile(path.join(out,'loading-results.json'),JSON.stringify({checks,times,background,errors},null,2));console.log(JSON.stringify({checks:checks.length,times,errors}));
 }catch(error){await p.screenshot({path:path.join(out,'loading-failure.png')});throw error;}finally{await browser.close();}

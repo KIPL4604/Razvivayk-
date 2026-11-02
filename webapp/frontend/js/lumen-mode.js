@@ -21,13 +21,13 @@ const LumenMode = (() => {
       await preload.preloadMenu(value=>{
         if(ticket!==generation||activeScreen!=='lumen')return;
         const phase=document.querySelector('#lumenEntryPhase');if(!phase)return;
-        phase.textContent=({video:'Скачиваем видео целиком',images:'Загружаем графику меню',decode:'Подготавливаем графику и видео',ready:'Меню готово'})[value.phase]||'Загружаем меню';
+        phase.textContent=({download:'Загружаем фон и графику меню',decode:'Подготавливаем графику',ready:'Меню готово'})[value.phase]||'Загружаем меню';
         document.querySelector('#lumenEntryPercent').textContent=value.percent+'%';
         const meter=mount.querySelector('[role="progressbar"]');meter.setAttribute('aria-valuenow',value.percent);meter.firstElementChild.style.width=value.percent+'%';
         document.querySelector('#lumenEntryEta').textContent=value.remainingSeconds? '≈ '+value.remainingSeconds+' с':value.phase==='decode'?'Подготовка…':value.phase==='ready'?'Готово':'Оцениваем время…';
         mount.querySelectorAll('.lumen-load-dots i').forEach((dot,i)=>dot.classList.toggle('loaded',value.percent>=(i+1)*12.5));
-      });
-      loading ||= import("/static/js/lumen/game.mjs?v=loading-1").catch(error => {loading=null;throw error;});
+      },saved.lumen?.meta);
+      loading ||= import("/static/js/lumen/game.mjs?v=static-map-1").catch(error => {loading=null;throw error;});
       const module = await loading;
       controller ||= module.createGame({getSaved:()=>saved, persist:saveState, navigate:showScreen, telegram:tg, toast:showToast});
       if(ticket !== generation || activeScreen !== "lumen") return;

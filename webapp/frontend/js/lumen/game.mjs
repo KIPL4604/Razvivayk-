@@ -1,4 +1,4 @@
-import {preloadScene} from './preload.mjs';
+import {preloadScene,preloadMenuBackground,backgroundReady} from './preload.mjs';
 import {createRun,step,chooseUpgrade,serialize,restore,UPGRADES,upcomingUpgrade} from './engine.mjs';
 import {Renderer} from './renderer.mjs';
 import {loadArt} from './assets.mjs';
@@ -32,7 +32,7 @@ export function createGame(context) {
   const {getSaved,persist,navigate,telegram:tg,toast}=context;
   const $=s=>document.querySelector(s), gameMount=$('#lumenGameMount'),setupMount=$('#lumenSetupMount');
   let state=null,renderer=null,preview=null,previewState=null,raf=0,lastFrame=0,lastSave=0,lastHud=0,paused=false,screen='',character='scout',overlayKey='',resultRecorded=false;
-  let art=null,waitingForStart=false,sceneTicket=0,appInactive=false;
+  let art=null,waitingForStart=false,sceneTicket=0,appInactive=false,menuBackgroundTicket=0;
   const readyArt=new Set(),story=new StoryOverlay();
   let pointer=null,stickOrigin=null,input={x:0,y:0},keys=new Set(),audio=null,fullscreenOwned=false;
   let terminalFrameStart=0,map='garden',menuPage='home',book='weapons',selectionLoaded=false;
@@ -111,6 +111,16 @@ export function createGame(context) {
     demo.gems=[{x:80,y:170,value:2,tier:1},{x:190,y:120,value:12,tier:2}];previewState=demo;preview.draw(demo,true);
   }
   function setup(page='home',preserveScroll=false,direction=1){
+    const backgroundTicket=++menuBackgroundTicket;
+    const meta=record().meta;
+    if(!backgroundReady(meta)){
+      if(screen!=='lumen')navigate('lumen');screen='lumen';paused=true;stopRenderer();lockScreen(true);
+      setupMount.innerHTML='<div class="lumen-loading" role="status">Подготавливаем фон открытой карты…</div>';
+      preloadMenuBackground(meta).then(()=>{if(screen==='lumen'&&backgroundTicket===menuBackgroundTicket)setupContent(page,preserveScroll,direction);}).catch(()=>{
+        if(screen!=='lumen'||backgroundTicket!==menuBackgroundTicket)return;
+        setupMount.innerHTML='<div class="lumen-loading" role="alert">Не удалось загрузить фон.<button type="button" class="primary-button" data-lumen-action="setup">Повторить</button><button type="button" class="text-button" data-lumen-action="catalog">К играм</button></div>';
+      });return;
+    }
     setupContent(page,preserveScroll,direction);
   }
   function setupContent(page='home',preserveScroll=false,direction=1){
@@ -121,11 +131,7 @@ export function createGame(context) {
     if(screen!=='lumen')navigate('lumen');
     screen='lumen';paused=true;menuPage=page;stopRenderer();preview?.destroy();preview=null;
     document.documentElement.classList.add('lumen-menu-active');
-    const oldReel=setupMount.querySelector('[data-menu-reel]');
     setupMount.innerHTML=renderMenu({page,book,character,map,record:record(),icon:pixelIcon,recipes:recipeBook});
-    const reel=setupMount.querySelector('[data-menu-reel]');
-    if(oldReel&&reel)reel.replaceWith(oldReel);
-    window.MenuUI?.syncMedia(oldReel||reel);
     window.MenuUI?.apply();
     lockScreen(true);
     drawPreview();
@@ -336,13 +342,13 @@ export function createGame(context) {
     if(name==='exit'){save();setup();}
   }
   function onScreen(name){
+    if(name!=='lumen')menuBackgroundTicket++;
     if(!['lumen','lumen-game'].includes(name)&&story.active){sceneTicket++;waitingForStart=false;story.close();}
     document.documentElement.classList.toggle('lumen-menu-active',name==='lumen');
     if(screen==='lumen-game'&&name!=='lumen-game'){paused=true;save();stopRenderer();soundSuspend();}
     if(screen==='lumen'&&name!=='lumen'){preview?.destroy();preview=null;}
     if(!['lumen','lumen-game'].includes(name)){lockScreen(false);releaseFullscreen();soundSuspend();}
     screen=name;
-    setupMount.querySelectorAll('[data-menu-reel]').forEach(v=>name==='lumen'?window.MenuUI?.syncMedia(v):v.pause());
   }
   function preventScroll(e){if(['lumen','lumen-game'].includes(screen)&&!e.target.closest('[data-lumen-scroll]'))e.preventDefault();}
   document.addEventListener('wheel',preventScroll,{passive:false,signal});
