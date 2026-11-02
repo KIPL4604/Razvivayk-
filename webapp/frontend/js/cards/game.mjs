@@ -1,7 +1,7 @@
 import {createDurak,legalDurak,actDurak,botDurak,restoreDurak} from './durak.mjs';
 import {createBlackjack,legalBlackjack,actBlackjack,total,viewBlackjack,restoreBlackjack} from './blackjack.mjs';
 import {createSolitaire,legalSolitaire,actSolitaire,undoSolitaire,hintSolitaire,restoreSolitaire} from './solitaire.mjs';
-import {attachCardGestures} from './gestures.mjs?v=1';
+import {attachCardGestures} from './gestures.mjs?v=game-menus-2';
 
 const titles={durak:'Дурак',blackjack:'Блэкджек',solitaire:'Косынка'};
 const suits={s:'♠',h:'♥',d:'♦',c:'♣'},suitNames={s:'пик',h:'червей',d:'бубен',c:'треф'};
@@ -89,7 +89,7 @@ export function createCardGames(context){
       const from=game==='durak'?node.dataset.cardgameValue:sourceOf(node.dataset.cardgameValue);
       const nodes=game==='solitaire'&&from.pile==='tableau'?[...node.parentElement.querySelectorAll('.sol-card[data-cardgame-action]')].filter(e=>sourceOf(e.dataset.cardgameValue).at>=from.at):[node];
       return {nodes,targets:targetsFor(from)};
-    },swipe:()=>action('sort'),drop:makeMove,restoreHighlights:()=>{if(active&&!dialog&&selected)markTargets();}});
+    },swipe:direction=>{const count=matchMedia('(max-width:600px)').matches?6:10;if(game==='durak'&&state.hands[0].length>count)action('page',direction);else action('sort');},drop:makeMove,restoreHighlights:()=>{if(active&&!dialog&&selected)markTargets();}});
   mount.addEventListener('click',e=>{if(active&&!dialog&&game==='durak'&&e.target.closest('.durak-pairs')){e.preventDefault();action('play');}});
   function solTarget(to){if(!selected||typeof selected!=='object')return;const a=legalSolitaire(state).find(a=>moveMatches(a,selected,to));if(a)makeMove(a);else toast('Эта карта сюда не подходит.');}
   function action(name,value,buttonElement){
@@ -98,7 +98,7 @@ export function createCardGames(context){
     if(name==='rules'||name==='menu'){clearTimeout(botTimer);dialog=name;save();render();return;}
     if(name==='close'){dialog=null;render();scheduleBot();return;}
     if(name==='new'){if(state.status==='playing'&&!window.confirm('Начать новую партию? Текущая раскладка будет заменена.'))return;clearTimeout(botTimer);dialog=null;selected=null;hint=null;handPage=0;state=create();store().sessionIds[game]=crypto.randomUUID();countResult();save();render();scheduleBot();return;}
-    if(name==='page'){handPage=Math.max(0,handPage+Number(value));render();return;}
+    if(name==='page'){handPage=Math.max(0,handPage+Number(value));render();window.MenuUI?.animate(mount.querySelector('.table-hand-area'),Number(value));return;}
     if(name==='sort'){sortBySuit=!sortBySuit;handPage=0;dialog=null;render();scheduleBot();toast(sortBySuit?'Карты по мастям. Козыри справа.':'Карты по старшинству. Козыри справа.');return;}
     if(dialog)return;
     if(name==='select'){

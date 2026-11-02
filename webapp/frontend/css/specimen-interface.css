@@ -1,35 +1,48 @@
-/* Specimen Zero: a containment dossier, distinct from the library and Lumen. */
-.sp-shell{--sp-paper:#e3e5dc;--sp-muted:#adb4ae;--sp-coral:#ed5961;--sp-line:#52605a;font:14px/1.6 "Consolas",monospace;background:#0b1010}
-.sp-shell .sp-panel-wrap{display:grid;grid-template-columns:minmax(300px,.9fr) minmax(0,1.1fr);align-content:center;gap:clamp(30px,6vw,110px);padding:48px clamp(28px,6vw,120px);background:#0b1010f2;overflow:auto;touch-action:pan-y;overscroll-behavior:contain}
-.sp-shell .sp-panel{width:100%;max-width:540px;align-self:center}.sp-shell .sp-panel button{touch-action:manipulation}
-.sp-terminal-label{display:flex;align-items:center;gap:12px;margin-bottom:40px;color:#dce4dc;font:11px/1.3 Consolas,monospace;letter-spacing:.2em}.sp-terminal-mark{display:grid;place-items:center;border:1px solid #64746a;width:32px;height:32px;font:23px/1 system-ui;letter-spacing:0;color:#a7b4aa}
-.sp-shell .sp-kicker{font:10px/1.6 Consolas,monospace;letter-spacing:.13em;margin:0 0 16px;color:#a8b7ae}.sp-shell .sp-panel h1{font:550 clamp(42px,5vw,78px)/1 SpecimenSquare,monospace;letter-spacing:-.055em;text-transform:none;color:#e3e5dc;margin-bottom:20px}.sp-shell .sp-panel h1 em{color:#ed5961;font-style:normal}
-.sp-record-state{display:inline-block;font:10px/1.6 Consolas,monospace;color:#c6cfc7;border-left:2px solid #ed5961;padding:4px 12px;margin:0 0 20px}
-.sp-shell .sp-intro{font:14px/1.85 system-ui,sans-serif;color:#aebbb1;margin-bottom:24px}.sp-shell .sp-edition{font:9px/1.8 Consolas,monospace;letter-spacing:.06em;color:#9eaca2;margin-bottom:24px}
-.sp-shell .sp-actions{max-width:none;gap:10px}.sp-shell .sp-primary,.sp-shell .sp-secondary{font:13px/1.4 Consolas,monospace;padding:15px 20px;min-height:50px;border-radius:0;transform:none;box-shadow:none}.sp-shell .sp-primary{background:#d7ded2;color:#101914;border:1px solid #f0f2e7;border-left:4px solid #d3404e}.sp-shell .sp-primary:hover{background:#f0f2e7;border-left-color:#fc616b}.sp-shell .sp-secondary{background:#16201b;color:#c9d2c9;border:1px solid #46574d}.sp-shell .sp-secondary:hover{background:#25372b;border-color:#90a18e}
-.sp-shell .sp-settings{display:flex;gap:20px;border-top:1px solid #3c4b40;margin-top:24px;padding-top:14px;flex-wrap:wrap}.sp-shell .sp-settings button{font:11px/1.5 Consolas,monospace;min-height:44px;color:#b2c1b3;gap:8px}.sp-shell .sp-settings svg{width:18px;height:18px}.sp-shell .sp-exit{font:11px Consolas,monospace!important;color:#b2c1b3;margin-top:10px}
-.sp-specimen-window{position:relative;align-self:stretch;min-height:460px;max-height:680px;border:1px solid #43544b;overflow:hidden;display:none;background:#111b16}
-.sp-shell[data-mode=menu] .sp-specimen-window{display:block}.sp-specimen-window:before{content:'';position:absolute;inset:12px;border:1px solid #9db59d38;z-index:1;pointer-events:none}.sp-specimen-window:after{content:'';position:absolute;inset:0;background:linear-gradient(0deg,#080f0beb,transparent 45%),repeating-linear-gradient(0deg,transparent 0 3px,#08100d20 3px 4px);pointer-events:none}
-.sp-specimen-window img{display:block;width:100%;height:100%;object-fit:cover;image-rendering:pixelated;object-position:57% center;opacity:.87}.sp-specimen-window>span{position:absolute;bottom:30px;left:30px;right:20px;z-index:2;font:9px/1.8 Consolas,monospace;letter-spacing:.1em;color:#c8d7c5}.sp-specimen-window i{font-style:normal;color:#e35b60;padding:0 8px}
-.sp-shell[data-mode=menu] .sp-panel-wrap:before{display:none}
-.sp-shell:not([data-mode=menu]) .sp-panel-wrap{grid-template-columns:minmax(0,620px);justify-content:center;background:#0b1010ed}.sp-shell[data-mode=help] .sp-panel{max-width:620px}.sp-shell[data-mode=help] h1{font-size:42px}.sp-shell .sp-help{font:13px/1.75 system-ui;max-width:none}.sp-shell .sp-help dt{font:600 14px system-ui;color:#d2ddcc;margin-bottom:7px}.sp-shell .sp-help dd{color:#aebbb1}.sp-shell .sp-help>div{padding-block:8px 16px;border-bottom:1px solid #34483a;margin:0 0 12px}
-.sp-shell .sp-hud{top:calc(16px + var(--app-safe-top,0px));left:max(18px,env(safe-area-inset-left));right:max(18px,env(safe-area-inset-right));gap:16px}.sp-shell .sp-mass{width:195px;background:#0a1711eb;border:1px solid #71846b70;border-left:3px solid #df4e5b;padding:10px 12px}.sp-shell .sp-mass>span{font-size:10px;letter-spacing:.04em;color:#c8d3c5}.sp-shell .sp-mass b{font-size:10px;color:#e6e8da}.sp-shell .sp-mass small{font-size:10px;color:#a6b79e;margin-top:5px}.sp-shell .sp-mass [role=progressbar]{height:4px;background:#3e4e3d;margin-top:8px}.sp-shell .sp-mass i{background:#de4957}.sp-shell .sp-sector{padding:10px 14px;background:#0a1711d9;border-top:1px solid #71846b70;max-width:420px;font:11px/1.6 system-ui;color:#d4dccb}.sp-shell .sp-sector b{font:9px/1.5 Consolas,monospace;letter-spacing:.1em;color:#a7bc9f}.sp-shell .sp-pause{background:#0a1711eb;border:1px solid #71846b70;width:46px}.sp-shell .sp-message{font:12px/1.6 system-ui;background:#0c1a12e6;color:#d2ddc9;border-left:2px solid #cb5b5e;top:112px}
-.sp-shell .sp-use,.sp-shell .sp-burst,.sp-shell .sp-echo{background:#0a1711eb;border-color:#71846b99;color:#d8e4cd}.sp-shell .sp-stick{background:#0b1a1280;border-color:#afc2a480}.sp-shell .sp-stick>span{background:#c7d5b74d;border-color:#c7d5b799}.sp-shell .sp-stick.held{background:#2d422a99;border-color:#d9e6ca}.sp-shell .sp-rotate{background:#101e16f5;border-color:#7f9574;color:#e1e7d8}
-@media(max-width:1000px){.sp-shell .sp-panel-wrap{gap:28px;padding:32px}.sp-specimen-window{min-height:420px}.sp-shell .sp-panel h1{font-size:54px}.sp-terminal-label{margin-bottom:28px}}
-@media(max-width:599px){
- .sp-shell .sp-panel-wrap{grid-template-columns:minmax(0,1fr);padding:0 22px 28px;gap:0;align-content:start;background:#0b1010fa}
- .sp-shell[data-mode=menu] .sp-specimen-window{grid-row:1;margin:0 -22px 26px;width:calc(100% + 44px);height:210px;min-height:210px;border:0;border-bottom:1px solid #43544b}.sp-specimen-window img{object-position:center 48%}.sp-specimen-window:before{inset:12px}.sp-specimen-window>span{font-size:8px;bottom:22px;left:24px}
- .sp-shell[data-mode=menu] .sp-panel{grid-row:2}.sp-terminal-label{margin-bottom:24px;font-size:10px;gap:10px}.sp-terminal-mark{width:28px;height:28px;font-size:20px}.sp-shell .sp-panel h1{font-size:48px;letter-spacing:-.05em;margin-bottom:18px}.sp-shell .sp-kicker{font-size:9px}.sp-record-state{font-size:9px;margin-bottom:18px}.sp-shell .sp-intro{font-size:13px;margin-bottom:20px}.sp-shell .sp-edition{font-size:8px;margin-bottom:20px}.sp-shell .sp-primary,.sp-shell .sp-secondary{min-height:48px;font-size:12px}.sp-shell .sp-settings{gap:12px;margin-top:20px}.sp-shell .sp-settings button{font-size:10px}.sp-shell .sp-exit{font-size:10px!important}
- .sp-shell:not([data-mode=menu]) .sp-panel-wrap{padding:28px 22px;align-content:start}.sp-shell[data-mode=paused] h1,.sp-shell[data-mode=help] h1{font-size:38px}.sp-shell .sp-help{font-size:13px}.sp-shell .sp-hud{left:12px;right:12px;gap:10px;flex-wrap:wrap}.sp-shell .sp-mass{width:calc(100% - 58px);max-width:250px;order:1}.sp-shell .sp-pause{order:2}.sp-shell .sp-sector{order:3;max-width:100%;width:100%;padding:8px 10px}.sp-shell .sp-message{top:175px;left:12px;max-width:calc(100% - 24px);font-size:11px}
-}
-@media(max-height:520px) and (min-width:600px){.sp-shell .sp-panel-wrap{padding:28px 36px;gap:36px;align-content:start}.sp-shell .sp-panel h1{font-size:43px}.sp-terminal-label{margin-bottom:20px}.sp-specimen-window{min-height:430px}.sp-shell .sp-intro{font-size:12px}}
-@media(prefers-reduced-motion:reduce){.sp-shell *{animation:none!important;transition:none!important}}
-
-/* Visibility and flow also apply to the compact landscape layout. */
-.sp-shell .sp-panel-wrap[hidden],.sp-shell .sp-rotate[hidden]{display:none!important}
-.sp-shell .sp-settings,.sp-shell .sp-exit{position:static;inset:auto}
-
-.sp-shell:not([data-mode=playing]){touch-action:pan-y}
-
-.sp-shell:not([data-mode=menu]) .sp-panel-wrap{padding-top:calc(48px + max(env(safe-area-inset-top),var(--app-safe-top,0px)));padding-bottom:calc(48px + max(env(safe-area-inset-bottom),var(--app-safe-bottom,0px)))}
-@media(max-width:599px){.sp-shell:not([data-mode=menu]) .sp-panel-wrap{padding-top:calc(28px + max(env(safe-area-inset-top),var(--app-safe-top,0px)));padding-bottom:calc(28px + max(env(safe-area-inset-bottom),var(--app-safe-bottom,0px)))}}
+/* A game title screen, with small windows over the recorded laboratory. */
+.sp-shell{font-family:inherit;--sp-paper:var(--text);--sp-muted:var(--muted);--sp-line:var(--line);--sp-coral:var(--text);isolation:isolate}
+.sp-menu-reel{position:absolute;inset:0;z-index:0;display:none;width:100%;height:100%;object-fit:cover;image-rendering:pixelated}
+.sp-reel-shade{display:none;position:absolute;inset:0;z-index:1;background:linear-gradient(90deg,#08060c40,#08060ca8 50%,#08060c40),linear-gradient(0deg,#08060c88,transparent 50%)}
+.sp-shell[data-front=true] .sp-menu-reel,.sp-shell[data-front=true] .sp-reel-shade{display:block}
+.sp-shell[data-front=true] .sp-canvas{visibility:hidden}
+.sp-scene-toggle{display:none;position:absolute;z-index:3;bottom:16px;right:20px;min-height:44px;padding:10px 14px;background:#160d19b0;border:1px solid #fff4;color:#f5eef2;font-size:12px;border-radius:6px!important}
+.sp-shell[data-mode=menu] .sp-scene-toggle{display:block}
+.sp-panel-wrap{position:absolute;inset:0;z-index:2;display:flex;align-items:center;justify-content:center;padding:24px;background:#0002;overflow:hidden}
+.sp-panel-wrap:before{display:none!important}.sp-panel-wrap[hidden]{display:none}
+.sp-panel{position:relative;width:min(560px,76vw);max-width:560px;max-height:78%;padding:28px;border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--text);box-shadow:var(--menu-shadow);overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;outline:none}
+.sp-panel h1,.sp-shell[data-mode=help] .sp-panel h1,.sp-shell[data-mode=paused] .sp-panel h1{font-family:inherit;font-weight:600;font-size:28px;line-height:1.15;letter-spacing:-.04em;margin:0 44px 20px 0;color:var(--text);text-transform:none}
+.sp-panel h1 em{font-style:normal;color:inherit}
+.sp-panel button{font-family:inherit;border-radius:6px;box-shadow:none}
+.sp-intro{font-size:14px;line-height:1.7;color:var(--muted);margin-bottom:24px}
+.sp-actions{display:grid;gap:12px;width:100%;max-width:none;margin:0}
+.sp-actions button,.sp-panel>.sp-primary,.sp-panel>.sp-secondary{min-height:48px;font-size:15px;padding:12px 20px;border-radius:6px}
+.sp-primary{background:var(--text);border:1px solid var(--text);color:var(--bg)}.sp-primary:hover{background:var(--soft);color:var(--bg)}
+.sp-secondary{background:var(--surface-raised);border:1px solid var(--line);color:var(--text)}.sp-secondary:hover{background:var(--selection);border-color:var(--muted);color:var(--text)}
+.sp-settings{display:grid;gap:12px;position:static;margin:16px 0 24px}.sp-settings button{min-height:48px;display:flex;align-items:center;justify-content:flex-start;gap:12px;padding:12px 16px;font-size:14px;background:var(--surface-raised);border:1px solid var(--line);color:var(--text);text-align:left}.sp-settings svg{width:20px;height:20px}
+.sp-theme-options{display:flex;gap:12px;margin:24px 0}.sp-theme-options button{min-height:44px;padding:10px;border:1px solid var(--line);color:var(--text);font-size:13px}.sp-theme-options button[aria-pressed=true]{background:var(--text);color:var(--bg)}
+.sp-help{font-size:14px;line-height:1.7;margin:0 0 24px;color:var(--muted);max-width:none}.sp-help>div{margin-bottom:20px}.sp-help dt{font-size:15px;color:var(--text);font-weight:600;margin-bottom:6px}.sp-help dd{margin:0}
+.sp-window-close{position:absolute;top:16px;right:16px;width:44px;height:44px;font-size:26px;border:1px solid var(--line);background:var(--surface-raised);color:var(--text)}
+.sp-window-pager{border-top:1px solid var(--line);margin-top:24px;padding-top:12px;display:flex;justify-content:flex-end}.sp-window-pager button{min-height:44px;padding:10px 16px;font-size:13px}
+.sp-shell[data-mode=settings] .sp-panel,.sp-shell[data-mode=help] .sp-panel{display:flex;flex-direction:column;padding:0;overflow:hidden}
+.sp-window-header{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:16px 20px;border-bottom:1px solid var(--line);flex-shrink:0}
+.sp-window-header .sp-window-close{position:static;flex:none}
+.sp-shell[data-mode=help] .sp-window-header h1,.sp-shell[data-mode=settings] .sp-window-header h1{font-size:24px;margin:0;letter-spacing:-.04em}
+.sp-window-body{padding:24px;overflow-y:auto;min-height:0;touch-action:pan-y;overscroll-behavior:contain}
+.sp-shell .sp-window-pager{margin:0;padding:10px 20px;flex-shrink:0}
+.sp-shell[data-mode=menu] .sp-panel-wrap{background:transparent}
+.sp-shell[data-mode=menu] .sp-panel{width:300px;max-width:calc(100% - 64px);max-height:100%;background:none;border:0;border-radius:0;box-shadow:none;padding:0;text-align:center;overflow:visible;color:#f2edef}
+.sp-shell[data-mode=menu] .sp-panel h1{font-family:inherit;font-weight:600;font-size:54px;line-height:1.04;letter-spacing:-.05em;text-transform:uppercase;color:#fff;margin:8px -20px 36px;text-shadow:0 2px 16px #000a}
+.sp-game-subtitle{font-size:13px;color:#dfd5dc;letter-spacing:.07em}
+.sp-shell[data-mode=menu] .sp-actions button{height:54px;font-size:17px;text-align:center;border:1px solid #fff6;color:#fff;background:#160d19d9}
+.sp-shell[data-mode=menu] .sp-actions .sp-primary{color:#241621;background:#f0ecee;border-color:#f0ecee}.sp-shell[data-mode=menu] .sp-actions .sp-primary:hover{background:#fff}
+.sp-shell[data-mode=menu] .sp-actions .sp-secondary:hover{background:#382535}
+.sp-menu-meta{font-size:12px;line-height:1.6;color:#d2c6d0;margin-top:24px}
+.sp-text-button{min-height:44px;font-size:13px;color:inherit;text-decoration:underline;text-underline-offset:4px;margin-top:12px}
+.sp-exit{position:fixed;inset:calc(24px + var(--safe-top)) auto auto 32px;margin:0;min-height:44px;padding:10px 16px;border:1px solid #fff5!important;color:#f5eef2!important;background:#160d1999;font-size:14px}
+.sp-edition{color:var(--muted);font-size:12px;line-height:1.6;font-family:inherit;letter-spacing:0;margin-bottom:24px}
+.sp-shell .sp-panel :focus-visible{outline:2px solid currentColor;outline-offset:4px}
+@media(orientation:portrait){.sp-menu-reel{object-position:15% center}}
+.sp-help dd{color:var(--muted)}
+.sp-shell[data-mode=settings] .sp-panel,.sp-shell[data-mode=help] .sp-panel{padding:0}
+@media(max-width:800px){.sp-panel{width:76vw;max-height:78%;padding:24px}.sp-exit{top:calc(16px + var(--safe-top));left:20px}.sp-shell[data-mode=help] .sp-panel{max-width:560px}}
+@media(max-width:520px){.sp-panel-wrap{padding:0}.sp-panel{width:88vw;max-width:88vw;padding:24px 20px;max-height:78%}.sp-shell[data-mode=menu] .sp-panel{width:260px;max-width:calc(100% - 64px);padding:0}.sp-shell[data-mode=menu] .sp-panel h1{font-size:46px;margin-bottom:28px}.sp-panel h1,.sp-shell[data-mode=help] .sp-panel h1{font-size:24px}.sp-window-close{top:12px;right:12px}.sp-help{font-size:13px}.sp-shell[data-mode=menu] .sp-actions button{height:50px;font-size:17px}}
+@media(max-height:520px){.sp-shell[data-mode=menu] .sp-panel{width:240px}.sp-shell[data-mode=menu] .sp-panel h1{font-size:34px;margin-bottom:16px}.sp-shell[data-mode=menu] .sp-actions{gap:8px}.sp-shell[data-mode=menu] .sp-actions button{height:44px;min-height:44px;font-size:15px;padding:10px}.sp-menu-meta{margin-top:12px}.sp-panel{max-height:88%;padding:20px 24px}.sp-text-button{margin-top:0}.sp-shell[data-mode=settings] .sp-settings{display:flex;gap:12px}.sp-shell[data-mode=settings] .sp-settings button{flex:1}.sp-theme-options{margin-block:12px}}

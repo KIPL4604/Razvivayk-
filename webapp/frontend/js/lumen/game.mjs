@@ -5,7 +5,7 @@ import {StoryOverlay} from './story-overlay.mjs';
 import {worldScene,bossScene} from './story.mjs';
 import {weaponIcon,prefetchWeaponChoices} from './weapon-icons.mjs';
 import {WORLD_FINALS} from './arena.mjs';
-import {renderMenu,MENU_PAGES} from './menu.mjs';
+import {renderMenu,MENU_PAGES} from './menu.mjs?v=game-menus-2';
 import {buyTraining} from './training.mjs';
 import {WEAPONS,upgradeSummary} from './presentation.mjs';
 import {waveAt} from './progression.mjs';
@@ -109,7 +109,7 @@ export function createGame(context) {
     demo.enemies=[{id:1,x:-180,y:20,kind:map==='castle'?'palace-guard':map==='quarry'?'shardback':'beetle',radius:15,hp:40,maxHp:40},{id:2,x:190,y:100,kind:map==='castle'?'paper-moth':map==='quarry'?'quartzling':'mote',radius:12,hp:20,maxHp:20}];
     demo.gems=[{x:80,y:170,value:2,tier:1},{x:190,y:120,value:12,tier:2}];previewState=demo;preview.draw(demo,true);
   }
-  function setup(page='home',preserveScroll=false){
+  function setup(page='home',preserveScroll=false,direction=1){
     if(!MENU_PAGES.includes(page))page='home';
     const scroll=$('#lumenMenuContent')?.scrollTop||0,r=record();
     if(!selectionLoaded){character=r.selection.character;map=r.selection.map;selectionLoaded=true;}
@@ -117,10 +117,19 @@ export function createGame(context) {
     if(screen!=='lumen')navigate('lumen');
     screen='lumen';paused=true;menuPage=page;stopRenderer();preview?.destroy();preview=null;
     document.documentElement.classList.add('lumen-menu-active');
+    const oldReel=setupMount.querySelector('[data-menu-reel]');
     setupMount.innerHTML=renderMenu({page,book,character,map,record:record(),icon:pixelIcon,recipes:recipeBook});
+    const reel=setupMount.querySelector('[data-menu-reel]');
+    if(oldReel&&reel)reel.replaceWith(oldReel);
+    window.MenuUI?.syncMedia(oldReel||reel);
+    const dialog=setupMount.querySelector('[role="dialog"]'),pages=MENU_PAGES.filter(p=>p!=='home');
+    window.MenuUI?.pager(dialog,direction=>{const next=pages[pages.indexOf(menuPage)+direction];if(next)setup(next,false,direction);});
+    window.MenuUI?.animate(dialog,direction);
+    window.MenuUI?.apply();
     lockScreen(true);
     drawPreview();
     if(preserveScroll)$('#lumenMenuContent').scrollTop=scroll;
+    else if(page==='home')setupMount.querySelector('[data-lumen-value="play"]')?.focus({preventScroll:true});
     else $('#lumenMenuHeading')?.focus({preventScroll:true});
   }
   function back(){
@@ -297,7 +306,7 @@ export function createGame(context) {
     if(story.active)return;
     if(name==='setup'){setup();return;}
     if(name==='catalog'){navigate('home');return;}
-    if(name==='menu'&&MENU_PAGES.includes(value)){setup(value);return;}
+    if(name==='menu'&&MENU_PAGES.includes(value)){setup(value,false,MENU_PAGES.indexOf(value)<MENU_PAGES.indexOf(menuPage)?-1:1);return;}
     if(name==='book'&&['weapons','hybrids','artifacts'].includes(value)){book=value;setup('weapons');focusControl(`[data-lumen-action="book"][data-lumen-value="${value}"]`);return;}
     if(name==='character'&&Object.hasOwn(CHARACTERS,value)){
       character=value;const r=record();if(r.meta.unlocked.includes(value)){r.selection.character=value;persist();}
@@ -323,11 +332,13 @@ export function createGame(context) {
     if(screen==='lumen'&&name!=='lumen'){preview?.destroy();preview=null;}
     if(!['lumen','lumen-game'].includes(name)){lockScreen(false);releaseFullscreen();soundSuspend();}
     screen=name;
+    setupMount.querySelectorAll('[data-menu-reel]').forEach(v=>name==='lumen'?window.MenuUI?.syncMedia(v):v.pause());
   }
   function preventScroll(e){if(['lumen','lumen-game'].includes(screen)&&!e.target.closest('[data-lumen-scroll]'))e.preventDefault();}
   document.addEventListener('wheel',preventScroll,{passive:false,signal});
   document.addEventListener('touchmove',preventScroll,{passive:false,signal});
   document.addEventListener('keydown',e=>{
+    if(screen==='lumen'&&e.code==='Tab'){window.MenuUI?.trap(setupMount.querySelector('[role="dialog"]'),e);return;}
     if(screen==='lumen'&&e.code==='Escape'){e.preventDefault();if(!e.repeat)back();return;}
     if(screen!=='lumen-game')return;
     if(e.code==='Tab'&&overlayKey){const buttons=[...$('#lumenOverlay').querySelectorAll('button,summary')],first=buttons[0],last=buttons.at(-1);if(e.shiftKey&&document.activeElement===first){e.preventDefault();last?.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first?.focus();}return;}

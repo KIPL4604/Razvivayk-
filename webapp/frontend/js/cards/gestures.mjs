@@ -51,7 +51,7 @@ export function attachCardGestures({mount,enabled,source,swipe,drop,restoreHighl
     if(p.mode)suppressUntil=performance.now()+450;
     cancel();
     if(target)drop(target.action);
-    else if(p.mode==='swipe'&&Math.abs(e.clientX-p.x)>50)swipe();
+    else if(p.mode==='swipe'&&Math.abs(e.clientX-p.x)>50)swipe(e.clientX<p.x?1:-1);
   });
   document.addEventListener('pointercancel',cancel);
   mount.addEventListener('lostpointercapture',e=>{if(e.target===mount&&pointer&&!mount.hasPointerCapture(pointer.id))cancel();});

@@ -149,3 +149,19 @@ assets/cards/bandana.webp is a 768px WebP derivative. The procedural SVG grain,
 leather and rail textures and salon CSS are original code. No third-party
 Durak Online graphics or UI library is shipped. Existing navigation and
 fullscreen icon attributions above remain applicable.
+
+## Game menu pagination (2 November 2026)
+
+The pagination arrow in js/menu-ui.js adapts Iconimate Arrow Right,
+version 7453ab9b2fcf, retrieved through the Iconimate MCP from
+https://iconimate.app/r/arrow-right.json. Animation reference:
+Copyright (c) 2026 Muhammad Ammar (smammar100). Glyph geometry:
+Copyright (c) 2023 Phosphor Icons. The complete MIT permission and warranty
+notice at the beginning of this file applies to this adaptation as well.
+It uses native SVG/Web Animations, with one-shot feedback and reduced-motion
+support. React and Motion are not runtime dependencies.
+
+ArloUI Motion, Spacing and Sheet documentation was consulted through its MCP
+for timing, touch targets, window gutters and scroll/footer structure.
+https://arloui.com · https://github.com/Base16-Labs/arloui
+No ArloUI component source code or runtime package is included.
