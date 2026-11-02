@@ -86,7 +86,7 @@ function renderAchievements(){
 }
 function renderCatalog(){
   const chess='<button class="campaign-card" type="button" data-chess-action="setup" '+(gameFilter!=="Все"&&gameFilter!=="Логика"?"hidden":"")+' aria-label="Шахматы. Играть против компьютера">'+gameArt("chess")+'<span class="campaign-card-copy"><span class="campaign-category">Логика · против компьютера</span><strong>Шахматы</strong><span class="campaign-card-progress"><span>6 уровней сложности</span>'+uiIcon("arrow")+'</span></span></button>';
-  const poker='<button class="campaign-card" type="button" data-poker-action="setup" '+(gameFilter!=="Все"&&gameFilter!=="Мышление"?"hidden":"")+' aria-label="Математический покер. Играть с ботом или другом">'+PokerCards.art()+'<span class="campaign-card-copy"><span class="campaign-category">Мышление · вероятности</span><strong>Математический покер</strong><span class="campaign-card-progress"><span>С ботом или другом</span>'+uiIcon("arrow")+'</span></span></button>';
+  const poker='<button class="campaign-card" type="button" data-poker-action="setup" '+(gameFilter!=="Все"&&gameFilter!=="Мышление"&&gameFilter!=="Карты"?"hidden":"")+' aria-label="Математический покер. Играть с ботом или другом">'+PokerCards.art()+'<span class="campaign-card-copy"><span class="campaign-category">Мышление · вероятности</span><strong>Математический покер</strong><span class="campaign-card-progress"><span>С ботом или другом</span>'+uiIcon("arrow")+'</span></span></button>';
   const lumen='<button class="campaign-card lumen-catalog" type="button" data-lumen-action="open" '+(gameFilter!=="Все"&&gameFilter!=="Аркада"?"hidden":"")+' aria-label="Люмен: последний маяк. Одиночный survival-экшен">'+LumenMode.art()+'<span class="campaign-card-copy"><span class="campaign-category">Survival · одиночная игра</span><strong>Люмен<span>Последний маяк</span></strong><span class="campaign-card-progress"><span>3 мира · цель 30 / 35 / 45</span>'+uiIcon("arrow")+'</span></span></button>';
   $("#campaignCards").innerHTML=lumen+SpecimenMode.catalog()+PixelHopMode.catalog(gameFilter)+CardGames.catalog()+poker+chess+GAME_ORDER.map(game=>{
     const d=GAME_CATALOG[game],p=currentCampaign(game),run=saved.runs[game],resume=run&&!run.completed;
@@ -95,7 +95,13 @@ function renderCatalog(){
 }
 function updateProfileUI(){
   const name=profile.displayName||"Игрок",initial=[...name][0]?.toUpperCase()||"И";
-  ["headerAvatar","homeAvatar","profileAvatar"].forEach(id=>$("#"+id).textContent=initial);
+  const photo=tg?.initDataUnsafe?.user?.photo_url;
+  let photoUrl='';try{const url=new URL(photo);if(url.protocol==='https:')photoUrl=url.href;}catch(_){}
+  ["headerAvatar","homeAvatar","profileAvatar"].forEach(id=>{
+    const node=$("#"+id);if(node.dataset.avatarSource===(photoUrl||initial))return;
+    node.dataset.avatarSource=photoUrl||initial;node.textContent=initial;
+    if(photoUrl){const image=new Image();image.alt='';image.referrerPolicy='no-referrer';image.decoding='async';image.addEventListener('load',()=>{if(node.dataset.avatarSource===photoUrl)node.replaceChildren(image);},{once:true});image.src=photoUrl;}
+  });
   ["headerRank","homeRank","profileRank"].forEach(id=>$("#"+id).textContent=profile.rank);
   ["homePlayerName","profileName"].forEach(id=>$("#"+id).textContent=name);
   ["homeLevel","profileLevel"].forEach(id=>$("#"+id).textContent=profile.level);
@@ -150,6 +156,10 @@ function renderHome(){
 }
 function selectCampaign(game){if(!GAME_NAMES[game])return;saved.selectedCampaign=game;saveState();showScreen("levels");}
 function showScreen(name){
+  if(window.MenuUI?.screenTransition(activeScreen,name,()=>showScreenContent(name)))return;
+  showScreenContent(name);
+}
+function showScreenContent(name){
   pauseGame();clearTimeout(revealHandle);if(saved.current?.revealing){saved.current.revealing=false;saved.current.ready=false;saveState();}
   activeScreen=name;$("#app").classList.toggle("is-playing",["game","chess-game","poker-game","lumen-game","specimen","card-game","pixel-hop"].includes(name));$$("#main .screen").forEach(s=>s.classList.toggle("active",s.dataset.screen===name));$("#main").scrollTop=0;
   $$(".bottom-nav button").forEach(b=>{b.classList.toggle("active",b.dataset.screenLink===name);b.setAttribute("aria-current",b.dataset.screenLink===name?"page":"false");});

@@ -22,11 +22,7 @@
     if (hidden || preferences.motion === false || reduced.matches) { video.pause(); return; }
     video.play().catch(() => {}); // Poster remains if autoplay or decoding is unavailable.
   }
-  function animate(element, direction = 1) {
-    if (!element || reduced.matches || preferences.motion === false) return;
-    element.getAnimations().forEach(a=>a.cancel());
-    element.animate([{opacity:.35,transform:'translateX('+direction*16+'px)'},{opacity:1,transform:'translateX(0)'}], {duration:200,easing:'steps(6,end)'});
-  }
+  function animate(element,direction=1){window.PageMotion?.reveal(element,direction);}
   // Iconimate Arrow Right 7453ab9b2fcf; Muhammad Ammar / Phosphor, MIT.
   // Vanilla adaptation: one deliberate pass, no ambient replay or dependencies.
   const arrowPath='M221.66,133.66l-72,72a8,8,0,0,1-11.32-11.32L196.69,136H40a8,8,0,0,1,0-16H196.69L138.34,61.66a8,8,0,0,1,11.32-11.32l72,72A8,8,0,0,1,221.66,133.66Z';
@@ -38,22 +34,7 @@
     path.getAnimations().forEach(a=>a.cancel());
     path.animate([{transform:'translateX(0)',offset:0},{transform:'translateX(224px)',offset:.34},{transform:'translateX(-228px)',offset:.3401},{transform:'translateX(0)',offset:1}],{duration:750,easing:'cubic-bezier(.16,1,.3,1)'});
   }
-  function pager(element, change) {
-    if (!element) return;
-    let start = null, moved = false;
-    const excluded = target => target.closest('input,select,textarea,[data-no-swipe],canvas,.sp-controls,.card-table');
-    element.style.touchAction = 'pan-y';
-    element.addEventListener('pointerdown', e => {
-      start = e.isPrimary && e.pointerType !== 'mouse' && !excluded(e.target) ? {x:e.clientX,y:e.clientY,id:e.pointerId} : null; moved=false;
-    });
-    element.addEventListener('pointerup', e => {
-      if (!start || start.id !== e.pointerId) return;
-      const dx=e.clientX-start.x,dy=e.clientY-start.y;start=null;
-      if (Math.abs(dx)>=64 && Math.abs(dx)>Math.abs(dy)*1.6) {moved=true;change(dx<0?1:-1);}
-    });
-    element.addEventListener('pointercancel',()=>{start=null;});
-    element.addEventListener('click', e=>{if(moved){e.preventDefault();e.stopImmediatePropagation();moved=false;}},true);
-  }
+  function pager(element,change,options){window.PageMotion?.pager(element,change,options);}
   function trap(element, event) {
     if (event.key !== 'Tab' || !element) return;
     const items=[...element.querySelectorAll('button:not(:disabled),a[href],input:not(:disabled),select,[tabindex="0"]')].filter(e=>e.getClientRects().length);
@@ -62,7 +43,7 @@
     if(event.shiftKey && index<=0){event.preventDefault();items.at(-1).focus();}
     else if(!event.shiftKey && (index===items.length-1 || index===-1)){event.preventDefault();items[0].focus();}
   }
-  window.MenuUI={set,get:name=>preferences[name],apply,pager,animate,trap,syncMedia,arrow};
+  window.MenuUI={set,get:name=>preferences[name],apply,pager,animate,trap,syncMedia,arrow,screenTransition:(...args)=>window.PageMotion?.screenTransition(...args),transition:(...args)=>window.PageMotion?.transition(...args)};
   for(const name of ['pointerover','pointerdown','focusin'])document.addEventListener(name,arrowFeedback);
   document.addEventListener('visibilitychange',()=>document.querySelectorAll('[data-menu-reel]').forEach(syncMedia));
   reduced.addEventListener('change',apply);

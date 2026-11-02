@@ -165,3 +165,13 @@ ArloUI Motion, Spacing and Sheet documentation was consulted through its MCP
 for timing, touch targets, window gutters and scroll/footer structure.
 https://arloui.com · https://github.com/Base16-Labs/arloui
 No ArloUI component source code or runtime package is included.
+
+## Navigation repair (2 November 2026)
+
+The static profile and settings glyphs in js/visuals.js adapt Iconimate User
+(52dc8a65c3c5, https://iconimate.app/r/user.json) and Gear
+(d74bded7aa3e, https://iconimate.app/r/gear.json), retrieved through Iconimate MCP.
+Copyright (c) 2026 Muhammad Ammar (smammar100); geometry copyright (c) 2023
+Phosphor Icons. The complete MIT notice above applies. Existing Teramont games
+and cards SVGs are preserved. ArloUI Fluidity was consulted for gesture-owned
+movement and transitions; no Arlo source code or runtime dependency is shipped.

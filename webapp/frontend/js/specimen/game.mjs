@@ -63,7 +63,11 @@ export async function createGame(context){
     window.MenuUI?.apply();
     panel.focus({preventScroll:true});
   }
-  function setMode(next,direction=1){resetInput();mode=next;last=performance.now();showPanel(direction);updateRotation();}
+  function setMode(next,direction=1){
+    if(['help','settings'].includes(mode)&&['help','settings'].includes(next)&&!window.PageMotion?.committing){window.MenuUI?.transition(panel,()=>setModeContent(next,direction),()=>panel,direction);return;}
+    setModeContent(next,direction);
+  }
+  function setModeContent(next,direction=1){resetInput();mode=next;last=performance.now();showPanel(direction);updateRotation();}
   function updateRotation(){const rotate=$('.sp-rotate'),need=active&&mode==='playing'&&innerHeight>innerWidth&&!portraitAllowed;rotate.hidden=!need;if(need)resetInput();}
   function enter(){active=true;cancelAnimationFrame(raf);introPreview();state=restore(record().run);setMode('menu');renderer.resize();last=performance.now();raf=requestAnimationFrame(frame);}
   function start(){state=createRun();record().completed=false;lastCheckpoint=state.checkpointEvent;lastEvent=-1;save(true);setMode('playing');}
@@ -145,8 +149,8 @@ export async function createGame(context){
   for(const event of ['pointerup','pointercancel','lostpointercapture'])canvas.addEventListener(event,()=>{input.grabbing=false;});
   canvas.addEventListener('contextmenu',e=>e.preventDefault());
   window.MenuUI?.pager(panel,direction=>{
-    if(mode==='help'&&direction<0)action('settings');
-    else if(mode==='settings'&&direction>0)action('help');
+    if(mode==='help'&&direction<0){action('settings');return true;}
+    if(mode==='settings'&&direction>0){action('help');return true;}return false;
   });
   introPreview();showPanel();
   return{enter,action,onScreen,back,snapshot:()=>state?{...serialize(state),mode,pointers:pointers.size,grab:state.grab?{...state.grab}:null,tendril:state.tendril?{...state.tendril}:null,impact:state.impact,echoTime:state.echoTime,echoTargets:state.echoTargets.map(t=>({...t})),perception:currentRoom(state).enemies.map(e=>({id:e.id,behavior:e.behavior,visible:e.visible,memory:e.memory,lastSeen:e.lastSeen?{...e.lastSeen}:null,dir:e.dir,activity:e.activity,station:e.station,walking:e.walking,climbing:e.climbing,alone:e.alone,threatForm:e.threatForm,route:(e.route||[]).map(n=>({x:n.x,y:n.y,kind:n.kind}))})),input:{...input},effects:{particles:state.particles.length,fragments:state.fragments.length,flashes:state.flashes.length},nodes:state.nodes.map(n=>({...n})),limbs:state.limbs.map(l=>({...l,anchor:l.anchor?{...l.anchor}:null,target:l.target?{...l.target}:null,tip:{...l.tip}})),metrics:{...renderer.metrics(),meanWorkMs:frameTimes.reduce((a,b)=>a+b,0)/(frameTimes.length||1)}}:{mode}};

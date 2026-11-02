@@ -10,9 +10,11 @@ import time
 from collections import defaultdict
 from pathlib import Path
 from urllib.parse import urlparse
+from urllib.request import getproxies, proxy_bypass
 
 from aiogram import Bot, Dispatcher, Router, F
-from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError, TelegramRetryAfter
+from aiogram.client.session.aiohttp import AiohttpSession
+from aiogram.exceptions import TelegramAPIError, TelegramBadRequest, TelegramForbiddenError, TelegramRetryAfter
 from aiogram.filters import Command
 from aiogram.types import (
     BotCommand, BotCommandScopeAllPrivateChats, BotCommandScopeAllGroupChats,
@@ -31,6 +33,19 @@ COMMANDS = [BotCommand(command='start', description='Открыть игры'),
             BotCommand(command='play', description='Выбрать кампанию'),
             BotCommand(command='profile', description='Профиль, опыт и достижения'),
             BotCommand(command='help', description='Как играть')]
+
+
+def bot_session() -> AiohttpSession:
+    """Use the same OS/environment network route as other local HTTP clients."""
+    explicit = os.getenv('TG_PROXY_URL')
+    proxy = None
+    if explicit is not None:
+        proxy = explicit.strip() if explicit.strip().lower() not in ('', 'direct') else None
+    elif not proxy_bypass('api.telegram.org'):
+        proxies = getproxies()
+        proxy = proxies.get('https') or proxies.get('all')
+    logging.info('Telegram transport: %s', 'proxy' if proxy else 'direct')
+    return AiohttpSession(proxy=proxy)
 
 
 def runtime_app_url(fallback: str) -> str:
@@ -108,17 +123,26 @@ async def _refresh_chat(message: Message, bot: Bot, app_url: str, profile: bool 
     if message.chat.type != 'private':
         return
     app_url = runtime_app_url(app_url)
+    # Deliver the requested entry point before best-effort legacy UI maintenance.
+    previous = _remember_menu(message.chat.id)
+    await message.answer('Развивайка · Teramont\n\nВыбирай игру в коллекции или продолжай сохранённую партию.', reply_markup=ReplyKeyboardRemove())
+    reply = await message.answer('Выбирай игру.' if not profile else 'Твой опыт, звание и достижения — в профиле.', reply_markup=game_keyboard(app_url, profile))
+    _remember_menu(message.chat.id, reply.message_id)
+    try:
+        await asyncio.wait_for(_cleanup_chat_controls(message, bot, app_url, previous), timeout=10)
+    except (TelegramAPIError, TimeoutError) as error:
+        logging.warning('Legacy chat controls deferred: %s', type(error).__name__)
+
+
+async def _cleanup_chat_controls(message: Message, bot: Bot, app_url: str, previous: int | None) -> None:
     scope = BotCommandScopeChat(chat_id=message.chat.id)
     languages = {'', 'ru', 'en', (message.from_user.language_code or '') if message.from_user else ''}
     for language in languages:
         await bot.delete_my_commands(scope=scope, language_code=language)
     await bot.set_chat_menu_button(chat_id=message.chat.id, menu_button=MenuButtonWebApp(text='Играть', web_app=WebAppInfo(url=app_url)))
-    await _remove_inline(bot, message.chat.id, _remember_menu(message.chat.id))
+    await _remove_inline(bot, message.chat.id, previous)
     if message.reply_to_message and message.reply_to_message.from_user and message.reply_to_message.from_user.id == bot.id:
         await _remove_inline(bot, message.chat.id, message.reply_to_message.message_id)
-    await message.answer('Развивайка · Teramont\n\n10 игровых кампаний по 100 уровней: логика, память и внимание. Опыт, звания, достижения и серия дней сохраняются в твоём профиле.', reply_markup=ReplyKeyboardRemove())
-    reply = await message.answer('Выбирай игру и проходи первый уровень.' if not profile else 'Твой опыт, звание и достижения — в профиле.', reply_markup=game_keyboard(app_url, profile))
-    _remember_menu(message.chat.id, reply.message_id)
 
 
 @router.message(Command('start', 'play', 'help', 'profile'))
@@ -175,6 +199,18 @@ async def watch_public_url(bot: Bot, dispatcher: Dispatcher, initial_url: str) -
             logging.warning('Could not refresh game link: %s', type(error).__name__)
 
 
+async def maintain_bot_controls(bot: Bot, app_url: str) -> None:
+    # Slow metadata/legacy-chat requests must never delay receipt of /start.
+    for attempt in range(3):
+        try:
+            await configure_bot(bot, app_url)
+            await refresh_stored_controls(bot, app_url)
+            return
+        except TelegramAPIError as error:
+            logging.warning('Bot UI maintenance deferred: %s', type(error).__name__)
+            await asyncio.sleep(15 * (attempt + 1))
+
+
 async def main() -> None:
     token = os.getenv('TG_BOT_TOKEN', '').strip()
     app_url = runtime_app_url(os.getenv('APP_URL', '').strip())
@@ -183,20 +219,20 @@ async def main() -> None:
         raise RuntimeError('Set TG_BOT_TOKEN in .env')
     if parsed.scheme != 'https' or not parsed.netloc:
         raise RuntimeError('APP_URL must be a reachable public HTTPS address')
-    async with Bot(token=token) as bot:
-        await configure_bot(bot, app_url)
-        await refresh_stored_controls(bot, app_url)
+    async with Bot(token=token, session=bot_session()) as bot:
         dispatcher = Dispatcher()
         dispatcher.include_router(router)
         dispatcher.workflow_data['app_url'] = app_url
-        await bot.delete_webhook(drop_pending_updates=False)
+        await bot.delete_webhook(drop_pending_updates=False, request_timeout=15)
         logging.info('Game bot ready; Mini App: %s', parsed.netloc)
         watcher = asyncio.create_task(watch_public_url(bot, dispatcher, app_url))
+        maintenance = asyncio.create_task(maintain_bot_controls(bot, app_url))
         try:
             await dispatcher.start_polling(bot, allowed_updates=dispatcher.resolve_used_update_types())
         finally:
             watcher.cancel()
-            await asyncio.gather(watcher, return_exceptions=True)
+            maintenance.cancel()
+            await asyncio.gather(watcher, maintenance, return_exceptions=True)
 
 
 if __name__ == '__main__':

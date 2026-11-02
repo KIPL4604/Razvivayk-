@@ -110,6 +110,13 @@ export function createGame(context) {
     demo.gems=[{x:80,y:170,value:2,tier:1},{x:190,y:120,value:12,tier:2}];previewState=demo;preview.draw(demo,true);
   }
   function setup(page='home',preserveScroll=false,direction=1){
+    const previous=setupMount.querySelector('[role="dialog"]');
+    if(previous&&page!=='home'&&!window.PageMotion?.committing){
+      window.MenuUI?.transition(previous,()=>setupContent(page,preserveScroll,direction),()=>setupMount.querySelector('[role="dialog"]'),direction);return;
+    }
+    setupContent(page,preserveScroll,direction);
+  }
+  function setupContent(page='home',preserveScroll=false,direction=1){
     if(!MENU_PAGES.includes(page))page='home';
     const scroll=$('#lumenMenuContent')?.scrollTop||0,r=record();
     if(!selectionLoaded){character=r.selection.character;map=r.selection.map;selectionLoaded=true;}
@@ -123,7 +130,7 @@ export function createGame(context) {
     if(oldReel&&reel)reel.replaceWith(oldReel);
     window.MenuUI?.syncMedia(oldReel||reel);
     const dialog=setupMount.querySelector('[role="dialog"]'),pages=MENU_PAGES.filter(p=>p!=='home');
-    window.MenuUI?.pager(dialog,direction=>{const next=pages[pages.indexOf(menuPage)+direction];if(next)setup(next,false,direction);});
+    window.MenuUI?.pager(dialog,direction=>{const next=pages[pages.indexOf(menuPage)+direction];if(!next)return false;setup(next,false,direction);return true;},{target:()=>setupMount.querySelector('[role="dialog"]')});
     window.MenuUI?.animate(dialog,direction);
     window.MenuUI?.apply();
     lockScreen(true);

@@ -5,7 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#F5F7FB">
   <title>Развивайка · Teramont</title>
-  <script src="/static/js/menu-ui.js?v=20261102b"></script>
+  <script src="/static/js/page-motion.js?v=nav-repair-2"></script>
+  <script src="/static/js/menu-ui.js?v=nav-repair-2"></script>
   <link rel="icon" href="/static/icon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/static/css/app.css?v=4">
   <link rel="stylesheet" href="/static/css/chess.css?v=1">
@@ -19,23 +20,23 @@
   <link rel="stylesheet" href="/static/css/pixel-hop.css?v=1">
   <script src="https://telegram.org/js/telegram-web-app.js" defer></script>
   <script src="/static/js/puzzles.js?v=4" defer></script>
-  <script src="/static/js/visuals.js?v=4" defer></script>
+  <script src="/static/js/visuals.js?v=nav-repair-2" defer></script>
   <script src="/static/js/chess-pieces.js?v=1" defer></script>
   <script src="/static/js/chess-mode.js?v=2" defer></script>
   <script src="/static/js/poker-cards.js?v=1" defer></script>
   <script src="/static/js/card-room.js?v=2" defer></script>
   <script src="/static/js/poker-mode.js?v=4" defer></script>
   <script src="/static/js/platform.js?v=1" defer></script>
-  <script src="/static/js/lumen-mode.js?v=game-menus-2" defer></script>
-  <script src="/static/js/card-games.js?v=game-menus-2" defer></script>
-  <script src="/static/js/specimen-mode.js?v=game-menus-2" defer></script>
+  <script src="/static/js/lumen-mode.js?v=nav-repair-2" defer></script>
+  <script src="/static/js/card-games.js?v=nav-repair-2" defer></script>
+  <script src="/static/js/specimen-mode.js?v=nav-repair-2" defer></script>
   <script src="/static/js/pixel-hop-mode.js?v=1" defer></script>
   <link rel="stylesheet" href="/static/css/specimen.css?v=5">
-  <link rel="stylesheet" href="/static/css/library-interface.css?v=game-menus-2">
+  <link rel="stylesheet" href="/static/css/library-interface.css?v=nav-repair-2">
   <link rel="stylesheet" href="/static/css/lumen-interface.css?v=game-menus-2">
   <link rel="stylesheet" href="/static/css/specimen-interface.css?v=game-menus-2">
-  <script src="/static/js/games.js?v=game-menus-2" defer></script>
-  <script src="/static/js/hub.js?v=20261102b" defer></script>
+  <script src="/static/js/games.js?v=nav-repair-2" defer></script>
+  <script src="/static/js/hub.js?v=nav-repair-2" defer></script>
 </head>
 <body>
 <div id="app">
@@ -53,7 +54,7 @@
       <div class="welcome-block"><div><h1 id="homeTitle">Во что сыграем?</h1></div><span class="library-count"><strong>18</strong> игр<br><span>1000 уровней</span></span></div>
       <div id="resumeList"></div>
       <div class="pending-notice hidden" id="pendingNotice"><span>Результат сохранён на устройстве и ждёт отправки.</span><button class="text-button" id="retryPending" type="button">Повторить сохранение</button></div>
-      <div class="category-filters" role="group" aria-label="Фильтр игр"><button class="active" data-filter="Все" aria-pressed="true" type="button">Все игры</button><button data-filter="Логика" aria-pressed="false" type="button">Логика</button><button data-filter="Память" aria-pressed="false" type="button">Память</button><button data-filter="Мышление" aria-pressed="false" type="button">Мышление</button><button data-filter="Внимание" aria-pressed="false" type="button">Внимание</button><button data-filter="Аркада" aria-pressed="false" type="button">Аркада</button></div>
+      <div class="category-filters" role="group" aria-label="Фильтр игр"><button class="active" data-filter="Все" aria-pressed="true" type="button">Все игры</button><button data-filter="Логика" aria-pressed="false" type="button">Логика</button><button data-filter="Память" aria-pressed="false" type="button">Память</button><button data-filter="Мышление" aria-pressed="false" type="button">Мышление</button><button data-filter="Внимание" aria-pressed="false" type="button">Внимание</button><button data-filter="Карты" aria-pressed="false" type="button">Карты</button><button data-filter="Аркада" aria-pressed="false" type="button">Аркада</button></div>
       <h2 class="sr-only">Игры</h2><div class="campaign-grid" id="campaignCards"></div>
             <button class="together-link" type="button" data-screen-link="lobby"><span><strong>Играть вместе</strong><span>Пригласи друга или найди соперника в покере</span></span><span data-ui-icon="arrow"></span></button>
       <div class="home-bottom"><button class="text-button" data-screen-link="help" type="button">Как всё устроено <span data-ui-icon="arrow"></span></button></div>
