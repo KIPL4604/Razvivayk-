@@ -14,7 +14,7 @@ from .static_compression import StaticAwareGZipMiddleware
 from .poker import router as poker_router, init_poker_db
 from .auth import get_current_user
 from .game_store import GameRuleError, complete_session, get_profile, init_database, start_session
-from . import realtime, platform, observability
+from . import realtime, platform, observability, social
 from .database import connection, close_pools
 
 FRONTEND_DIR = Path(__file__).parent.parent / "frontend"
@@ -30,10 +30,12 @@ async def lifespan(_app: FastAPI):
             init_database()
             init_poker_db()
             platform.init_platform_db()
+            social.init_social_db()
     else:
         init_database()
         init_poker_db()
         platform.init_platform_db()
+        social.init_social_db()
     await realtime.start()
     try:
         yield
@@ -46,6 +48,7 @@ app = FastAPI(title="Teramont Game Platform", version="4.0.0", lifespan=lifespan
 app.include_router(poker_router)
 app.include_router(platform.router)
 app.include_router(realtime.router)
+app.include_router(social.router)
 app.add_middleware(StaticAwareGZipMiddleware, minimum_size=1000, compresslevel=6)
 app.middleware("http")(observability.measure)
 

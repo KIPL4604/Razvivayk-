@@ -156,7 +156,7 @@ function renderHome(){
 }
 function selectCampaign(game){if(!GAME_NAMES[game])return;saved.selectedCampaign=game;saveState();showScreen("levels");}
 function showScreen(name){
-  if(window.MenuUI?.screenTransition(activeScreen,name,()=>showScreenContent(name)))return;
+  window.PageMotion?.cancel();
   showScreenContent(name);
 }
 function showScreenContent(name){
@@ -164,7 +164,7 @@ function showScreenContent(name){
   activeScreen=name;$("#app").classList.toggle("is-playing",["game","chess-game","poker-game","lumen-game","specimen","card-game","pixel-hop"].includes(name));$$("#main .screen").forEach(s=>s.classList.toggle("active",s.dataset.screen===name));$("#main").scrollTop=0;
   $$(".bottom-nav button").forEach(b=>{b.classList.toggle("active",b.dataset.screenLink===name);b.setAttribute("aria-current",b.dataset.screenLink===name?"page":"false");});
   if(name==="home")renderHome();else if(name==="profile"||name==="levels")updateProfileUI();
-  $("#app").classList.toggle("is-poker",name==="poker-game");PokerMode.onScreen(name);ChessMode.onScreen(name);Platform.onScreen(name);LumenMode.onScreen(name);SpecimenMode.onScreen(name);CardGames.onScreen(name);CardRoom.onScreen(name);PixelHopMode.onScreen(name);hydrateIcons();
+  $("#app").classList.toggle("is-poker",name==="poker-game");PokerMode.onScreen(name);ChessMode.onScreen(name);Platform.onScreen(name);LumenMode.onScreen(name);SpecimenMode.onScreen(name);CardGames.onScreen(name);CardRoom.onScreen(name);PixelHopMode.onScreen(name);window.Social?.onScreen(name);hydrateIcons();
   if(hasTelegramIdentity&&tg?.isVersionAtLeast?.("6.1")&&tg?.BackButton){if(name==="home")tg.BackButton.hide();else tg.BackButton.show();}
   const heading=name==="card-game"?null:$(`.screen[data-screen="${name}"] h1,.screen[data-screen="${name}"] h2`);if(heading){heading.tabIndex=-1;heading.focus({preventScroll:true});}
 }
@@ -384,7 +384,7 @@ function configureTelegram(){
   if(tg.isVersionAtLeast?.("7.7"))call(()=>tg.disableVerticalSwipes());
   if(tg.isVersionAtLeast?.("6.2"))call(()=>tg.enableClosingConfirmation());
   const safeArea=()=>{const top=(tg.safeAreaInset?.top||0)+(tg.contentSafeAreaInset?.top||0),bottom=(tg.safeAreaInset?.bottom||0)+(tg.contentSafeAreaInset?.bottom||0);document.documentElement.style.setProperty("--app-safe-top",`${top}px`);document.documentElement.style.setProperty("--app-safe-bottom",`${bottom}px`);};
-  safeArea();call(()=>tg.onEvent("safeAreaChanged",safeArea));call(()=>tg.onEvent("contentSafeAreaChanged",safeArea));call(()=>tg.BackButton.onClick(()=>{const doc=document.querySelector(".hub-document[open]");if(doc){doc.close();return;}if(activeScreen==="specimen"){SpecimenMode.back();return;}if(activeScreen==="pixel-hop"){showScreen("home");return;}if(["lumen","lumen-game"].includes(activeScreen)){LumenMode.back();return;}showScreen(activeScreen==="card-game"?"cards":activeScreen==="poker-game"?"poker":activeScreen==="chess-game"?"chess":activeScreen==="game"?"levels":"home");}));
+  safeArea();call(()=>tg.onEvent("safeAreaChanged",safeArea));call(()=>tg.onEvent("contentSafeAreaChanged",safeArea));call(()=>tg.BackButton.onClick(()=>{const doc=document.querySelector(".hub-document[open]");if(doc){doc.close();return;}if(activeScreen==="friends"&&window.Social?.back())return;if(activeScreen==="specimen"){SpecimenMode.back();return;}if(activeScreen==="pixel-hop"){showScreen("home");return;}if(["lumen","lumen-game"].includes(activeScreen)){LumenMode.back();return;}showScreen(activeScreen==="card-game"?"cards":activeScreen==="poker-game"?"poker":activeScreen==="chess-game"?"chess":activeScreen==="game"?"levels":"home");}));
 }
 document.addEventListener("click",event=>{
   const target=event.target.closest("button");if(!target||target.disabled)return;

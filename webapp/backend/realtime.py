@@ -199,6 +199,8 @@ def publish(topic: str, payload: dict):
         event_type = payload.get("type", "lobby.changed")
         if event_type == "cloud.changed":
             payload = {"type": event_type, "game": payload.get("game"), "revision": payload.get("revision")}
+        elif event_type == "social.changed":
+            payload = {"type": event_type}
         else:
             payload = {"type": "lobby.changed"}
     else:

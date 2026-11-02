@@ -2,7 +2,6 @@
 (() => {
   const reduced=matchMedia('(prefers-reduced-motion: reduce)');
   let inCommit=false,activeCleanup=null,activeGestureCancel=null,suppressUntil=0;
-  const pages=['home','cards','profile','settings'];
   document.addEventListener('pointerdown',()=>{suppressUntil=0;},true);
   document.addEventListener('click',e=>{
     if(performance.now()<suppressUntil&&(e.detail||e.pointerType)){
@@ -56,10 +55,7 @@
     Promise.all([out.finished,incoming?.finished]).then(cleanup,cleanup);
     return true;
   }
-  function screenTransition(from,to,commit){
-    if(inCommit||!pages.includes(from)||!pages.includes(to)||from===to)return false;
-    transition(document.querySelector('.screen.active'),commit,()=>document.querySelector('.screen.active'),pages.indexOf(to)<pages.indexOf(from)?-1:1);return true;
-  }
+  function screenTransition(){return false;}
   function pager(element,change,options={}){
     if(!element)return;
     let start=null,preview=null;
@@ -116,7 +112,7 @@
     element.addEventListener('pointercancel',restore);
     element.addEventListener('lostpointercapture',e=>{if(e.target===element)restore();});
   }
-  window.PageMotion={pager,reveal,transition,screenTransition,get committing(){return inCommit;}};
+  window.PageMotion={pager,reveal,transition,screenTransition,cancel:()=>{activeGestureCancel?.();activeCleanup?.();document.querySelectorAll(".menu-motion-layer").forEach(e=>e.remove());},get committing(){return inCommit;}};
   const cancelMovement=()=>{activeGestureCancel?.();activeCleanup?.();};
   window.addEventListener('resize',cancelMovement);
   document.addEventListener('visibilitychange',()=>{if(document.hidden)cancelMovement();});

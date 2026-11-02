@@ -1,4 +1,5 @@
 /* Neutral library shell. Artwork belongs to each game; chrome uses monochrome tokens. */
+html,body,#main{overscroll-behavior-x:none}
 :root{color-scheme:dark;--bg:#141414;--surface:#1e1e1e;--surface-raised:#272727;--text:#f1f1ed;--muted:#a7a7a1;--soft:#c0c0b9;--accent:#efefea;--accent-ink:#181818;--line:#373734;--selection:#30302d;--green:#8acbaa;--red:#ed9696;--menu-shadow:0 24px 80px #0006;--safe-top:max(env(safe-area-inset-top),var(--app-safe-top,0px))}
 :root[data-theme=light]{color-scheme:light;--bg:#f4f4f2;--surface:#fff;--surface-raised:#eeeee9;--text:#20201e;--muted:#65655e;--soft:#52524c;--accent:#252523;--accent-ink:#fff;--line:#d9d9d1;--selection:#e8e8e2;--green:#287652;--red:#b63747;--menu-shadow:0 24px 80px #0002}
 .menu-page-arrow{display:inline-flex;vertical-align:middle;overflow:hidden;width:22px;height:22px;flex:none}.menu-page-arrow svg{width:100%;height:100%;overflow:hidden}.menu-page-arrow.is-previous{transform:rotate(180deg)}.menu-page-arrow path{transform-box:view-box}.lumen-window-pager button,.hub-chapter-pager button{display:grid;place-items:center}

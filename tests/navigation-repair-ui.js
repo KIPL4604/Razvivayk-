@@ -11,18 +11,18 @@ async(page)=>{
   const end=async()=>s.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
   async function swipe(x,y,dx,dy=0){await begin(x,y);for(let i=1;i<=10;i++){await move(x+dx*i/10,y+dy*i/10);await p.waitForTimeout(18);}await end();await p.waitForTimeout(450);}
   const current=()=>p.evaluate(()=>activeScreen);
-  ok((await p.locator('.bottom-nav button').allTextContents()).join(',')==='Игры,Карты,Профиль,Настройки','Four correct sections; no journal');
-  ok(await p.locator('.bottom-nav svg').count()===4,'SVG navigation icons');
+  ok((await p.locator('.bottom-nav button').allTextContents()).join(',')==='Игры,Карты,Друзья,Профиль,Настройки','Five independent sections; no journal');
+  ok(await p.locator('.bottom-nav svg').count()===5,'SVG navigation icons');
   const card=p.locator('#campaignCards [data-sp-action="open"]');const r=await card.boundingBox();
   await swipe(r.x+r.width*.8,r.y+40,-65);
   ok(await current()==='home','Short drag on game button neither navigates nor opens game');
   await begin(310,r.y+50);await move(235,r.y+51);await p.waitForTimeout(90);
   ok(await current()==='home','Gesture does not change page before release');
-  ok(await p.locator('#main>.screen.active').evaluate(e=>getComputedStyle(e).transform!=='none'),'Page follows finger');
-  ok(await p.locator('.menu-motion-layer [data-screen="cards"]').count()===1,'Next page visible alongside current page');
+  ok(await p.locator('#main>.screen.active').evaluate(e=>getComputedStyle(e).transform==='none'),'Independent section stays in place during drag');
+  ok(await p.locator('.menu-motion-layer [data-screen="cards"]').count()===0,'No neighbor clone is created');
   await p.screenshot({path:'C:/Users/1234567890/Desktop/PHANTOM_PROJECTS_COLLECTED_2026-09-20/01 Проекты/01 В работе/Развивайка — Teramont/output/playwright/navigation-repair/drag-375-i1.png'});
   await move(125,r.y+51);await end();await p.waitForTimeout(450);
-  ok(await current()==='cards','Deliberate swipe completes to Cards without game click: '+await current());
+  ok(await current()==='home','Deliberate drag keeps the independent library without a game click: '+await current());
   await p.locator('.bottom-nav [data-screen-link="home"]').click();await p.waitForTimeout(450);
   const zone=p.locator('.category-gesture-zone'),z=await zone.boundingBox();
   await swipe(305,z.y+z.height/2,-225,0);
@@ -34,7 +34,7 @@ async(page)=>{
   ok(await current()==='home','Leaving category bounds does not transfer gesture');
   await p.locator('.bottom-nav [data-screen-link="settings"]').click();
   const animation=await p.locator('#main>[data-screen="settings"]').evaluate(e=>e.getAnimations().map(a=>a.effect.getKeyframes()));
-  ok(animation.some(frames=>frames[0].transform?.includes('375')),'Tap navigation uses a full-width sliding transition');
+  ok(animation.length===0,'Tap navigation has no page-flip animation');
   await p.waitForTimeout(450);ok(await p.locator('.menu-motion-layer').count()===0,'Transition layers cleaned up');
   await p.locator('.header-actions [data-screen-link="help"]').click();await p.waitForTimeout(350);
   for(const id of ['lumen','specimen','progress']){await p.locator('[data-hub-document="'+id+'"]').click();ok(await p.locator('.hub-document').evaluate(e=>e.open),'Help article '+id);await p.keyboard.press('Escape');}
@@ -43,10 +43,10 @@ async(page)=>{
   await p.locator('#campaignCards [data-lumen-action="open"]').click();await p.locator('.lumen-main-actions').waitFor();
   await p.locator('.lumen-main-actions [data-lumen-value="characters"]').click();await p.waitForTimeout(350);
   await swipe(300,225,-65);ok(await p.locator('.lumen-shell').getAttribute('data-page')==='characters','Lumen short swipe cancelled');
-  await swipe(300,225,-210);ok(await p.locator('.lumen-shell').getAttribute('data-page')==='weapons','Lumen deliberate swipe changes window');
+  await swipe(300,225,-210);ok(await p.locator('.lumen-shell').getAttribute('data-page')==='characters','Lumen deliberate swipe keeps independent shop window');
   await p.locator('.lumen-window-toolbar button').click();await p.locator('[data-lumen-action="catalog"]').click();await p.waitForTimeout(400);
   await p.locator('#campaignCards [data-sp-action="open"]').click();await p.locator('[data-sp-action="settings"]').click();await p.waitForTimeout(350);
-  await swipe(300,230,-210);ok(await p.locator('.sp-shell').getAttribute('data-mode')==='help','Specimen deliberate swipe changes window');
+  await swipe(300,230,-210);ok(await p.locator('.sp-shell').getAttribute('data-mode')==='settings','Specimen deliberate swipe keeps independent settings window');
   await p.emulateMedia({reducedMotion:'reduce'});await p.locator('.sp-window-close').click();await p.locator('[data-sp-action="exit"]').click();await p.locator('.bottom-nav [data-screen-link="settings"]').click();await p.waitForTimeout(180);
   ok(await p.locator('.menu-motion-layer').count()===0,'Reduced motion uses no positional page layer');
   ok(!errors.length,'No browser exceptions '+errors.join(';'));return {checks,errors};

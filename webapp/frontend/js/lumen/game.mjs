@@ -1,3 +1,4 @@
+import {preloadScene} from './preload.mjs';
 import {createRun,step,chooseUpgrade,serialize,restore,UPGRADES,upcomingUpgrade} from './engine.mjs';
 import {Renderer} from './renderer.mjs';
 import {loadArt} from './assets.mjs';
@@ -110,10 +111,6 @@ export function createGame(context) {
     demo.gems=[{x:80,y:170,value:2,tier:1},{x:190,y:120,value:12,tier:2}];previewState=demo;preview.draw(demo,true);
   }
   function setup(page='home',preserveScroll=false,direction=1){
-    const previous=setupMount.querySelector('[role="dialog"]');
-    if(previous&&page!=='home'&&!window.PageMotion?.committing){
-      window.MenuUI?.transition(previous,()=>setupContent(page,preserveScroll,direction),()=>setupMount.querySelector('[role="dialog"]'),direction);return;
-    }
     setupContent(page,preserveScroll,direction);
   }
   function setupContent(page='home',preserveScroll=false,direction=1){
@@ -129,9 +126,6 @@ export function createGame(context) {
     const reel=setupMount.querySelector('[data-menu-reel]');
     if(oldReel&&reel)reel.replaceWith(oldReel);
     window.MenuUI?.syncMedia(oldReel||reel);
-    const dialog=setupMount.querySelector('[role="dialog"]'),pages=MENU_PAGES.filter(p=>p!=='home');
-    window.MenuUI?.pager(dialog,direction=>{const next=pages[pages.indexOf(menuPage)+direction];if(!next)return false;setup(next,false,direction);return true;},{target:()=>setupMount.querySelector('[role="dialog"]')});
-    window.MenuUI?.animate(dialog,direction);
     window.MenuUI?.apply();
     lockScreen(true);
     drawPreview();
@@ -168,13 +162,22 @@ export function createGame(context) {
     if(screen!=='lumen')setup();
     const world=restored?.map||map,selected=restored?.character||character,ticket=++sceneTicket;
     waitingForStart=true;clearInput();preview?.destroy();preview=null;
-    const load=()=>prepareArt(value=>{if(ticket===sceneTicket)story.progress(value);},world,selected).then(value=>({value}),error=>({error}));
-    const ready=load();
-    const proceed=await story.play(worldScene(world),{hero:CHARACTERS[selected].name,heroId:selected,hold:true,onCancel:cancelLaunch});
-    if(!proceed){if(ticket===sceneTicket)cancelLaunch();return;}
+    const scene=worldScene(world),started=performance.now(),tracks={};
+    story.wait(cancelLaunch);
+    const progress=(key,value)=>{
+      tracks[key]=value;if(ticket!==sceneTicket)return;
+      const values=Object.values(tracks),known=values.length===2&&values.every(v=>v.total>0),total=values.reduce((sum,v)=>sum+(v.total||0),0),received=values.reduce((sum,v)=>sum+(v.received||0),0),elapsed=(performance.now()-started)/1000;
+      story.progress({phase:values.every(v=>v.phase==='ready')?'ready':known&&received===total?'decode':'download',percent:known?Math.floor(received/total*100):0,remainingSeconds:known&&elapsed>=1&&received>0&&received<total?Math.ceil((total-received)*elapsed/received):null});
+    };
+    const load=()=>Promise.all([
+      prepareArt(value=>progress('world',value),world,selected),
+      preloadScene(scene,selected,value=>progress('scene',value)).then(()=>{tracks.scene={...tracks.scene,phase:'ready'};})
+    ]).then(value=>({value}),error=>({error}));
     const finish=async result=>{
       if(ticket!==sceneTicket||screen!=='lumen')return;
       if(result.error){story.failure(()=>{story.retrying();load().then(finish);});return;}
+      const proceed=await story.play(scene,{hero:CHARACTERS[selected].name,heroId:selected,hold:true,onCancel:cancelLaunch});
+      if(!proceed||ticket!==sceneTicket||screen!=='lumen')return;
       story.close();waitingForStart=false;
       state=restored||createRun({training:record().meta.training,seed:crypto.getRandomValues(new Uint32Array(1))[0],character:selected,map:world,runId:crypto.randomUUID()});
       character=state.character;map=state.map;selectionLoaded=true;resultRecorded=false;paused=resumeSaved||document.hidden||appInactive||!document.hasFocus();overlayKey='';
@@ -184,7 +187,7 @@ export function createGame(context) {
       if(state.status==='upgrade'){paused=false;showUpgrade();}else if(paused)showPause('Экспедиция ждёт');
       lastFrame=performance.now();raf=requestAnimationFrame(frame);
     };
-    await finish(await ready);
+    await finish(await load());
   }
   function start(){launchRun();}
   function resume(){launchRun(true);}

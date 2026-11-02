@@ -6,11 +6,11 @@ async(page)=>{
   await p.route('https://telegram.org/**',r=>r.fulfill({body:'',contentType:'text/javascript'}));await p.goto('http://127.0.0.1:8080/',{waitUntil:'domcontentloaded'});await p.locator('#hubSearch').waitFor();
   const session=await context.newCDPSession(p);
   async function swipe(x,y,dx){await session.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x,y}]});for(let i=1;i<=8;i++){await session.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:x+dx*i/8,y:y+2}]});await p.waitForTimeout(16);}await session.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});await p.waitForTimeout(450);}
-  await swipe(300,160,-220);assert(await p.locator('[data-screen="cards"]').isVisible(),'Real touch: hub next page');
-  await swipe(70,160,220);assert(await p.locator('[data-screen="home"]').isVisible(),'Real touch: hub previous page');
+  await swipe(300,160,-220);assert(await p.locator('[data-screen="home"]').isVisible(),'Real touch: library remains independent');
+  await swipe(70,160,220);assert(await p.locator('[data-screen="home"]').isVisible(),'Real touch: reverse drag stays in library');
   await p.locator('[data-lumen-action="open"]').click();await p.locator('.lumen-title-screen').waitFor();await p.locator('[data-lumen-value="characters"]').click();
-  await swipe(295,225,-210);assert(await p.locator('.lumen-shell').getAttribute('data-page')==='weapons','Real touch: Lumen next window');
-  await swipe(75,225,220);assert(await p.locator('.lumen-shell').getAttribute('data-page')==='characters','Real touch: Lumen previous window');
+  await swipe(295,225,-210);assert(await p.locator('.lumen-shell').getAttribute('data-page')==='characters','Real touch: shop is an independent window');
+  await swipe(75,225,220);assert(await p.locator('.lumen-shell').getAttribute('data-page')==='characters','Real touch: reverse drag keeps shop window');
   const video=p.locator('.lumen-menu-reel');await p.waitForFunction(()=>document.querySelector('.lumen-menu-reel').readyState>=2);
   const duration=await video.evaluate(v=>v.duration);
   await video.evaluate(v=>{v.currentTime=14.6;return v.play();});await p.waitForTimeout(1000);
@@ -19,8 +19,8 @@ async(page)=>{
   await p.emulateMedia({reducedMotion:'no-preference'});await p.locator('.lumen-window-toolbar button').click();await p.locator('[data-lumen-action="catalog"]').click();
   assert(await video.evaluate(v=>v.paused),'Leaving menu stops reel');
   await p.locator('[data-sp-action="open"]').click();await p.locator('[data-sp-action="settings"]').click();
-  await swipe(295,210,-210);assert(await p.locator('.sp-shell').getAttribute('data-mode')==='help','Real touch: Specimen help window');
-  await swipe(70,210,220);assert(await p.locator('.sp-shell').getAttribute('data-mode')==='settings','Real touch: Specimen settings window');
+  await swipe(295,210,-210);assert(await p.locator('.sp-shell').getAttribute('data-mode')==='settings','Real touch: Specimen settings remain independent');
+  await swipe(70,210,220);assert(await p.locator('.sp-shell').getAttribute('data-mode')==='settings','Real touch: reverse drag keeps settings window');
   await p.locator('[data-sp-action="settings-back"]').first().click();await p.locator('[data-sp-action="exit"]').click();
   await p.locator('#campaignCards [data-campaign="sudoku"]').click();const map=p.locator('#levelMap');await map.scrollIntoViewIfNeeded();const r=await map.boundingBox();
   await swipe(300,Math.min(650,r.y+100),-220);assert(await p.locator('.hub-chapter-pager > span').textContent()==='Глава 2 / 10','Real touch: chapter next');await p.locator('[data-chapter-page="-1"]').click();assert(await p.locator('.hub-chapter-pager > span').textContent()==='Глава 1 / 10','Chapter button alternative');

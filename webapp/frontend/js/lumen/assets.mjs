@@ -1,4 +1,5 @@
-// Local versioned artwork; load and decode the selected world while its intro plays.
+// Local versioned artwork; load and decode only the selected world.
+import {assetBytes} from './asset-cache.mjs';
 const base=new URL('../../assets/lumen/',import.meta.url);
 let manifestPending;
 const packs=new Map(),images=Object.create(null),decoded=new Map(),listeners=new Set();
@@ -29,27 +30,7 @@ function download(entry){
  const key=entry.file+':'+entry.sha256;
  if(packs.has(key))return packs.get(key);
  const record={received:0,done:false,promise:null};packs.set(key,record);
- record.promise=(async()=>{
-  let lastError;
-  for(let attempt=0;attempt<3;attempt++){
-   const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),20_000);
-   const url=new URL(entry.file,base);url.searchParams.set('v',entry.sha256.slice(0,16));
-   if(attempt)url.searchParams.set('attempt',String(attempt));
-   try{
-    const response=await fetch(url,{signal:controller.signal,priority:'high'});
-    if(!response.ok)throw new Error(`Lumen artwork pack unavailable: ${entry.file}`);
-    let data;
-    if(response.body?.getReader){
-     const reader=response.body.getReader(),chunks=[];let size=0;
-     while(true){const result=await reader.read();if(result.done)break;chunks.push(result.value);size+=result.value.byteLength;record.received=Math.max(record.received,Math.min(size,entry.bytes));notify();}
-     data=new Uint8Array(size);let cursor=0;for(const chunk of chunks){data.set(chunk,cursor);cursor+=chunk.byteLength;}data=data.buffer;
-    }else data=await response.arrayBuffer();
-    if(data.byteLength!==entry.bytes)throw new Error(`Incomplete Lumen artwork pack: ${entry.file}`);
-    record.received=entry.bytes;record.done=true;notify();return data;
-   }catch(error){lastError=error;}finally{clearTimeout(timeout);}
-  }
-  packs.delete(key);throw lastError;
- })();
+ record.promise=assetBytes(entry,size=>{record.received=size;notify();}).then(data=>{record.received=entry.bytes;record.done=true;notify();return data;},error=>{packs.delete(key);throw error;});
  return record;
 }
 export async function loadArt({map,character,onProgress}={}){

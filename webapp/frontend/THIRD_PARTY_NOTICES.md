@@ -175,3 +175,15 @@ Copyright (c) 2026 Muhammad Ammar (smammar100); geometry copyright (c) 2023
 Phosphor Icons. The complete MIT notice above applies. Existing Teramont games
 and cards SVGs are preserved. ArloUI Fluidity was consulted for gesture-owned
 movement and transitions; no Arlo source code or runtime dependency is shipped.
+
+## Friends and media loading (2 November 2026)
+
+The friends glyph in js/visuals.js adapts Iconimate Users Three
+(eb17df386510, https://iconimate.app/r/users-three.json), retrieved through
+Iconimate MCP. Copyright (c) 2026 Muhammad Ammar (smammar100); geometry copyright
+(c) 2023 Phosphor Icons. The complete MIT notice above applies.
+
+Server-side QR generation uses python-qrcode 8.2 (BSD-3-Clause),
+https://github.com/lincolnloop/python-qrcode. Codes are generated locally;
+no external QR service receives account codes. The H.264 menu video is a
+transcode of the project's existing Lumen gameplay recording, without audio.

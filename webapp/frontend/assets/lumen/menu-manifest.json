@@ -1,0 +1,387 @@
+{
+  "version": 1,
+  "files": [
+    {
+      "file": "menu-loop.mp4",
+      "bytes": 1690497,
+      "sha256": "872a90cd49ae6cda79005e7491bfd431bfbe6240afeffa57bb6deb86efdce728"
+    },
+    {
+      "file": "menu-poster.jpg",
+      "bytes": 185737,
+      "sha256": "98b9c80636c145aa16bd16816c44f21b213d8723905827d1156cce37843dfb98"
+    },
+    {
+      "file": "fonts/Tektur-game.ttf",
+      "bytes": 19212,
+      "sha256": "87e6f24ce10a1b45e388bcf34244b58410d83a95fe2518d6f691c954c58ee95d"
+    },
+    {
+      "file": "ui.png",
+      "bytes": 718,
+      "sha256": "4d48295c667eb50b3df91cd34285f7aaaee052f4b64ff2550cfeb6e59e36eec3"
+    },
+    {
+      "file": "panel.png",
+      "bytes": 152,
+      "sha256": "6a4a39d199d112204aa94882e0399d773f487f004f2ad02e656c278765cc11e4"
+    },
+    {
+      "file": "weapons.png",
+      "bytes": 17831,
+      "sha256": "f5b6f173303f92753b47f65d8fe8f4470a8884e2d1a615a8a3adb0b15aacb771"
+    },
+    {
+      "file": "arsenal.png",
+      "bytes": 56519,
+      "sha256": "5ec82a38eaba2e0004c92104d8b082afe42124175f7fba042f5dda380074553a"
+    },
+    {
+      "file": "expedition.png",
+      "bytes": 26890,
+      "sha256": "6b7edf3f2dc2c8a1350953e5aa2ae47ac57b0091c0493c2b932a298946cf3c63"
+    },
+    {
+      "file": "expansion-items.png",
+      "bytes": 37506,
+      "sha256": "823c98a8f6f6b4f33ca8a7e1241645078fe121e00bd0d9c7ebcb47cbfd008d48"
+    },
+    {
+      "file": "scout.png",
+      "bytes": 41480,
+      "sha256": "fb743ee05492395765a4d61a065afc4c5655dc0094ee0bb06450d8514c7d3cf0"
+    },
+    {
+      "file": "keeper.png",
+      "bytes": 49409,
+      "sha256": "9c2b3acaad551ea9f47d552b1af6488efda8422358d9a556eb6c4a4541ba5bc5"
+    },
+    {
+      "file": "alchemist.png",
+      "bytes": 58684,
+      "sha256": "f98cae88960b1cf24afef35a0fb6be28f56c15fe6cacdd372bc3ff939c6cb2ba"
+    },
+    {
+      "file": "ranger.png",
+      "bytes": 52007,
+      "sha256": "2d3b1ebe321e9b822751bef9c1ab197641e7aebb88a74784fef06a69cdc3ad2b"
+    },
+    {
+      "file": "duelist.png",
+      "bytes": 55262,
+      "sha256": "b788461a3b1984dd2eea9ae3efb9851d47d96b98f510df62b8b5444869fe39c6"
+    },
+    {
+      "file": "stormcaller.png",
+      "bytes": 51337,
+      "sha256": "d1f9a21db6191ebb27612ad4f544578e6e0be850484ce35d836abe482b1b0b09"
+    },
+    {
+      "file": "artificer.png",
+      "bytes": 58145,
+      "sha256": "ab0d5cb75fb0bfb3d3904a3241c15aea0bf85e367425ba3ce9062dd1d4e258e3"
+    },
+    {
+      "file": "sentinel.png",
+      "bytes": 47539,
+      "sha256": "19c19b50184e2898600af43932bffe418f9a33fc54447b8290f53c9899fc18d8"
+    },
+    {
+      "file": "tinkerer.png",
+      "bytes": 53292,
+      "sha256": "c3aa784c15a1c63f9182987ec7b48599a2acb479cf9f30234bbff3295541abb0"
+    },
+    {
+      "file": "cantor.png",
+      "bytes": 45739,
+      "sha256": "45a482a4dfb560a9c09dd9c72a8afd85e0931bb36f95d17d37f84975bbb89b63"
+    },
+    {
+      "file": "astronomer.png",
+      "bytes": 51486,
+      "sha256": "4862dea2367664ca29963caa00fd1e12b0310b2a64b0c0b3b045228d5a1ae076"
+    },
+    {
+      "file": "heliarch.png",
+      "bytes": 40785,
+      "sha256": "805f000a7c3ed79ada3ba32a88989963c1fcf613d414d8da03b7f642496620c2"
+    },
+    {
+      "file": "story-world-garden-small.webp",
+      "bytes": 64872,
+      "sha256": "724580d7ca5b1e9175acd00528179e1b80d1910d4d4b97d07ff7098ad2e400d5"
+    },
+    {
+      "file": "story-world-quarry-small.webp",
+      "bytes": 79604,
+      "sha256": "31ddd8265ae22c162f8078491e61b134695a38f75fb9c6eae9999fcc6d4150a1"
+    },
+    {
+      "file": "story-world-castle-small.webp",
+      "bytes": 53864,
+      "sha256": "d3fb0219f497128d1362119f0657243f48b48963a00a8125f3bb0a7a753fedaa"
+    },
+    {
+      "file": "weapon-icons/bell-58b278e7f74f.webp",
+      "bytes": 714,
+      "sha256": "58b278e7f74f1c48cc3149421d8e13d3d29fa59dd8b25ceabf80b7fdbfb796c0"
+    },
+    {
+      "file": "weapon-icons/briar-caef0318ee7a.webp",
+      "bytes": 1030,
+      "sha256": "caef0318ee7a931b27aa79b62777a0e6ebca87c96ce1267a38e1de851daf9681"
+    },
+    {
+      "file": "weapon-icons/chakram-8678e18b7408.webp",
+      "bytes": 1156,
+      "sha256": "8678e18b7408f25e7974a631bd8711bd188e0eafbc645ee237890f35aa2008e4"
+    },
+    {
+      "file": "weapon-icons/cleaver-bf3607ee8759.webp",
+      "bytes": 828,
+      "sha256": "bf3607ee87592fb65584885c4bc55ca04d6e77862190809bded9bd01aacb5411"
+    },
+    {
+      "file": "weapon-icons/cyclone-33f1530d68dc.webp",
+      "bytes": 1094,
+      "sha256": "33f1530d68dc60c9d28a5d09b43562304828a60647f00a4cb180cec86a5744da"
+    },
+    {
+      "file": "weapon-icons/drone-340a8d69d0e5.webp",
+      "bytes": 640,
+      "sha256": "340a8d69d0e5b52f65a854575bf436fa19fc8d0e59406fcbb2a3daf959807b16"
+    },
+    {
+      "file": "weapon-icons/eclipse-d4dca49818d1.webp",
+      "bytes": 902,
+      "sha256": "d4dca49818d15ae53756b29c82c0d66b8b8b0237d5fad05e3f2e816882d043ad"
+    },
+    {
+      "file": "weapon-icons/fan-723b43b25212.webp",
+      "bytes": 760,
+      "sha256": "723b43b25212788377845b50118ef9e9af96c6bb13eedbbb9b892dc16824c2e1"
+    },
+    {
+      "file": "weapon-icons/flame-34d827e2149d.webp",
+      "bytes": 982,
+      "sha256": "34d827e2149d1c7b66f381598da4c33c22bcd832748b913ae3d1d94bc57cd627"
+    },
+    {
+      "file": "weapon-icons/frostnova-07a5a16ad75b.webp",
+      "bytes": 366,
+      "sha256": "07a5a16ad75b6df1bf5665d5ba94c3a9e9f12fd12f506b17688be9113e7efcc7"
+    },
+    {
+      "file": "weapon-icons/gravity-ef3e4444f4bd.webp",
+      "bytes": 1092,
+      "sha256": "ef3e4444f4bd8777888b8171f645e6ef6b22680006241092629939707411f4dd"
+    },
+    {
+      "file": "weapon-icons/ice-7860164aceed.webp",
+      "bytes": 858,
+      "sha256": "7860164aceed8ee9e915dbfe3cc6913669feeb8a3b16bf87807024dd162cbdd7"
+    },
+    {
+      "file": "weapon-icons/meteor-5f9bd162d9da.webp",
+      "bytes": 840,
+      "sha256": "5f9bd162d9da1e0076fc57d08db347d9b8c346c0f15e7bbaee2a2639def405fe"
+    },
+    {
+      "file": "weapon-icons/mine-e54bc95b5654.webp",
+      "bytes": 790,
+      "sha256": "e54bc95b5654faa755cfa840beb11c40eccaeebaf2fe73794c4a80f97ab168d7"
+    },
+    {
+      "file": "weapon-icons/needle-7c8c6289467b.webp",
+      "bytes": 418,
+      "sha256": "7c8c6289467b9974d6823596336df3f05ffffa360097cc8028d15f6494951cf4"
+    },
+    {
+      "file": "weapon-icons/orbit-eeeae9b67d08.webp",
+      "bytes": 554,
+      "sha256": "eeeae9b67d0806f9181cd5306f2148a8dc239e7491ee0ef95bbb0d1dfebbb39f"
+    },
+    {
+      "file": "weapon-icons/prism-ec3adfdb88f7.webp",
+      "bytes": 934,
+      "sha256": "ec3adfdb88f7ce0daf23c7d84049026440a681e0bf5e3bb928ca775897a2c96c"
+    },
+    {
+      "file": "weapon-icons/pulse-6e217e1d525f.webp",
+      "bytes": 956,
+      "sha256": "6e217e1d525f7317635688f314e866d3e78dafe5867a99172f6dbcfdbca561a6"
+    },
+    {
+      "file": "weapon-icons/spark-0353063300ed.webp",
+      "bytes": 608,
+      "sha256": "0353063300ed0f8e10fdceab1dd0d60859d30de0d43e87f6c084eb74da4eb958"
+    },
+    {
+      "file": "weapon-icons/spear-5c61a1b29c2e.webp",
+      "bytes": 450,
+      "sha256": "5c61a1b29c2e45f15ed806eb6060818f1ce0dac8eaf679c308f918d143c39990"
+    },
+    {
+      "file": "weapon-icons/storm-d180ccd60678.webp",
+      "bytes": 780,
+      "sha256": "d180ccd60678cc708e333c641bab1e1b01f09be9b2b93cd8b90375c967a5747d"
+    },
+    {
+      "file": "weapon-icons/sunlance-155043f5ebdc.webp",
+      "bytes": 404,
+      "sha256": "155043f5ebdc94313d21e283d2ddae8bbb531c7aa0f01ac227cf6c709e66bc13"
+    },
+    {
+      "file": "weapon-icons/sunrise-42619a212e7a.webp",
+      "bytes": 842,
+      "sha256": "42619a212e7ab6c960fed1767abc7da9fb50cb332723c4420a31ffb144549879"
+    },
+    {
+      "file": "weapon-icons/thorn-626ba01b0f9e.webp",
+      "bytes": 690,
+      "sha256": "626ba01b0f9e2c77cfa39344c4fb92913f2245d1029b9aa9f37101e0e1c83cb6"
+    }
+  ],
+  "scenes": [
+    {
+      "file": "story-boss-ash.png",
+      "bytes": 5049,
+      "sha256": "2a96f7b141609bfb63b77974cd52e5578001a93287849f7d86ee12ce45550639"
+    },
+    {
+      "file": "story-boss-briar.png",
+      "bytes": 5983,
+      "sha256": "438b0e69d8dda468ce6e49b6be4cb81c46dd8d271a01fb1e7ec4940d164d94b5"
+    },
+    {
+      "file": "story-boss-conductor.png",
+      "bytes": 8073,
+      "sha256": "404504069e76481bde6f9a24160a5420d4776969cda0b92cb35a748088fe0646"
+    },
+    {
+      "file": "story-boss-drillguard.png",
+      "bytes": 5464,
+      "sha256": "afa6533d624f873ea5972ea52d7479207dbafd3778952b906d7454d3344fe38b"
+    },
+    {
+      "file": "story-boss-gatekeeper.png",
+      "bytes": 7957,
+      "sha256": "79e52862122aa86d64c4760dae55f2a54ac4b2013b1c59e06965a5bc95fc1273"
+    },
+    {
+      "file": "story-boss-matriarch.png",
+      "bytes": 4946,
+      "sha256": "75221d8326a5e52eb53e0c852eadea2634f7145b25fbfa4e9b5fe0ae5a04c382"
+    },
+    {
+      "file": "story-boss-monarch.png",
+      "bytes": 29210,
+      "sha256": "af2025905d60827147bcca9a465fb003e8e521e9c287912e256994ed8c85e6e0"
+    },
+    {
+      "file": "story-boss-overseer.png",
+      "bytes": 9980,
+      "sha256": "7a87b2963f329302a8e76eaa70c17f8230fcac3e031bdb22c6b7eddf455f7d21"
+    },
+    {
+      "file": "story-boss-queen.png",
+      "bytes": 4824,
+      "sha256": "453f3fde7c69171929ad1e7c21747bee25d1ba62236bfe676b568b2202a851b5"
+    },
+    {
+      "file": "story-boss-resonator.png",
+      "bytes": 3970,
+      "sha256": "99c56003699e59144b4b75515c0206b36c4ab2e72d6ca0c3022768e1e06e064f"
+    },
+    {
+      "file": "story-boss-rootwarden.png",
+      "bytes": 9444,
+      "sha256": "13eaca0b7a2159448f46849a1a525aec59f5de5b36e8a90f2948e40a917d2e26"
+    },
+    {
+      "file": "story-hero-alchemist.png",
+      "bytes": 3556,
+      "sha256": "9f083540fcb3ef73c0fe199c4b092a490a2a38c255ecc8e20975256a2429423d"
+    },
+    {
+      "file": "story-hero-artificer.png",
+      "bytes": 3599,
+      "sha256": "7ee020b552c84b187e2d21fd13a5f58be363be634d2248fc5eee0b8e5df66a63"
+    },
+    {
+      "file": "story-hero-astronomer.png",
+      "bytes": 3145,
+      "sha256": "6acae98469bf6084ce75d0954aa11f1a4a8d8121f71c948bacc713ea68590011"
+    },
+    {
+      "file": "story-hero-cantor.png",
+      "bytes": 2949,
+      "sha256": "7482c2efb743dabe76e51afbb5803f8fe4f7fe703fc13dc38ce56bc720e42708"
+    },
+    {
+      "file": "story-hero-duelist.png",
+      "bytes": 3557,
+      "sha256": "f79a651fa5d7934a953e330f0a87d5224e65e527370f0ec80050b34fb4aecabc"
+    },
+    {
+      "file": "story-hero-heliarch.png",
+      "bytes": 2698,
+      "sha256": "d1e7ac20a3428369852217ebfc0e8775536a959257fccaa1031981e57fc61abe"
+    },
+    {
+      "file": "story-hero-keeper.png",
+      "bytes": 3094,
+      "sha256": "00a29b51b769600d86fcab63a0d7bce98ae95ce826fd959aebeb5369e2b75bb4"
+    },
+    {
+      "file": "story-hero-ranger.png",
+      "bytes": 3476,
+      "sha256": "5bd50e2e9d63e514fb73bc72f3808472bdb329784688a3c41cc42f06d1025ed3"
+    },
+    {
+      "file": "story-hero-scout.png",
+      "bytes": 2946,
+      "sha256": "2672582fdb8733fb174eb821624a0e6f41c82f725578d0248c9cdea8fb651832"
+    },
+    {
+      "file": "story-hero-sentinel.png",
+      "bytes": 3016,
+      "sha256": "bb9567937d4eed96b5dfc8f156dd5b84bfc013d8a76ea2891ee9b2c97890b5fc"
+    },
+    {
+      "file": "story-hero-stormcaller.png",
+      "bytes": 3322,
+      "sha256": "64f056c6f889b57898f096353870e18568a569f9042746ef47775a1ae3166a46"
+    },
+    {
+      "file": "story-hero-tinkerer.png",
+      "bytes": 3487,
+      "sha256": "c0a497b125fb3dd739193749d8344545f09749fb75cc31c2902745c73118ce9a"
+    },
+    {
+      "file": "story-world-castle.webp",
+      "bytes": 195470,
+      "sha256": "0ebf2f7dae922b7bd27b9c8fdb232ca21a978caad49a6c3349b5b863b0725c0c"
+    },
+    {
+      "file": "story-world-crater-small.webp",
+      "bytes": 64876,
+      "sha256": "5cf0787577150b8acb6387a87e39674fe46a518c7f003c38de2e773bb8119e4d"
+    },
+    {
+      "file": "story-world-crater.webp",
+      "bytes": 233288,
+      "sha256": "56b402e5168514cc0c2724e640b89aad208a40383c667616005c75bcba9b6852"
+    },
+    {
+      "file": "story-world-garden.webp",
+      "bytes": 218268,
+      "sha256": "05d377a6fa1b1e0eb2ff4e8c98db325a8290e1a5f5cb1bc6ddfe7b29e1e3ffbe"
+    },
+    {
+      "file": "story-world-quarry.webp",
+      "bytes": 285602,
+      "sha256": "c083745bb0989d140d7835ae73de8123998925a89e8b67f5b05c44cce5789886"
+    }
+  ]
+}

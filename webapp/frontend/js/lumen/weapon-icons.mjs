@@ -1,6 +1,6 @@
+import {assetBytes} from './asset-cache.mjs';
 import {WEAPON_ICONS} from './weapon-icon-data.mjs';
 
-const base=new URL('../../assets/lumen/',import.meta.url);
 const ready=new Map(),pending=new Map(),retryAt=new Map(),queue=[];
 let active=0;
 let visibleScan=false,observer;
@@ -29,18 +29,16 @@ function drain(){
   const {id,resolve}=queue.shift();active++;
   (async()=>{
    let url;
-   const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),12_000);
    try{
-    const response=await fetch(new URL(WEAPON_ICONS[id].file,base),{signal:controller.signal,priority:'low'});
-    if(!response.ok)throw new Error('Weapon icon unavailable');
-    const blob=await response.blob();if(blob.size!==WEAPON_ICONS[id].bytes)throw new Error('Incomplete weapon icon');
+    const bytes=await assetBytes(WEAPON_ICONS[id]);
+    const blob=new Blob([bytes],{type:'image/webp'});
     url=URL.createObjectURL(blob);const image=new Image();image.src=url;await image.decode();
     if(image.naturalWidth!==48||image.naturalHeight!==48)throw new Error('Invalid weapon icon');
     ready.set(id,url);retryAt.delete(id);document.documentElement.style.setProperty('--lumen-weapon-'+id,`url("${url}")`);
     document.documentElement.style.setProperty('--lumen-weapon-placeholder-'+id,'none');
     resolve(true);
    }catch(_){if(url)URL.revokeObjectURL(url);retryAt.set(id,performance.now()+30_000);resolve(false);}
-   finally{clearTimeout(timeout);pending.delete(id);active--;drain();}
+   finally{pending.delete(id);active--;drain();}
   })();
  }
 }
