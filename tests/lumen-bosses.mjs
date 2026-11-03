@@ -59,6 +59,49 @@ test('every configured attack releases after its warning and slams can be escape
   updateBossAttacks(s,e,dt,hooks);s.player.x=260;advance(s,e,2.05);assert.equal(s.player.hp,150);
 });
 
+test('signature attacks lock their aim and only hit the marked area at impact',()=>{
+  for(const [id,kind,move] of [
+    ['briar','brambles',[0,115]],['drillguard','boulder',[0,115]],['monarch','glass-cross',[75,75]],
+  ]){
+    const e=enemy(id),attack=BOSS_VARIANTS[id].attacks.find(a=>a.kind===kind);
+    e.attackStage=BOSS_VARIANTS[id].attacks.indexOf(attack);
+    const s=state();
+    updateBossAttacks(s,e,dt,hooks);
+    assert.deepEqual(e.castTarget,{x:180,y:0});
+    advance(s,e,attack.windup-.1);
+    assert.equal(s.player.hp,150);
+    assert.deepEqual(s.effects,[]);
+    s.player.x+=move[0];s.player.y+=move[1];
+    advance(s,e,.15);
+    assert.equal(s.player.hp,150);
+    assert.equal(e.castTarget,undefined);
+    assert(s.effects.some(effect=>effect.kind===kind&&effect.x===180&&effect.y===0));
+  }
+});
+
+test('an airborne boulder keeps its landing point after resume and hits exactly once',()=>{
+  const s=createRun({map:'quarry',seed:18});
+  s.time=120;s.spawnTimer=3;s.spawnedElites=1;
+  step(s,{},dt);
+  const boss=s.enemies.find(e=>e.kind==='guardian');
+  boss.x=s.player.x+200;boss.y=s.player.y;boss.fireTimer=0;
+  boss.attackStage=BOSS_VARIANTS.drillguard.attacks.findIndex(a=>a.kind==='boulder');
+  for(let i=0;i<75;i++)step(s,{},dt);
+  assert(boss.actionTimer>0&&boss.actionTimer<.77);
+  assert.equal(s.player.hp,s.player.maxHp);
+  const snapshot=serialize(s),restored=restore(snapshot);
+  assert(restored);
+  assert.deepEqual(serialize(restored),snapshot);
+  const damaged=serialize(s);
+  delete damaged.enemies.find(e=>e.kind==='guardian').castTarget;
+  assert.equal(restore(damaged),null);
+  for(let i=0;i<49;i++){step(s,{},dt);step(restored,{},dt);}
+  assert.equal(s.player.hp,s.player.maxHp-28);
+  assert(s.effects.some(effect=>effect.kind==='boulder'));
+  assert.deepEqual(serialize(restored),serialize(s));
+  assert(restore(serialize(s)));
+});
+
 test('engine spawns distinct garden, quarry and crater guardians',()=>{
   for(const map of ['garden','quarry','crater'])for(const [time,stage,type]of [[120,1,'carapace'],[240,2,'tempest'],[420,3,'carapace']]){
     const s=createRun({map,seed:stage});s.time=time-dt;s.spawnedGuardians=stage-1;s.spawnedElites=4;s.spawnTimer=3;

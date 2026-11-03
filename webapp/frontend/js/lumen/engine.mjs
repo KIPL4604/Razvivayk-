@@ -10,7 +10,7 @@ import {updateWeapons,flameImpact} from './combat.mjs';
 import {CONTACT_PERIOD,movePlayer,separateCrowd,touchingEnemies,contactDamage} from './physics.mjs';
 import {normalizeTraining,validTraining} from './training.mjs';
 import {startArena,updateArena,enforceArenaBoundary,bossDeath,markArenaChestOpened,validateArena,expandLegacyGardenArena} from './arena.mjs';
-import {GARDEN_GUARDIANS,updateBossAttacks,validateBossFields} from './bosses.mjs';
+import {BOSS_IMPACTS,GARDEN_GUARDIANS,updateBossAttacks,validateBossFields} from './bosses.mjs';
 import {gardenCover,gardenFinalReady,strikeGardenCover} from './garden-arena.mjs';
 import {CASTLE,createCastle,castleLayout,ensureCastleExit,breakCastleDoor,updateCastleGoal,castleColliders,constrainCastleEntity,validateCastle,castleCreatureStats,updateCastleEnemy} from './castle.mjs';
 
@@ -699,6 +699,10 @@ export function restore(snapshot) {
         phase: enemy.phase, hitFlash: enemy.hitFlash, guardianStage: enemy.guardianStage, fireTimer: enemy.fireTimer,
         elite:enemy.elite===true,slowTime:enemy.slowTime||0,actionTimer:enemy.actionTimer||0 });
       if(own(enemy,'bossType'))Object.assign(state.enemies.at(-1),{bossType:enemy.bossType,attackStage:enemy.attackStage});
+      if(own(enemy,'castTarget')){
+        if(!position(enemy.castTarget))return null;
+        state.enemies.at(-1).castTarget={x:enemy.castTarget.x,y:enemy.castTarget.y};
+      }
       if(own(enemy,'attackFlash'))state.enemies.at(-1).attackFlash=enemy.attackFlash;
     }
     for (const projectile of snapshot.projectiles) {
@@ -724,7 +728,7 @@ export function restore(snapshot) {
         ...(own(crystal,'tier')?{tier:crystal.tier}:{}) });
     }
     for (const event of snapshot.effects) {
-      if (!position(event) || !['pulse', 'hurt', 'dissolve', 'guardian', 'warning','arc','chest','charge','shards','fusion','shield','impact'].includes(event.kind) ||
+      if (!position(event) || !['pulse', 'hurt', 'dissolve', 'guardian', 'warning','arc','chest','charge','shards','fusion','shield','impact',...BOSS_IMPACTS].includes(event.kind) ||
         !number(event.radius, 1, 1000) || !number(event.maxLife, 0.001, 3) || !number(event.life, 0, event.maxLife) || event.life <= 0) return null;
       state.effects.push({ x: event.x, y: event.y, kind: event.kind, radius: event.radius, life: event.life, maxLife: event.maxLife });
       if(own(event,'weapon')){if(!own(WEAPONS,event.weapon))return null;state.effects.at(-1).weapon=event.weapon;}

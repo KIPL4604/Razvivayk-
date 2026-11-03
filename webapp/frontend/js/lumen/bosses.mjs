@@ -1,6 +1,11 @@
 import {gardenCover,strikeGardenCover} from './garden-arena.mjs';
 
 const TAU=Math.PI*2;
+export const BOSS_IMPACTS=Object.freeze(['brambles','boulder','glass-cross']);
+export const glassCrossHalfWidth=radius=>radius*.19;
+const brambles=Object.freeze({kind:'brambles',radius:75,range:490,damage:19,windup:1.7,cooldown:3.1});
+const boulder=Object.freeze({kind:'boulder',radius:81,range:550,damage:28,windup:1.82,flight:.77,cooldown:3.3});
+const glassCross=Object.freeze({kind:'glass-cross',radius:153,range:1000,damage:32,windup:1.8,cooldown:3.1});
 const freezeVariant=value=>{
   const attacks=value.attacks.some(a=>a.kind==='slam')?value.attacks:[...value.attacks,
     {kind:'slam',radius:155,damage:24,cooldown:3.4}];
@@ -15,6 +20,7 @@ export const BOSS_VARIANTS=Object.freeze({
     {kind:'fan',count:7,speed:140,damage:14,spread:.22,windup:.9,cooldown:2.8},
     {kind:'line',range:520,width:20,damage:24,windup:1,cooldown:3},
     {kind:'spiral',count:16,speed:110,damage:13,windup:1.1,cooldown:3.2},
+    {...brambles,radius:94,range:650,damage:24},
   ]}),
   overseer:freezeVariant({name:'Старший надзиратель',sprite:'boss-overseer',hp:24000,radius:80,damage:28,attacks:[
     {kind:'line',range:610,width:24,damage:32,windup:1,cooldown:2.8},
@@ -22,11 +28,13 @@ export const BOSS_VARIANTS=Object.freeze({
     {kind:'slam',radius:195,damage:32,windup:1.2,cooldown:3},
     {kind:'fan',count:9,speed:160,damage:17,spread:.18,windup:.9,cooldown:2.6},
     {kind:'spiral',count:20,speed:120,damage:16,windup:1,cooldown:3},
+    {...boulder,radius:105,damage:34},
   ]}),
   drillguard:freezeVariant({name:'Буровой голем',sprite:'boss-drillguard',attacks:[
     {kind:'slam',radius:170,damage:28,windup:1.2,cooldown:3.2},
     {kind:'line',range:560,width:20,damage:30,windup:.9,cooldown:2.9},
     {kind:'fan',count:6,speed:145,damage:16,spread:.23,windup:.85,cooldown:2.8},
+    boulder,
   ]}),
   resonator:freezeVariant({name:'Резонатор глубин',sprite:'boss-resonator',attacks:[
     {kind:'ring',count:22,speed:120,damage:16,windup:1.1,cooldown:3.2},
@@ -68,11 +76,13 @@ export const BOSS_VARIANTS=Object.freeze({
     {kind:'slam',radius:240,damage:42,windup:1.2,cooldown:2.8},
     {kind:'ring',count:38,speed:145,damage:24,windup:1,cooldown:2.7},
     {kind:'line',range:900,width:32,damage:40,windup:1,cooldown:2.7},
+    glassCross,
   ]}),
   briar:freezeVariant({name:'Шипоносец',sprite:'boss-briar',attacks:[
     {kind:'fan',count:5,speed:120,damage:11,spread:.25,windup:.9,cooldown:2.9},
     {kind:'slam',radius:144,damage:19,cooldown:3.3},
     {kind:'line',range:310,width:19,damage:17,windup:1.25,cooldown:3},
+    brambles,
   ]}),
   queen:freezeVariant({name:'Матка роя',sprite:'boss-queen',attacks:[
     {kind:'ring',count:13,speed:124,damage:12,windup:1.1,cooldown:3},
@@ -87,11 +97,28 @@ export const BOSS_VARIANTS=Object.freeze({
 });
 export const BOSS_TYPES=Object.freeze(Object.keys(BOSS_VARIANTS));
 
+export function bossCast(enemy){
+  const attack=BOSS_VARIANTS[enemy.bossType]?.attacks?.[enemy.attackStage];
+  return attack&&BOSS_IMPACTS.includes(attack.kind)?attack:null;
+}
+
 export function validateBossFields(enemy){
-  if(enemy.bossType===undefined)return enemy.attackStage===undefined;
+  if(enemy.bossType===undefined)return enemy.attackStage===undefined&&!Object.hasOwn(enemy,'castTarget');
   if(!Object.hasOwn(BOSS_VARIANTS,enemy.bossType))return false;
   const variant=BOSS_VARIANTS[enemy.bossType];
-  return Boolean(variant&&['guardian','arena-boss'].includes(enemy.kind)&&Number.isInteger(enemy.attackStage)&&enemy.attackStage>=0&&enemy.attackStage<variant.attacks.length);
+  if(!['guardian','arena-boss'].includes(enemy.kind)||!Number.isInteger(enemy.attackStage)||enemy.attackStage<0||enemy.attackStage>=variant.attacks.length)return false;
+  const attack=bossCast(enemy);
+  if(!attack||!(enemy.actionTimer>0))return !Object.hasOwn(enemy,'castTarget');
+  const target=enemy.castTarget;
+  return Boolean(target&&Number.isFinite(target.x)&&Number.isFinite(target.y)&&
+    enemy.actionTimer<=attack.windup);
+}
+
+function castHits(attack,target,body){
+  const x=Math.abs(body.x-target.x),y=Math.abs(body.y-target.y);
+  if(attack.kind!=='glass-cross')return Math.hypot(x,y)<attack.radius+body.radius;
+  const near=Math.min(x,y),far=Math.max(x,y);
+  return Math.hypot(Math.max(0,near-glassCrossHalfWidth(attack.radius)),Math.max(0,far-attack.radius))<body.radius;
 }
 
 // Typed world guardians share explicit warning/attack sequences. Untyped legacy
@@ -116,8 +143,16 @@ export function updateBossAttacks(state,enemy,dt,{hurt,effect,limits}){
   if(previous>0){
     enemy.actionTimer=Math.max(0,previous-dt);
     if(enemy.actionTimer>0)return true;
-    enemy.attackFlash=.42;
-    if(attack.kind==='slam'){
+    enemy.attackFlash=attack.flight?0:.42;
+    if(enemy.castTarget){
+      const target=enemy.castTarget;
+      delete enemy.castTarget;
+      emit(attack.kind,target.x,target.y,attack.radius,attack.kind==='brambles'?1.05:.75);
+      for(const cover of gardenCover(state.arena)){
+        if(castHits(attack,target,cover))state.arena.cover[cover.index]=Math.max(0,cover.hp-attack.damage);
+      }
+      if(castHits(attack,target,state.player))hurt(state,attack.damage,.35);
+    }else if(attack.kind==='slam'){
       emit('pulse',enemy.x,enemy.y,attack.radius,.45);
       for(const cover of gardenCover(state.arena)){
         if(Math.hypot(cover.x-enemy.x,cover.y-enemy.y)<attack.radius+cover.radius)state.arena.cover[cover.index]=Math.max(0,cover.hp-attack.damage);
@@ -146,16 +181,18 @@ export function updateBossAttacks(state,enemy,dt,{hurt,effect,limits}){
     enemy.attackStage=(enemy.attackStage+1)%variant.attacks.length;
     enemy.fireTimer=attack.cooldown;return true;
   }
-  if(enemy.fireTimer<=0){
+  const dx=state.player.x-enemy.x,dy=state.player.y-enemy.y,distance=Math.hypot(dx,dy);
+  const targeted=BOSS_IMPACTS.includes(attack.kind);
+  if(enemy.fireTimer<=0&&(!targeted||distance<=attack.range)){
     enemy.phase=(Math.atan2(state.player.y-enemy.y,state.player.x-enemy.x)+TAU)%TAU;
     enemy.actionTimer=attack.windup;
-    if(attack.kind==='slam')emit('warning',enemy.x,enemy.y,attack.radius,attack.windup);
+    if(targeted)enemy.castTarget={x:state.player.x,y:state.player.y};
+    else if(attack.kind==='slam')emit('warning',enemy.x,enemy.y,attack.radius,attack.windup);
     else if(['radial','ring','spiral'].includes(attack.kind))emit('shards',enemy.x,enemy.y,enemy.kind==='arena-boss'?Math.max(110,enemy.radius*2):110,attack.windup);
     else line('charge',attack.windup);
     return true;
   }
-  if(enemy.kind!=='arena-boss'){
-    const dx=state.player.x-enemy.x,dy=state.player.y-enemy.y,distance=Math.hypot(dx,dy)||1;
+  if(enemy.kind!=='arena-boss'&&distance>0){
     const movement=Math.min(Math.max(0,distance-95),enemy.speed*dt*(enemy.slowTime>0?.58:1));
     enemy.x+=dx/distance*movement;enemy.y+=dy/distance*movement;
   }

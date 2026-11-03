@@ -1,7 +1,8 @@
 import { FIXED_STEP, cameraScale, sceneryOpacity, lerp, crystalTier, HealthFeedback } from './presentation.mjs';
 import {WEAPONS,weaponStats,BOSSES,MAPS} from './catalog.mjs';
 import {bodyRadius,PLAYER_BODY} from './physics.mjs';
-import {BOSS_VARIANTS} from './bosses.mjs';
+import {BOSS_IMPACTS,BOSS_VARIANTS,bossCast} from './bosses.mjs';
+import {drawBossAim,drawBossFlight,drawBossImpact} from './boss-vfx.mjs';
 import {ARENA_HAZARD_INSET} from './arena.mjs';
 import {GARDEN_COVER_HP,gardenCover} from './garden-arena.mjs';
 import {WeaponVFX,arenaCamera} from './weapon-vfx.mjs';
@@ -152,7 +153,13 @@ export class Renderer {
       const hurtUntil = enemy.hitFlash > (old?.flash || 0) ? t + .375 : old?.hurtUntil || 0;
       const timed=Boolean(enemy.bossType||castleSprites[enemy.kind]);
       const cast=timed&&(enemy.actionTimer>0||enemy.attackFlash>0);
-      const attackFrame=cast?(enemy.actionTimer>0?(enemy.actionTimer>.25?0:1):2+Math.min(3,Math.floor((.42-enemy.attackFlash)*10))):undefined;
+      const flight=enemy.castTarget?bossCast(enemy)?.flight||0:0;
+      let attackFrame;
+      if(cast){
+        if(enemy.actionTimer>flight)attackFrame=enemy.actionTimer>flight+.25?0:1;
+        else if(flight)attackFrame=2+Math.min(3,Math.floor((1-enemy.actionTimer/flight)*4));
+        else attackFrame=2+Math.min(3,Math.floor((.42-enemy.attackFlash)*10));
+      }
       const animation = cast?'attack':hurtUntil > t ? 'hurt' : (!timed&&(near||enemy.actionTimer>0)) ? 'attack'
         : old && distance(enemy, old) < .02 ? 'idle' : 'walk';
       const since = animation === old?.animation && !(animation === 'attack' && (t - old.since >= .8 || near&&biting)) ? old.since : t;
@@ -319,6 +326,7 @@ export class Renderer {
       :heroAnimation==='hurt'?this.health.hitSince:heroAnimation==='attack'?this.attackUntil-.375:0;
     const props = this.ground(p,state);
     if(this.arena&&this.map!=='castle')this.arenaGround(this.arena,t);
+    for(const enemy of state.enemies||[])if(enemy.castTarget)drawBossAim(this,enemy);
     if(state.upgrades?.collector&&!preview){
       const scan=this.media.matches?0:(t%3)/.9;
       if(scan<1){
@@ -452,7 +460,12 @@ export class Renderer {
     }
     this.enemyVfx.aftermath(this,t);
     this.vfx.muzzles(this,t);
+    for(const enemy of state.enemies||[])if(enemy.castTarget)drawBossFlight(this,enemy,this.pose(enemy,'enemies'));
     for (const effect of state.effects || []) {
+      if(BOSS_IMPACTS.includes(effect.kind)){
+        drawBossImpact(this,effect);
+        continue;
+      }
       if(this.map==='castle'&&effect.kind==='arc'&&Number.isFinite(effect.toX)){
         const [x,y]=this.at(effect.x,effect.y),[tx,ty]=this.at(effect.toX,effect.toY);
         c.save();c.globalAlpha=Math.min(1,effect.life/.15);c.strokeStyle='#e6a75e';c.lineWidth=Math.max(this.dpr,effect.radius*z*1.4);c.lineCap='round';c.beginPath();c.moveTo(x,y);c.lineTo(tx,ty);c.stroke();
