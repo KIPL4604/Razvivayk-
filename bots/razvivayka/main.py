@@ -14,7 +14,10 @@ from urllib.request import getproxies, proxy_bypass
 
 from aiogram import Bot, Dispatcher, Router, F
 from aiogram.client.session.aiohttp import AiohttpSession
-from aiogram.exceptions import TelegramAPIError, TelegramBadRequest, TelegramForbiddenError, TelegramRetryAfter
+from aiogram.exceptions import (
+    TelegramAPIError, TelegramBadRequest, TelegramForbiddenError, TelegramNetworkError,
+    TelegramRetryAfter, TelegramServerError,
+)
 from aiogram.filters import Command
 from aiogram.types import (
     BotCommand, BotCommandScopeAllPrivateChats, BotCommandScopeAllGroupChats,
@@ -211,6 +214,20 @@ async def maintain_bot_controls(bot: Bot, app_url: str) -> None:
             await asyncio.sleep(15 * (attempt + 1))
 
 
+async def wait_for_telegram(operation, name: str):
+    delay = 1
+    while True:
+        try:
+            return await operation()
+        except TelegramRetryAfter as error:
+            pause = max(delay, error.retry_after)
+        except (TelegramNetworkError, TelegramServerError, TimeoutError):
+            pause = delay
+        logging.warning('Telegram startup step %s unavailable; retrying in %ss', name, pause)
+        await asyncio.sleep(pause)
+        delay = min(delay * 2, 30)
+
+
 async def main() -> None:
     token = os.getenv('TG_BOT_TOKEN', '').strip()
     app_url = runtime_app_url(os.getenv('APP_URL', '').strip())
@@ -223,7 +240,11 @@ async def main() -> None:
         dispatcher = Dispatcher()
         dispatcher.include_router(router)
         dispatcher.workflow_data['app_url'] = app_url
-        await bot.delete_webhook(drop_pending_updates=False, request_timeout=15)
+        await wait_for_telegram(
+            lambda: bot.delete_webhook(drop_pending_updates=False, request_timeout=15), 'delete_webhook'
+        )
+        # Warm the cached identity before aiogram enters its getUpdates retry loop.
+        await wait_for_telegram(lambda: asyncio.wait_for(bot.me(), timeout=15), 'get_me')
         logging.info('Game bot ready; Mini App: %s', parsed.netloc)
         watcher = asyncio.create_task(watch_public_url(bot, dispatcher, app_url))
         maintenance = asyncio.create_task(maintain_bot_controls(bot, app_url))

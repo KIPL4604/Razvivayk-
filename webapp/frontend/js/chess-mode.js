@@ -1,15 +1,6 @@
 "use strict";
 
-const CHESS_LEVELS = [
-  {id:"beginner",label:"Начальный",name:"Новичок",description:"Часто ошибается. Подойдёт для первых партий и знакомства с правилами.",skill:0,depth:2,time:120,random:.55},
-  {id:"casual",label:"Легко",name:"Любитель",description:"Замечает взятия, но оставляет возможности для твоих комбинаций.",skill:2,depth:5,time:250,random:.12},
-  {id:"club",label:"Средне",name:"Клубный игрок",description:"Следит за защитой фигур и находит простые тактические идеи.",skill:7,depth:8,time:500,random:0},
-  {id:"expert",label:"Сложно",name:"Эксперт",description:"Просчитывает комбинации. За незащищённые фигуры придётся отвечать.",skill:13,depth:12,time:1000,random:0},
-  {id:"master",label:"Очень сложно",name:"Мастер",description:"Точная игра и глубокий расчёт. Потребует внимательности в каждом ходе.",skill:18,depth:16,time:1800,random:0},
-  {id:"grandmaster",label:"Ультрасложно",name:"Гроссмейстер",description:"Максимальная сила в этой игре. Серьёзное испытание без намеренных ошибок.",skill:20,depth:20,time:3000,random:0}
-];
-
-const ChessMode = (() => {
+export function createChessController() {
   const names={p:"пешка",n:"конь",b:"слон",r:"ладья",q:"ферзь",k:"король"};
   let library, game, restoredId, worker, generation=0;
   let selected=null, flipped=false, thinking=false, loading=false, ready=false, startingMatch=false, error="";
@@ -254,10 +245,6 @@ const ChessMode = (() => {
     }
     if(name==="chess")renderSetup();
   }
-  function getResume(){
-    const run=saved.chess;
-    return run&&!run.ended?{type:"chess",lastTouchedAt:run.lastTouchedAt,level:run.level}:null;
-  }
   document.addEventListener("submit",event=>{if(event.target.id==="chessSetupForm"){event.preventDefault();start();}});
   document.addEventListener("change",event=>{if(event.target.closest("#chessSetupForm"))rememberSettings();});
   document.addEventListener("keydown",event=>{
@@ -269,5 +256,5 @@ const ChessMode = (() => {
   });
   document.addEventListener("visibilitychange",()=>{if(document.hidden)stop();else if(isActive()&&!saved.chess?.ended)activate();});
   window.addEventListener("pagehide",stop);
-  return {enter:()=>showScreen("chess"),onScreen,click,resume,getResume,invalidateCloud(){stop();restoredId=null;game=null;}};
-})();
+  return {enter:()=>showScreen("chess"),onScreen,click,resume,invalidateCloud(){stop();restoredId=null;game=null;}};
+}

@@ -34,6 +34,7 @@ export function createGame(context) {
   const $=s=>document.querySelector(s), gameMount=$('#lumenGameMount'),setupMount=$('#lumenSetupMount');
   let state=null,renderer=null,preview=null,previewState=null,raf=0,lastFrame=0,lastSave=0,lastHud=0,paused=false,screen='',character='scout',overlayKey='',resultRecorded=false;
   let art=null,waitingForStart=false,sceneTicket=0,appInactive=false,menuBackgroundTicket=0;
+  let bossArtPending=null,bossArtReady=false,retryLaunch=null;
   const readyArt=new Set(),story=new StoryOverlay();
   let pointer=null,stickOrigin=null,input={x:0,y:0},keys=new Set(),audio=null,fullscreenOwned=false;
   let terminalFrameStart=0,map='garden',menuPage='home',book='weapons',selectionLoaded=false;
@@ -76,9 +77,12 @@ export function createGame(context) {
     const target=control.disabled?control.closest('article'):control;
     if(target){if(target!==control)target.tabIndex=-1;target.focus({preventScroll:true});}
   }
-  function prepareArt(onProgress,world=map,selected=character){
-    return loadArt({map:world,character:selected,onProgress}).then(loaded=>{art=loaded;readyArt.add(world+':'+selected);return loaded;});
+  function prefetchGardenBosses(){
+    if(screen!=='lumen-game'||state?.map!=='garden'||bossArtReady||bossArtPending)return;
+    bossArtPending=loadArt({map:'garden',phase:'bosses'})
+      .then(()=>{bossArtReady=true;}).catch(()=>{}).finally(()=>{bossArtPending=null;});
   }
+  window.addEventListener('online',()=>{prefetchGardenBosses();retryLaunch?.();},{signal});
   function storyScope(){
     const r=record();
     if(!r.story||r.story.runId!==state.runId||!Array.isArray(r.story.seen))r.story={runId:state.runId,seen:[]};
@@ -90,6 +94,7 @@ export function createGame(context) {
     if(!state||state.status!=='playing'||story.active)return false;
     const enemy=state.enemies.find(enemy=>enemy.hp>0&&['guardian','arena-boss'].includes(enemy.kind)&&!sceneSeen('boss:'+enemy.id));
     if(!enemy)return false;
+    prefetchGardenBosses();
     const runId=state.runId,scene=bossScene(enemy,state.map);paused=true;clearInput();soundSuspend();save();
     story.play(scene,{hero:CHARACTERS[state.character].name,heroId:state.character}).then(done=>{
       if(screen!=='lumen-game'||state?.runId!==runId)return;
@@ -98,7 +103,7 @@ export function createGame(context) {
     });
     return true;
   }
-  function cancelLaunch(){sceneTicket++;waitingForStart=false;story.close();if(screen==='lumen')setup(menuPage);}
+  function cancelLaunch(){sceneTicket++;waitingForStart=false;retryLaunch=null;story.close();if(screen==='lumen')setup(menuPage);}
   function drawPreview(){
     const canvas=$('#lumenPreview');
     if(!canvas||!art||!readyArt.has(map+':'+character)||screen!=='lumen')return;
@@ -172,6 +177,7 @@ export function createGame(context) {
     if(!resumeSaved&&record().run&&!window.confirm('Начать заново? Текущая экспедиция будет заменена.'))return;
     if(screen!=='lumen')setup();
     const world=restored?.map||map,selected=restored?.character||character,ticket=++sceneTicket;
+    const garden=world==='garden',late=Boolean(restored&&(restored.time>=120||restored.arena||restored.enemies.some(enemy=>['guardian','arena-boss'].includes(enemy.kind))));
     waitingForStart=true;clearInput();preview?.destroy();preview=null;
     const scene=worldScene(world),started=performance.now(),tracks={};
     story.wait(cancelLaunch);
@@ -181,22 +187,34 @@ export function createGame(context) {
       story.progress({phase:values.every(v=>v.phase==='ready')?'ready':known&&received===total?'decode':'download',percent:known?Math.floor(received/total*100):0,remainingSeconds:known&&elapsed>=1&&received>0&&received<total?Math.ceil((total-received)*elapsed/received):null});
     };
     const load=()=>Promise.all([
-      prepareArt(value=>progress('world',value),world,selected),
-      preloadScene(scene,selected,value=>progress('scene',value)).then(()=>{tracks.scene={...tracks.scene,phase:'ready'};})
+      loadArt({map:world,character:selected,phase:garden?(late?'complete':'opening'):undefined,onProgress:value=>progress('world',value)}),
+      preloadScene(scene,selected,value=>progress('scene',value),{previewLandscape:garden}).then(()=>{tracks.scene={...tracks.scene,phase:'ready'};})
     ]).then(value=>({value}),error=>({error}));
     const finish=async result=>{
       if(ticket!==sceneTicket||screen!=='lumen')return;
-      if(result.error){story.failure(()=>{story.retrying();load().then(finish);});return;}
-      const proceed=await story.play(scene,{hero:CHARACTERS[selected].name,heroId:selected,hold:true,onCancel:cancelLaunch});
+      if(result.error){
+        retryLaunch=()=>{
+          if(ticket!==sceneTicket||screen!=='lumen'||!retryLaunch)return;
+          retryLaunch=null;story.retrying();void load().then(finish);
+        };
+        story.failure(()=>retryLaunch?.());return;
+      }
+      const run=restored||createRun({training:record().meta.training,seed:crypto.getRandomValues(new Uint32Array(1))[0],character:selected,map:world,runId:crypto.randomUUID()});
+      const dialogue=story.play(scene,{hero:CHARACTERS[selected].name,heroId:selected,hold:true,onCancel:cancelLaunch,previewLandscape:garden});
+      void prefetchWeaponChoices(upcomingUpgrade(run)?.choices||[]);
+      const proceed=await dialogue;
       if(!proceed||ticket!==sceneTicket||screen!=='lumen')return;
       story.close();waitingForStart=false;
-      state=restored||createRun({training:record().meta.training,seed:crypto.getRandomValues(new Uint32Array(1))[0],character:selected,map:world,runId:crypto.randomUUID()});
+      state=run;
+      art=result.value[0];readyArt.add(world+':'+selected);
       character=state.character;map=state.map;selectionLoaded=true;resultRecorded=false;paused=resumeSaved||document.hidden||appInactive||!document.hasFocus();overlayKey='';
       if(!restored)state.player.y=85;
       storyScope();navigate('lumen-game');screen='lumen-game';mountRun();save();unlockAudio();
       if(tg?.initData&&tg.isVersionAtLeast?.('8.0')){try{tg.requestFullscreen();}catch(_){}}
       if(state.status==='upgrade'){paused=false;showUpgrade();}else if(paused)showPause('Экспедиция ждёт');
       lastFrame=performance.now();raf=requestAnimationFrame(frame);
+      if(garden&&late)bossArtReady=true;
+      requestAnimationFrame(prefetchGardenBosses);
     };
     await finish(await load());
   }
@@ -348,7 +366,7 @@ export function createGame(context) {
   }
   function onScreen(name){
     if(name!=='lumen')menuBackgroundTicket++;
-    if(!['lumen','lumen-game'].includes(name)&&story.active){sceneTicket++;waitingForStart=false;story.close();}
+    if(!['lumen','lumen-game'].includes(name)&&story.active){sceneTicket++;waitingForStart=false;retryLaunch=null;story.close();}
     document.documentElement.classList.toggle('lumen-menu-active',name==='lumen');
     if(screen==='lumen-game'&&name!=='lumen-game'){paused=true;save();stopRenderer();soundSuspend();}
     if(screen==='lumen'&&name!=='lumen'){preview?.destroy();preview=null;}

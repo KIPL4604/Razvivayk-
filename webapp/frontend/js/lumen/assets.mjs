@@ -1,7 +1,7 @@
 // Local versioned artwork; load and decode only the selected world.
 import {assetBytes} from './asset-cache.mjs';
 const base=new URL('../../assets/lumen/',import.meta.url);
-let manifestPending;
+const manifests=new Map();
 const packs=new Map(),images=Object.create(null),decoded=new Map(),listeners=new Set();
 const worldFiles={
  garden:['tiles','garden','mote','beetle','wasp','crawler','spitter','wisp','boss-briar','boss-queen','boss-ash','boss-rootwarden'],
@@ -11,33 +11,40 @@ const worldFiles={
 };
 const shared=['arsenal','combat','fx','ui','expedition','expansion-items','arena-fx','arena-tick','enemy-projectiles','mega-chest'];
 const notify=()=>listeners.forEach(listener=>listener());
-export function selectArtFiles(manifest,{map,character}={}){
+export function selectArtFiles(manifest,{map,character,phase}={}){
+ if(manifest.groups){
+  const {opening,bosses}=manifest.groups,hero=manifest.groups[character||'scout'];
+  const names=phase==='bosses'?bosses:[...opening,...hero,...(phase==='complete'?bosses:[])];
+  return names.map(name=>[name,manifest.files[name]]);
+ }
  if(!map)return Object.entries(manifest.files);
  const names=new Set([...shared,...(worldFiles[map]||worldFiles.garden),character||'scout'].map(name=>name+'.png'));
  return Object.entries(manifest.files).filter(([name])=>names.has(name));
 }
-async function manifest(){
- manifestPending ||= (async()=>{
-  const response=await fetch(new URL('manifest.json',base));
+async function manifest(pilot){
+ const file=pilot?'garden-pilot.json':'manifest.json';
+ if(!manifests.has(file))manifests.set(file,(async()=>{
+  const response=await fetch(new URL(file,base));
   if(!response.ok)throw new Error('Lumen asset manifest unavailable');
   const value=await response.json();
   if(value.version!==1||value.frameSize!==48||value.packFormat!=='image/webp'||!Array.isArray(value.packs)||!value.files)throw new Error('Unsupported Lumen artwork');
+  if(pilot&&(!Array.isArray(value.groups?.opening)||!Array.isArray(value.groups?.bosses)))throw new Error('Incomplete Biosad artwork');
   return value;
- })().catch(error=>{manifestPending=null;throw error;});
- return manifestPending;
+ })().catch(error=>{manifests.delete(file);throw error;}));
+ return manifests.get(file);
 }
 function download(entry){
  const key=entry.file+':'+entry.sha256;
  if(packs.has(key))return packs.get(key);
  const record={received:0,done:false,promise:null};packs.set(key,record);
- record.promise=assetBytes(entry,size=>{record.received=size;notify();}).then(data=>{record.received=entry.bytes;record.done=true;notify();return data;},error=>{packs.delete(key);throw error;});
+ record.promise=assetBytes(entry,size=>{record.received=Math.max(record.received,size);notify();},{recover:true}).then(data=>{record.received=entry.bytes;record.done=true;notify();return data;},error=>{packs.delete(key);throw error;});
  return record;
 }
-export async function loadArt({map,character,onProgress}={}){
- let update;let used=[];
+export async function loadArt({map,character,phase,onProgress}={}){
+ let update;
  try{
   onProgress?.({phase:'manifest',received:0,total:0,percent:0,remainingSeconds:null});
-  const value=await manifest(),files=selectArtFiles(value,{map,character}),needed=new Set(),chunksByFile=new Map();
+  const value=await manifest(map==='garden'&&Boolean(phase)),files=selectArtFiles(value,{map,character,phase}),needed=new Set(),chunksByFile=new Map();
   for(const [file,entry]of files){
    const invalid=()=>{throw new Error(`Invalid Lumen artwork entry: ${file}`);};
    if(!entry||typeof entry!=='object'||Array.isArray(entry))invalid();
@@ -46,7 +53,7 @@ export async function loadArt({map,character,onProgress}={}){
    for(const chunk of chunks){const pack=value.packs.find(pack=>pack.file===chunk?.pack);if(!pack||!Number.isSafeInteger(chunk.offset)||!Number.isSafeInteger(chunk.bytes)||chunk.offset<0||chunk.bytes<1||chunk.offset+chunk.bytes>pack.bytes)invalid();needed.add(chunk.pack);}
    chunksByFile.set(file,chunks);
   }
-  const required=value.packs.filter(entry=>needed.has(entry.file));used=required.map(entry=>entry.file+':'+entry.sha256);
+  const required=value.packs.filter(entry=>needed.has(entry.file));
   const total=required.reduce((sum,entry)=>sum+entry.bytes,0),started=performance.now();let completed=0;
   update=()=>{
    const received=required.reduce((sum,entry)=>sum+(packs.get(entry.file+':'+entry.sha256)?.received||0),0),elapsed=(performance.now()-started)/1000,rate=received/Math.max(.1,elapsed);
@@ -67,5 +74,5 @@ export async function loadArt({map,character,onProgress}={}){
    completed++;update();
   }
   return {manifest:value,images};
- }catch(error){manifestPending=null;used.forEach(key=>packs.delete(key));throw error;}finally{if(update)listeners.delete(update);}
+ }finally{if(update)listeners.delete(update);}
 }

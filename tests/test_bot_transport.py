@@ -3,7 +3,7 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
-from aiogram.exceptions import TelegramNetworkError
+from aiogram.exceptions import TelegramNetworkError, TelegramUnauthorizedError
 from aiogram.methods import GetMe
 from bots.razvivayka import main as entry
 
@@ -51,3 +51,47 @@ class StartReplyTests(unittest.IsolatedAsyncioTestCase):
         with patch.object(entry, 'runtime_app_url', side_effect=lambda url: url), patch.object(entry, '_remember_menu'), patch.object(entry, '_cleanup_chat_controls', new_callable=AsyncMock):
             await entry._refresh_chat(message, AsyncMock(), 'https://example.test', profile=True)
         self.assertTrue(answer.call_args.kwargs['reply_markup'].inline_keyboard[0][0].web_app.url.endswith('/?screen=profile'))
+
+
+class PollingStartupTests(unittest.IsolatedAsyncioTestCase):
+    async def start(self, bot, dispatcher, sleep):
+        context = AsyncMock()
+        context.__aenter__.return_value = bot
+        with patch.dict(os.environ, {'TG_BOT_TOKEN': 'test'}), \
+                patch.object(entry, 'runtime_app_url', return_value='https://example.test'), \
+                patch.object(entry, 'bot_session'), patch.object(entry, 'Bot', return_value=context), \
+                patch.object(entry, 'Dispatcher', return_value=dispatcher), \
+                patch.object(entry, 'watch_public_url', new_callable=AsyncMock), \
+                patch.object(entry, 'maintain_bot_controls', new_callable=AsyncMock), \
+                patch.object(entry.asyncio, 'sleep', sleep):
+            await entry.main()
+
+    async def test_transient_startup_failures_recover_with_one_poller(self):
+        failure = TelegramNetworkError(method=GetMe(), message='temporary disconnect')
+        bot = AsyncMock()
+        bot.delete_webhook.side_effect = [failure, True]
+        bot.me.side_effect = [failure, object()]
+        dispatcher = SimpleNamespace(include_router=lambda _: None, workflow_data={},
+                                     resolve_used_update_types=lambda: ['message'], start_polling=AsyncMock())
+        sleep = AsyncMock()
+
+        await self.start(bot, dispatcher, sleep)
+
+        self.assertEqual(bot.delete_webhook.await_count, 2)
+        bot.delete_webhook.assert_awaited_with(drop_pending_updates=False, request_timeout=15)
+        self.assertEqual(bot.me.await_count, 2)
+        self.assertEqual(sleep.await_count, 2)
+        dispatcher.start_polling.assert_awaited_once_with(bot, allowed_updates=['message'])
+
+    async def test_unauthorized_startup_does_not_retry_or_poll(self):
+        bot = AsyncMock()
+        bot.delete_webhook.side_effect = TelegramUnauthorizedError(method=GetMe(), message='bad token')
+        dispatcher = SimpleNamespace(include_router=lambda _: None, workflow_data={},
+                                     start_polling=AsyncMock())
+        sleep = AsyncMock()
+
+        with self.assertRaises(TelegramUnauthorizedError):
+            await self.start(bot, dispatcher, sleep)
+
+        sleep.assert_not_awaited()
+        dispatcher.start_polling.assert_not_awaited()

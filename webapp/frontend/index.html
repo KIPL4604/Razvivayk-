@@ -9,36 +9,35 @@
   <script src="/static/js/menu-ui.js?v=static-map-1"></script>
   <link rel="icon" href="/static/icon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/static/css/app.css?v=4">
-  <link rel="stylesheet" href="/static/css/chess.css?v=1">
+  <template data-game-style="chess" data-src="/static/css/chess.css?v=1"></template>
   <link rel="stylesheet" href="/static/css/poker-cards.css?v=1">
-  <link rel="stylesheet" href="/static/css/poker.css?v=1">
+  <template data-game-style="poker" data-src="/static/css/poker.css?v=1"></template>
   <link rel="stylesheet" href="/static/css/platform.css?v=1">
-  <link rel="stylesheet" href="/static/css/lumen.css?v=game-menus-2">
+  <template data-game-style="lumen" data-src="/static/css/lumen.css?v=lazy-catalog-1"></template>
   <link rel="stylesheet" href="/static/css/card-room.css?v=2">
   <link rel="stylesheet" href="/static/css/card-salon.css?v=2">
   <link rel="stylesheet" href="/static/css/information.css?v=1">
-  <link rel="stylesheet" href="/static/css/pixel-hop.css?v=1">
+  <template data-game-style="pixel-hop" data-src="/static/css/pixel-hop.css?v=lazy-catalog-1"></template>
   <script src="https://telegram.org/js/telegram-web-app.js" defer></script>
   <script src="/static/js/puzzles.js?v=4" defer></script>
   <script src="/static/js/visuals.js?v=nav-repair-2" defer></script>
   <script src="/static/js/chess-pieces.js?v=1" defer></script>
-  <script src="/static/js/chess-mode.js?v=2" defer></script>
   <script src="/static/js/poker-cards.js?v=1" defer></script>
   <script src="/static/js/card-room.js?v=2" defer></script>
-  <script src="/static/js/poker-mode.js?v=4" defer></script>
-  <script src="/static/js/platform.js?v=1" defer></script>
-  <script src="/static/js/lumen-mode.js?v=menu-startup-1" defer></script>
+  <script src="/static/js/platform.js?v=connection-recovery-1" defer></script>
+  <script src="/static/js/lumen-mode.js?v=lazy-catalog-1" defer></script>
   <script src="/static/js/card-games.js?v=nav-repair-2" defer></script>
-  <script src="/static/js/specimen-mode.js?v=static-map-1" defer></script>
+  <script src="/static/js/specimen-mode.js?v=lazy-catalog-1" defer></script>
   <script src="/static/js/pixel-hop-mode.js?v=1" defer></script>
-  <link rel="stylesheet" href="/static/css/specimen.css?v=5">
-  <link rel="stylesheet" href="/static/css/library-interface.css?v=nav-repair-2">
-  <link rel="stylesheet" href="/static/css/lumen-interface.css?v=static-map-1">
-  <link rel="stylesheet" href="/static/css/specimen-interface.css?v=static-map-1">
-  <script src="/static/js/games.js?v=nav-repair-2" defer></script>
+  <template data-game-style="specimen" data-src="/static/css/specimen.css?v=lazy-catalog-1"></template>
+  <link rel="stylesheet" href="/static/css/library-interface.css?v=lazy-catalog-1">
+  <template data-game-style="lumen" data-src="/static/css/lumen-interface.css?v=static-map-1"></template>
+  <template data-game-style="specimen" data-src="/static/css/specimen-interface.css?v=static-map-1"></template>
+  <script src="/static/js/game-assets.js?v=lazy-catalog-1" defer></script>
+  <script src="/static/js/games.js?v=lazy-catalog-1" defer></script>
   <script src="/static/js/hub.js?v=static-map-1" defer></script>
   <link rel="stylesheet" href="/static/css/social.css?v=1">
-  <link rel="stylesheet" href="/static/css/lumen-loading.css?v=2">
+  <template data-game-style="lumen" data-src="/static/css/lumen-loading.css?v=2"></template>
   <script src="/static/js/social.js?v=1" defer></script>
 </head>
 <body>
@@ -52,6 +51,7 @@
   <main id="main" tabindex="-1">
     <div class="connection-banner"><span class="status-dot" aria-hidden="true"></span><span id="connectionStatus" role="status">Загружаем игры…</span><button class="text-button hidden" id="retryConnection" type="button">Повторить подключение</button></div>
     <div id="launchStatus" class="launch-status" role="status"></div>
+    <div id="gameResourcesStatus" class="launch-status" role="status"></div>
     <div id="cloudStatus" class="cloud-status hidden" role="status"></div>
     <section class="screen active" data-screen="home" aria-labelledby="homeTitle">
       <div class="welcome-block"><div><h1 id="homeTitle">Во что сыграем?</h1></div><span class="library-count"><strong>18</strong> игр<br><span>1000 уровней</span></span></div>

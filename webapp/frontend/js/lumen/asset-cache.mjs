@@ -1,7 +1,14 @@
 /* Only fingerprinted public Lumen assets enter this cache; never account/API data. */
 const base=new URL('../../assets/lumen/',import.meta.url),memory=new Map();
 const CACHE='teramont-lumen-assets-v1';
-export async function assetBytes(entry,onProgress){
+function waitForRetry(delay){
+ return new Promise(resolve=>{
+  const done=()=>{clearTimeout(timer);globalThis.removeEventListener?.('online',done);resolve();};
+  const timer=setTimeout(done,delay);
+  globalThis.addEventListener?.('online',done,{once:true});
+ });
+}
+export async function assetBytes(entry,onProgress,{recover=false}={}){
  const key=entry.file+':'+entry.sha256;
  if(memory.has(key)){const value=await memory.get(key);onProgress?.(entry.bytes);return value;}
  const pending=(async()=>{
@@ -14,13 +21,22 @@ export async function assetBytes(entry,onProgress){
    if(cached){const data=await cached.arrayBuffer();if(await valid(data)){onProgress?.(entry.bytes);return data;}await cache.delete(url);}
   }catch(_){}
   let error;
-  for(let attempt=0;attempt<2;attempt++){
+  const attempts=recover?4:2;
+  for(let attempt=0;attempt<attempts;attempt++){
    // Timeout measures a stalled transfer, not the entire download on a slow mobile link.
    const controller=new AbortController();let timer;
    const touch=()=>{clearTimeout(timer);timer=setTimeout(()=>controller.abort(),30000);};
+   const offline=()=>controller.abort();
+   let retryable=true,retryAfter=0;
+   if(recover)globalThis.addEventListener?.('offline',offline,{once:true});
    try{
     touch();const response=await fetch(url,{signal:controller.signal});
-    if(!response.ok)throw new Error('Asset unavailable: '+entry.file);
+    if(!response.ok){
+     retryable=response.status===408||response.status===429||response.status>=500;
+     const advice=response.headers.get('Retry-After');
+     if(advice)retryAfter=Math.max(0,/^\d+$/.test(advice)?Number(advice)*1000:Date.parse(advice)-Date.now())||0;
+     throw new Error('Asset unavailable: '+entry.file);
+    }
     const chunks=[];let size=0;
     if(response.body?.getReader){const reader=response.body.getReader();while(true){const result=await reader.read();if(result.done)break;touch();size+=result.value.byteLength;if(size>entry.bytes){controller.abort();throw new Error('Invalid asset size');}chunks.push(result.value);onProgress?.(size);}}
     else{const chunk=new Uint8Array(await response.arrayBuffer());chunks.push(chunk);size=chunk.length;}
@@ -33,7 +49,13 @@ export async function assetBytes(entry,onProgress){
      for(const old of await cache?.keys()||[]){const previous=new URL(old.url);if(previous.pathname===url.pathname&&previous.href!==url.href)await cache.delete(old);}
     }catch(_){}
     return data.buffer;
-   }catch(e){error=e;}finally{clearTimeout(timer);}
+   }catch(e){error=e;}finally{clearTimeout(timer);globalThis.removeEventListener?.('offline',offline);}
+   if(recover&&(!retryable||attempt===attempts-1||retryAfter>30000))break;
+   if(recover){
+    const delay=700*2**attempt;
+    if(retryAfter)await new Promise(resolve=>setTimeout(resolve,Math.max(delay,retryAfter)));
+    else await waitForRetry(delay);
+   }
   }
   throw error;
  })().catch(error=>{memory.delete(key);throw error;});

@@ -48,7 +48,10 @@ const LumenMode = (() => {
     return record?.run && ["playing", "upgrade"].includes(record.run.status)
       ? {type:"lumen", lastTouchedAt:record.lastTouchedAt || 0} : null;
   }
-  async function open(resume = false) {
+  function open(resume = false) {
+    return GameAssets.enter("lumen", () => openReady(resume));
+  }
+  async function openReady(resume) {
     const ticket=++generation;
     pending=false;homeHTML="";
     showScreen("lumen");

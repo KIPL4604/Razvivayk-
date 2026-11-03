@@ -1,4 +1,4 @@
-import {assetURL} from './preload.mjs';
+import {assetURL,loadSceneDetail} from './preload.mjs';
 const escape=value=>String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
 /** DOM-only scene director. It never advances or mutates the simulation. */
@@ -32,14 +32,15 @@ export class StoryOverlay{
   this.root.innerHTML=`<div class="lumen-story-shell" role="dialog" aria-modal="true" aria-labelledby="lumenLoadTitle"><div class="lumen-story-copy" hidden></div><button data-story-action="skip" hidden></button><div class="lumen-story-loading"><span class="lumen-story-kicker">ЛЮМЕН / ПОДГОТОВКА ЭКСПЕДИЦИИ</span><h2 id="lumenLoadTitle">Загружаем мир</h2><p id="lumenLoadPhase" role="status">Получаем список ресурсов</p><div class="lumen-story-progress" role="progressbar" aria-label="Загрузка графики мира" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i></i></div><div class="lumen-load-dots" aria-hidden="true">${'<i></i>'.repeat(8)}</div><div class="lumen-story-load-meta"><strong id="lumenLoadPercent">0%</strong><span id="lumenLoadEta">Оцениваем время…</span></div><button type="button" data-story-action="retry" hidden>Повторить загрузку</button></div><button type="button" class="lumen-story-back" data-story-action="cancel">Вернуться в меню</button></div>`;
   this.root.querySelector('[data-story-action="cancel"]').focus({preventScroll:true});
  }
- play(scene,{hero='Герой',heroId='scout',hold=false,onCancel}={}){
+ play(scene,{hero='Герой',heroId='scout',hold=false,onCancel,previewLandscape=false}={}){
   this.close();this.scene=scene;this.hero=hero;this.hold=hold;this.onCancel=onCancel;this.index=0;this.lastLines={};this.previousFocus=document.activeElement;
   this.inert=[...document.querySelectorAll('#lumenGameMount,#lumenSetupMount')].map(el=>[el,el.inert]);this.inert.forEach(([el])=>el.inert=true);
   this.root.style.setProperty('--story-accent',scene.accent);this.root.hidden=false;this.root.dataset.phase='dialogue';
-  this.root.dataset.world=scene.map||'garden';this.root.dataset.silhouette=String(scene.silhouette);
+  const world=scene.map||'garden',smallLandscape=assetURL('story-world-'+world+'-small.webp');
+  this.root.dataset.world=world;this.root.dataset.silhouette=String(scene.silhouette);
   this.root.innerHTML=`<div class="lumen-story-shell" role="dialog" aria-modal="true" aria-labelledby="lumenStoryTitle" data-lumen-scroll>
    <header class="lumen-story-header"><span>ЛЮМЕН <i>/</i> ${escape(scene.world)}</span><button type="button" data-story-action="skip">Пропустить <span aria-hidden="true">↗</span></button></header>
-   <div class="lumen-story-landscape" aria-hidden="true"><picture><source media="(max-width:767px)" srcset="${assetURL('story-world-'+(scene.map||'garden')+'-small.webp')}"><img src="${assetURL('story-world-'+(scene.map||'garden')+'.webp')}" alt="" width="1536" height="1024" fetchpriority="low"></picture>${scene.silhouette?`<img class="lumen-story-foreshadow" src="${assetURL('story-'+scene.portrait+'.png')}" alt="" width="384" height="384">`:''}</div>
+   <div class="lumen-story-landscape" aria-hidden="true"><picture><source media="(max-width:767px)" srcset="${smallLandscape}"><img src="${previewLandscape?smallLandscape:assetURL('story-world-'+world+'.webp')}" alt="" width="1536" height="1024" fetchpriority="low"></picture>${scene.silhouette?`<img class="lumen-story-foreshadow" src="${assetURL('story-'+scene.portrait+'.png')}" alt="" width="384" height="384">`:''}</div>
    <div class="lumen-story-heading"><p class="lumen-story-chapter">ГЛАВА I <span>ПРОПАВШАЯ ЭКСПЕДИЦИЯ</span></p><h2 id="lumenStoryTitle">${escape(scene.title)}</h2></div>
    <div class="lumen-story-copy">
     <button type="button" class="lumen-story-line" data-story-action="advance">
@@ -51,6 +52,9 @@ export class StoryOverlay{
    <button type="button" class="lumen-story-back" data-story-action="cancel">${hold?'Вернуться в меню':'Закрыть · Esc'}</button></div>`;
   const landscape=this.root.querySelector('.lumen-story-landscape picture img'),backdrop=landscape.parentElement.parentElement;
   landscape.addEventListener('error',()=>backdrop.classList.add('is-unavailable'));landscape.addEventListener('load',()=>backdrop.classList.remove('is-unavailable'));
+  if(previewLandscape&&matchMedia('(min-width:768px)').matches)void loadSceneDetail(world).then(url=>{
+   if(landscape.isConnected)landscape.src=url;
+  }).catch(()=>{});
   this.root.scrollTop=0;this.renderLine();this.root.querySelector('[data-story-action="advance"]').focus({preventScroll:true});
   return new Promise(resolve=>this.resolve=resolve);
  }

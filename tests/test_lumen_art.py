@@ -77,6 +77,21 @@ class LumenArtTests(unittest.TestCase):
         manifest = json.loads((ART / 'manifest.json').read_text(encoding='utf-8'))
         self.assert_packed_images(ART, manifest)
 
+    @unittest.skipIf(Image is None, 'Offline pixel checks: install design/lumen-pixel/requirements.txt')
+    def test_garden_pilot_packs_are_lossless_and_separate_start_from_bosses(self):
+        manifest = json.loads((ART / 'garden-pilot.json').read_text(encoding='utf-8'))
+        self.assert_packed_images(ART, manifest)
+        packs = {entry['file']: entry for entry in manifest['packs']}
+        for name, entry in packs.items():
+            self.assertEqual(name, 'sprites-garden-' + entry['sha256'] + '.pack')
+        def group_packs(label):
+            return {chunk['pack'] for name in manifest['groups'][label]
+                    for chunk in manifest['files'][name].get('chunks', [manifest['files'][name]])}
+        opening = group_packs('opening') | group_packs('scout')
+        self.assertLess(sum(packs[name]['bytes'] for name in opening), 200_000)
+        self.assertTrue(opening.isdisjoint(group_packs('bosses')))
+        self.assertTrue(opening.isdisjoint(group_packs('keeper')))
+
     @unittest.skipIf(Image is None, 'Install Pillow for multi-pack transport regression')
     def test_large_lossless_atlas_crosses_packs_without_resizing_or_rewriting_pngs(self):
         script = ART.parents[3] / 'design/lumen-pixel/pack_assets.py'

@@ -16,28 +16,66 @@ const Platform = (() => {
     finally{clearTimeout(timer);}
   }
   function socket({roomId,token,onState,onStatus,onEvent}){
-    let ws=null,stopped=false,reconnect=null,heartbeat=null,attempt=0;
-    const close=()=>{clearTimeout(reconnect);clearInterval(heartbeat);if(ws){ws.onclose=null;ws.close();ws=null;}};
+    let ws=null,stopped=false,denied=false,attempt=0;
+    let reconnect=null,heartbeat=null,deadline=null,ready=false;
+    const usable=()=>!document.hidden&&window.Telegram?.WebApp?.isActive!==false&&navigator.onLine!==false;
+    const clearDeadline=()=>{clearTimeout(deadline);deadline=null;};
+    const close=()=>{
+      clearTimeout(reconnect);clearInterval(heartbeat);clearDeadline();
+      ready=false;
+      const previous=ws;ws=null;
+      if(previous&&previous.readyState<WebSocket.CLOSING)previous.close();
+    };
+    const retry=()=>{
+      close();
+      if(stopped||denied)return;
+      onStatus?.("reconnecting");
+      if(usable())reconnect=setTimeout(connect,Math.min(15000,500*2**Math.min(attempt++,5)));
+    };
+    const ping=()=>{
+      if(!ready||deadline!==null||ws?.readyState!==WebSocket.OPEN)return;
+      deadline=setTimeout(retry,10000);
+      ws.send(JSON.stringify({type:"ping"}));
+    };
     const connect=()=>{
-      if(stopped||document.hidden)return;
+      if(stopped||denied||ws||!usable())return;
       onStatus?.("connecting");
-      ws=new WebSocket((location.protocol==="https:"?"wss://":"ws://")+location.host+"/api/platform/ws");
-      ws.onopen=()=>ws.send(JSON.stringify({type:"auth",initData:hasTelegramIdentity?tg.initData:undefined,token,roomId}));
-      ws.onmessage=event=>{
+      const current=new WebSocket((location.protocol==="https:"?"wss://":"ws://")+location.host+"/api/platform/ws");
+      ws=current;deadline=setTimeout(retry,15000);
+      current.onopen=()=>{
+        if(ws===current)current.send(JSON.stringify({type:"auth",initData:hasTelegramIdentity?tg.initData:undefined,token,roomId}));
+      };
+      current.onmessage=event=>{
+        if(ws!==current)return;
         let data;try{data=JSON.parse(event.data);}catch(_){return;}
-        if(data.type==="ready"){attempt=0;onStatus?.("connected");clearInterval(heartbeat);heartbeat=setInterval(()=>{if(ws?.readyState===WebSocket.OPEN)ws.send(JSON.stringify({type:"ping"}));},20000);}
+        if(typeof data?.type!=="string")return;
+        if(ready||data.type==="ready")clearDeadline();
+        if(data.type==="ready"&&!ready){
+          ready=true;attempt=0;heartbeat=setInterval(ping,20000);onStatus?.("connected");
+        }
+        if(data.type==="ping"&&current.readyState===WebSocket.OPEN)current.send(JSON.stringify({type:"pong"}));
         if(data.type==="poker.state")onState?.(data.state);
         if(data.type==="error")onStatus?.("error",data.message||"Подключение отклонено");
         onEvent?.(data);
       };
-      ws.onclose=event=>{
-        clearInterval(heartbeat);ws=null;if(stopped)return;
-        if([4401,4403,4404,1008].includes(event.code)){onStatus?.("error","Нужно повторно открыть игру из Telegram или проверить доступ к комнате.");return;}
-        onStatus?.("reconnecting");clearTimeout(reconnect);reconnect=setTimeout(connect,Math.min(15000,500*2**Math.min(attempt++,5)));
+      current.onclose=event=>{
+        if(ws!==current)return;
+        if([4401,4403,4404,1008].includes(event.code)){
+          denied=true;close();onStatus?.("error","Нужно повторно открыть игру из Telegram или проверить доступ к комнате.");return;
+        }
+        retry();
       };
-      ws.onerror=()=>{};
     };
-    const handle={close(){stopped=true;close();sockets.delete(handle);},suspend(){close();},resume(){if(!stopped&&!ws){clearTimeout(reconnect);connect();}}};
+    const handle={
+      close(){stopped=true;close();sockets.delete(handle);},
+      suspend:close,
+      interrupt:retry,
+      resume(){
+        if(!usable())return;
+        if(ws){ping();return;}
+        clearTimeout(reconnect);connect();
+      }
+    };
     sockets.add(handle);connect();return handle;
   }
   function localRecord(game){
@@ -144,8 +182,21 @@ const Platform = (() => {
   }
   document.addEventListener("click",event=>{const target=event.target.closest("button");if(!target)return;if(target.hasAttribute("data-cloud-retry")){hydrate().then(flush);return;}if(target.dataset.cloudChoice){chooseCloud(target.dataset.cloudGame,target.dataset.cloudChoice);return;}if(target.dataset.lobbyRoom){openRoom(target.dataset.lobbyRoom);return;}if(target.dataset.lobbyAction)lobbyAction(target.dataset.lobbyAction);});
   document.addEventListener("submit",event=>{if(event.target.id==="lobbyJoinForm"){event.preventDefault();lobbyAction("join",$("#lobbyCode").value.trim().toUpperCase());}});
-  document.addEventListener("visibilitychange",()=>{for(const handle of sockets)document.hidden?handle.suspend():handle.resume();if(!document.hidden&&enabled)hydrate();});
-  window.addEventListener("pagehide",()=>{for(const handle of [...sockets])handle.close();});
-  window.addEventListener("pageshow",event=>{if(event.persisted)init();});
+  const suspendSockets=()=>{for(const handle of sockets)handle.suspend();};
+  const resumeSockets=()=>{for(const handle of sockets)handle.resume();};
+  document.addEventListener("visibilitychange",()=>{
+    if(document.hidden)suspendSockets();
+    else{resumeSockets();if(enabled)hydrate();}
+  });
+  window.addEventListener("offline",()=>{for(const handle of sockets)handle.interrupt();});
+  window.addEventListener("online",resumeSockets);
+  window.addEventListener("pagehide",event=>{
+    if(event.persisted)suspendSockets();
+    else for(const handle of sockets)handle.close();
+  });
+  // Reconnecting the retained lobby socket runs its normal cloud hydration.
+  window.addEventListener("pageshow",event=>{if(event.persisted)resumeSockets();});
+  window.Telegram?.WebApp?.onEvent?.("deactivated",suspendSockets);
+  window.Telegram?.WebApp?.onEvent?.("activated",resumeSockets);
   return {init,changed,onScreen,socket,request,flush,refreshLobby};
 })();

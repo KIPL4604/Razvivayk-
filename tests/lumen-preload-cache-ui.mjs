@@ -47,10 +47,14 @@ try{
  check(await p.locator('#lumenStory img').evaluateAll(images=>images.every(i=>i.complete&&i.naturalWidth>0)),'Story portraits and scene are decoded before story opens');
  await p.locator('[data-story-action=skip]').click();await p.locator('#lumenCanvas').waitFor({timeout:30000});
  await p.waitForFunction(()=>document.querySelector('.lumen-menu-background')?.naturalWidth===960);
+ await p.waitForFunction(async()=>{
+  const cache=await caches.open('teramont-lumen-assets-v1');
+  return (await cache.keys()).filter(request=>/\/sprites-garden-[a-f0-9]{64}\.pack\?v=/.test(request.url)).length>=4;
+ });
  await p.reload();await p.locator('#hubSearch').waitFor();assetRequests=[];const warm=Date.now();await p.locator('#campaignCards [data-lumen-action=open]').click();await p.locator('.lumen-title-screen').waitFor({timeout:30000});times.warmMenuMs=Date.now()-warm;
  check(assetRequests.length===0,'Reload uses persistent cache: zero versioned asset network requests');
  await p.locator('.lumen-main-actions [data-lumen-value=play]').click();p.once('dialog',d=>d.accept());await p.locator('[data-lumen-action=start]').click();await p.locator('[data-story-action=skip]:visible').waitFor({timeout:30000});await p.locator('[data-story-action=skip]').click();await p.locator('#lumenCanvas').waitFor();
- check(assetRequests.length===0,'Reloaded selected world also uses persistent cache');
+ check(assetRequests.every(url=>url.includes('/weapon-icons/')),'Reloaded selected world reuses cached packs; a new run may need different next-choice icons');
  const keys=await p.evaluate(async()=>{const c=await caches.open('teramont-lumen-assets-v1');return(await c.keys()).map(r=>r.url);});check(keys.every(url=>/\/static\/assets\/lumen\/.+\?v=[a-f0-9]{64}$/.test(url)),'Persistent cache contains only versioned public Lumen assets');
  check(!keys.some(url=>/api|initData/.test(url)),'No account data in asset cache');
  check(errors.length===0,'No JS errors: '+errors.join(';'));

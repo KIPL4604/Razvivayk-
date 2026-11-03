@@ -104,6 +104,7 @@ export class Renderer {
   }
 
   actor(key, animation, x, y, size, time, since = 0, flip = false, tint) {
+    if(this.map==='garden'&&key.startsWith('boss-')&&!this.art.images[key])key='beetle';
     const data = this.art.manifest.animations[animation];
     const actor=this.art.manifest.actors[key],frameSize=actor?.frameSize||48,anchor=(actor?.anchor?.[1]||45)/frameSize;
     const elapsed = Math.max(0, time - since);

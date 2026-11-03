@@ -1,3 +1,19 @@
+/* Covers belong to the catalog. Game-screen styles are loaded on entry. */
+#gameResourcesStatus{pointer-events:none;background:var(--surface);color:var(--text);box-shadow:var(--menu-shadow)}
+.lumen-catalog{grid-column:1/-1;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:center;padding:0;overflow:hidden;background:#E8F0ED;border-color:#CDDFD6}
+.lumen-catalog .game-art{height:100%;min-height:160px;object-fit:cover;border-radius:0}
+.lumen-catalog .campaign-card-copy{padding:16px;gap:8px}
+.lumen-catalog .campaign-category{color:#3A6B58;font-size:10px;letter-spacing:.04em;text-transform:uppercase;font-weight:700}
+.lumen-catalog strong{font-size:26px;min-height:0;letter-spacing:-.05em}
+.lumen-catalog strong>span{display:block;font-size:13px;font-weight:500;letter-spacing:0;margin-top:4px;color:#46665E}
+.lumen-catalog .campaign-card-progress{margin-top:8px;color:#38594D}
+.specimen-catalog .specimen-art{object-fit:cover;image-rendering:pixelated}
+.specimen-catalog .campaign-category{color:#b26f4b}
+.pixel-hop-art{display:block;width:100%;height:auto;aspect-ratio:384/240;background:#111827;image-rendering:pixelated}
+@media(min-width:1600px){.lumen-catalog{grid-column:span 2}}
+@media(max-width:540px){.lumen-catalog .campaign-card-copy{padding:12px}.lumen-catalog .game-art{min-height:158px}.lumen-catalog strong{font-size:25px}.lumen-catalog .campaign-card-progress{font-size:9px}.lumen-catalog strong>span{font-size:11px}.lumen-catalog .campaign-category{font-size:8px}}
+@media(prefers-reduced-motion:reduce){.lumen-catalog:hover{transform:none}}
+.lumen-catalog img{image-rendering:pixelated;image-rendering:crisp-edges}
 /* Neutral library shell. Artwork belongs to each game; chrome uses monochrome tokens. */
 html,body,#main{overscroll-behavior-x:none}
 :root{color-scheme:dark;--bg:#141414;--surface:#1e1e1e;--surface-raised:#272727;--text:#f1f1ed;--muted:#a7a7a1;--soft:#c0c0b9;--accent:#efefea;--accent-ink:#181818;--line:#373734;--selection:#30302d;--green:#8acbaa;--red:#ed9696;--menu-shadow:0 24px 80px #0006;--safe-top:max(env(safe-area-inset-top),var(--app-safe-top,0px))}

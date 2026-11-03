@@ -61,10 +61,9 @@ services:
     environment: {DOMAIN: "${DOMAIN}"}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ../webapp/frontend:/srv/teramont:ro
       - caddy_data:/data
       - caddy_config:/config
-    depends_on:
-      api: {condition: service_healthy}
   backup:
     image: postgres:17-alpine
     restart: unless-stopped

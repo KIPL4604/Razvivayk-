@@ -1,5 +1,5 @@
 "use strict";
-const PokerMode = (() => {
+export function createPokerController() {
   const streets={preflop:"Префлоп",flop:"Флоп",turn:"Тёрн",river:"Ривер",showdown:"Вскрытие"};
   let state=null,busy=false,error="",poll=null,epoch=0,hint=null,hintLoading=false,rulesOpen=false,mathOpen=false,previousCards=new Set(),lastPaintVersion=null,errorStatus=0,refreshing=false,focusTarget=null;
   let liveSocket=null,liveRoom=null,liveStatus="connecting",deadlineTimer=null;
@@ -159,6 +159,5 @@ const PokerMode = (() => {
   document.addEventListener("submit",event=>{if(event.target.id==="pokerJoinForm"){event.preventDefault();start("join",$("#pokerRoomCode").value.trim().toUpperCase());}if(event.target.id==="pokerRaiseForm"){event.preventDefault();if(event.target.reportValidity())act("raise",Number($("#pokerRaiseAmount").value));}});
   document.addEventListener("visibilitychange",()=>{if(document.hidden)clearTimeout(poll);else if(active())refresh();});
   window.addEventListener("pagehide",()=>{epoch++;clearTimeout(poll);});
-  function getResume(){return saved.poker?{type:"poker",lastTouchedAt:saved.poker.lastTouchedAt,mode:saved.poker.mode}:null;}
-  return {onScreen,click,resume,getResume};
-})();
+  return {onScreen,click,resume};
+}

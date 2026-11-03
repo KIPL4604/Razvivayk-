@@ -94,10 +94,17 @@ export async function preloadMenuPage(page,selection){
  if(page==='play')await font();
  if(page==='weapons')await installWeaponIcons();
 }
-export async function preloadScene(scene,hero,onProgress){
+export async function preloadScene(scene,hero,onProgress,{previewLandscape=false}={}){
  const value=await manifest(),world=scene.map||'garden';
- const names=new Set([...CORE_UI,...weaponFiles,`story-world-${world}-small.webp`,`story-world-${world}.webp`,`story-hero-${hero}.png`,...(scene.portrait?[`story-${scene.portrait}.png`]:[])]);
+ const names=new Set([...CORE_UI,`story-world-${world}-small.webp`,...(!previewLandscape?[`story-world-${world}.webp`]:[]),`story-hero-${hero}.png`,...(scene.portrait?[`story-${scene.portrait}.png`]:[])]);
  const entries=[...value.files,...value.scenes].filter(e=>names.has(e.file));
  if(entries.length!==names.size)throw new Error('Incomplete scene manifest');
- await batch(entries,onProgress);installSprites();await font();await installWeaponIcons();
+ await batch(entries,onProgress);installSprites();await font();
+}
+export async function loadSceneDetail(world){
+ const value=await manifest(),file=`story-world-${world}.webp`;
+ const entry=value.scenes.find(item=>item.file===file);
+ if(!entry)throw new Error('Incomplete scene manifest');
+ await batch([entry]);
+ return assetURL(file);
 }

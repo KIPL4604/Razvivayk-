@@ -157,7 +157,8 @@ function renderHome(){
 function selectCampaign(game){if(!GAME_NAMES[game])return;saved.selectedCampaign=game;saveState();showScreen("levels");}
 function showScreen(name){
   window.PageMotion?.cancel();
-  showScreenContent(name);
+  const group=name==="lumen-game"?"lumen":name==="chess-game"?"chess":name==="poker-game"?"poker":name;
+  return GameAssets.enter(group,()=>showScreenContent(name));
 }
 function showScreenContent(name){
   pauseGame();clearTimeout(revealHandle);if(saved.current?.revealing){saved.current.revealing=false;saved.current.ready=false;saveState();}
@@ -389,7 +390,8 @@ function configureTelegram(){
 document.addEventListener("click",event=>{
   const target=event.target.closest("button");if(!target||target.disabled)return;
   if(target.hasAttribute("data-restart-verified")){const c=saved.current;startGame(c.type,c.difficulty,c.levelNumber,true);return;}
-  if(PixelHopMode.click(target,event)){if(target.dataset.pixelHopAction==="open")showScreen("pixel-hop");return;}
+  if(target.dataset.pixelHopAction==="open"){GameAssets.enter("pixel-hop",()=>{if(PixelHopMode.click(target,event))showScreen("pixel-hop");});return;}
+  if(PixelHopMode.click(target,event))return;
   if(PokerMode.click(target))return;
   if(ChessMode.click(target))return;
   if(LumenMode.click(target))return;

@@ -32,7 +32,14 @@ jobs:
           TERAMONT_TEST_POSTGRES_URL: postgresql://teramont_test:local-test-only@127.0.0.1:25432/teramont_test
           PLATFORM_TEST_REDIS_URL: redis://127.0.0.1:26379/0
       - run: node tests/puzzles.cjs
-      - run: node --test tests/specimen-*.mjs tests/lumen-*.mjs tests/durak-engine.mjs tests/blackjack-engine.mjs tests/solitaire-engine.mjs
+      - name: Test game engines and WebSocket recovery
+        run: |
+          lumen_tests=()
+          for script in tests/lumen-*.mjs; do
+            case "$script" in *-ui.mjs|*-profile.mjs) continue ;; esac
+            lumen_tests+=("$script")
+          done
+          node --test tests/specimen-*.mjs "${lumen_tests[@]}" tests/durak-engine.mjs tests/blackjack-engine.mjs tests/solitaire-engine.mjs tests/platform-socket.mjs
       - run: for script in webapp/frontend/js/specimen/*.mjs webapp/frontend/js/lumen/*.mjs webapp/frontend/js/cards/*.mjs; do node --check "$script"; done
       - run: for script in webapp/frontend/js/*.js; do node --check "$script"; done
       - run: docker build -t teramont-check .

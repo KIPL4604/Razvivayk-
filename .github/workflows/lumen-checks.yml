@@ -17,7 +17,14 @@ jobs:
       - uses: actions/setup-python@v5
         with: {python-version: '3.12', cache: pip, cache-dependency-path: design/lumen-pixel/requirements.txt}
       - run: pip install -r design/lumen-pixel/requirements.txt
-      - run: node --test tests/lumen-*.mjs
+      - name: Test Lumen without browser fixtures
+        run: |
+          lumen_tests=()
+          for script in tests/lumen-*.mjs; do
+            case "$script" in *-ui.mjs|*-profile.mjs) continue ;; esac
+            lumen_tests+=("$script")
+          done
+          node --test "${lumen_tests[@]}"
       - run: python tests/test_lumen_art.py
       - run: for script in webapp/frontend/js/lumen/*.mjs; do node --check "$script"; done
       - run: git diff --check
