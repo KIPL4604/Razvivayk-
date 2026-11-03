@@ -1,4 +1,4 @@
-@import url('./lumen-story.css?v=story-1');
+@import url('./lumen-story.css?v=world-progress-1');
 @font-face{font-family:LumenSquare;src:url('../assets/lumen/fonts/Tektur-game.ttf') format('truetype');font-style:normal;font-weight:400;font-display:swap}
 .lumen-intro{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(280px,1fr);border:1px solid #D6E1DA;border-radius:20px;overflow:hidden;background:#FFF}
 .lumen-cover{position:relative;min-height:620px;isolation:isolate;background:#183438;color:#F2F0D8;overflow:hidden}.lumen-cover canvas{width:100%;height:100%;position:absolute;inset:0}

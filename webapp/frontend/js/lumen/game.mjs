@@ -2,6 +2,7 @@ import {preloadScene,preloadMenuBackground,backgroundReady,preloadMenuPage,menuP
 import {createRun,step,chooseUpgrade,serialize,restore,UPGRADES,upcomingUpgrade} from './engine.mjs';
 import {Renderer} from './renderer.mjs';
 import {loadArt} from './assets.mjs';
+import {worldLoadProgress} from './load-progress.mjs';
 import {StoryOverlay} from './story-overlay.mjs';
 import {worldScene,bossScene} from './story.mjs';
 import {weaponIcon,prefetchWeaponChoices} from './weapon-icons.mjs';
@@ -118,8 +119,8 @@ export function createGame(context) {
     const ticket=++menuBackgroundTicket,r=record();
     if(!selectionLoaded){character=r.selection.character;map=r.selection.map;selectionLoaded=true;}
     if(map==='crater')map=mapAvailable(r.meta,'castle')?'castle':'quarry';
-    const selection={map,character},scroll=preserveScroll?$('#lumenMenuContent')?.scrollTop||0:0;
-    const needsBackground=!backgroundReady(r.meta),needsPage=!menuPageReady(page,selection);
+    const scroll=preserveScroll?$('#lumenMenuContent')?.scrollTop||0:0;
+    const needsBackground=!backgroundReady(r.meta),needsPage=!menuPageReady(page);
     if(!needsBackground&&!needsPage){setupContent(page,scroll,preserveScroll);return;}
     if(screen!=='lumen')navigate('lumen');
     screen='lumen';paused=true;menuPage=page;stopRenderer();lockScreen(true);
@@ -128,7 +129,7 @@ export function createGame(context) {
     else setupMount.innerHTML='<div class="lumen-loading" role="status">Подготавливаем фон открытой карты…</div>';
     Promise.all([
       needsBackground&&preloadMenuBackground(r.meta),
-      needsPage&&preloadMenuPage(page,selection)
+      needsPage&&preloadMenuPage(page)
     ]).then(()=>{
       if(screen==='lumen'&&ticket===menuBackgroundTicket)setupContent(page,scroll,preserveScroll);
     }).catch(()=>{
@@ -179,23 +180,27 @@ export function createGame(context) {
     const world=restored?.map||map,selected=restored?.character||character,ticket=++sceneTicket;
     const garden=world==='garden',late=Boolean(restored&&(restored.time>=120||restored.arena||restored.enemies.some(enemy=>['guardian','arena-boss'].includes(enemy.kind))));
     waitingForStart=true;clearInput();preview?.destroy();preview=null;
-    const scene=worldScene(world),started=performance.now(),tracks={};
+    const scene=worldScene(world),progress=worldLoadProgress();
+    const read=()=>progress.read(navigator.onLine!==false);
+    let attempt=0;
     story.wait(cancelLaunch);
-    const progress=(key,value)=>{
-      tracks[key]=value;if(ticket!==sceneTicket)return;
-      const values=Object.values(tracks),known=values.length===2&&values.every(v=>v.total>0),total=values.reduce((sum,v)=>sum+(v.total||0),0),received=values.reduce((sum,v)=>sum+(v.received||0),0),elapsed=(performance.now()-started)/1000;
-      story.progress({phase:values.every(v=>v.phase==='ready')?'ready':known&&received===total?'decode':'download',percent:known?Math.floor(received/total*100):0,remainingSeconds:known&&elapsed>=1&&received>0&&received<total?Math.ceil((total-received)*elapsed/received):null});
+    const load=()=>{
+      const current=++attempt;
+      const report=(key,value)=>{
+        if(ticket!==sceneTicket||current!==attempt)return;
+        progress.update(key,value);story.progress(read());
+      };
+      return Promise.all([
+        loadArt({map:world,character:selected,phase:garden?(late?'complete':'opening'):undefined,onProgress:value=>report('world',value)}),
+        preloadScene(scene,selected,value=>report('scene',value),{previewLandscape:garden})
+      ]).then(value=>({value}),error=>({error}));
     };
-    const load=()=>Promise.all([
-      loadArt({map:world,character:selected,phase:garden?(late?'complete':'opening'):undefined,onProgress:value=>progress('world',value)}),
-      preloadScene(scene,selected,value=>progress('scene',value),{previewLandscape:garden}).then(()=>{tracks.scene={...tracks.scene,phase:'ready'};})
-    ]).then(value=>({value}),error=>({error}));
     const finish=async result=>{
       if(ticket!==sceneTicket||screen!=='lumen')return;
       if(result.error){
         retryLaunch=()=>{
           if(ticket!==sceneTicket||screen!=='lumen'||!retryLaunch)return;
-          retryLaunch=null;story.retrying();void load().then(finish);
+          retryLaunch=null;progress.restart();story.retrying();story.watchProgress(read);void load().then(finish);
         };
         story.failure(()=>retryLaunch?.());return;
       }
@@ -216,6 +221,7 @@ export function createGame(context) {
       if(garden&&late)bossArtReady=true;
       requestAnimationFrame(prefetchGardenBosses);
     };
+    story.watchProgress(read);
     await finish(await load());
   }
   function start(){launchRun();}

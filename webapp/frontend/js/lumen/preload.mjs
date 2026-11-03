@@ -4,20 +4,25 @@ import {preloadWeaponIcons} from './weapon-icons.mjs';
 import {CHARACTERS} from './catalog.mjs';
 import {WEAPON_ICONS} from './weapon-icon-data.mjs';
 const base=new URL('../../assets/lumen/',import.meta.url),urls=new Map(),decoded=new Map();
-let manifestPromise,fontPromise,fontReady=false,weaponsReady=false;
+let manifestPromise,fontPromise,weaponsReady=false;
 const pendingBackgrounds=new Map();
 const previewFile=map=>menuBackgroundFile(map).slice(0,-5)+'-preview.webp';
 async function manifest(){
- manifestPromise ||= fetch(new URL('menu-manifest.json',base),{cache:'no-store'}).then(r=>{if(!r.ok)throw new Error('Menu manifest unavailable');return r.json();}).catch(e=>{manifestPromise=null;throw e;});
+ if(!manifestPromise){
+  const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),10000);
+  manifestPromise=fetch(new URL('menu-manifest.json',base),{cache:'no-store',signal:controller.signal})
+   .then(r=>{if(!r.ok)throw new Error('Menu manifest unavailable');return r.json();})
+   .catch(e=>{manifestPromise=null;throw e;}).finally(()=>clearTimeout(timeout));
+ }
  return manifestPromise;
 }
 export const assetURL=name=>urls.get(name)||new URL(name,base).href;
 export function assetHTML(html){return html.replace(/\/static\/assets\/lumen\/([a-zA-Z0-9_./-]+)/g,(original,name)=>urls.get(name)||original);}
-async function batch(entries,onProgress){
+async function batch(entries,onProgress,{recover=false}={}){
  const report=progressReporter(entries,onProgress);let cursor=0;report(null,0);
  await Promise.all(Array.from({length:Math.min(3,entries.length)},async()=>{
   while(cursor<entries.length){const entry=entries[cursor++];
-   const bytes=await assetBytes(entry,size=>report(entry,size));
+   const bytes=await assetBytes(entry,(size,phase)=>report(entry,size,phase),{recover});
    if(!urls.has(entry.file))urls.set(entry.file,URL.createObjectURL(new Blob([bytes],{type:entry.file.endsWith('.mp4')?'video/mp4':entry.file.endsWith('.webp')?'image/webp':entry.file.endsWith('.png')?'image/png':entry.file.endsWith('.jpg')?'image/jpeg':'font/ttf'})));
    if(/\.(png|webp|jpg)$/.test(entry.file)&&!decoded.has(entry.file)){
     const img=new Image();img.src=urls.get(entry.file);await img.decode();decoded.set(entry.file,img);
@@ -51,7 +56,7 @@ function installSprites(){
  }
 }
 async function font(){
- fontPromise ||= (async()=>{const face=new FontFace('LumenSquare',`url("${assetURL('fonts/Tektur-game.ttf')}")`);await face.load();document.fonts.add(face);fontReady=true;})().catch(error=>{fontPromise=null;throw error;});
+ fontPromise ||= (async()=>{const face=new FontFace('LumenSquare',`url("${assetURL('fonts/Tektur-game.ttf')}")`);await face.load();document.fonts.add(face);})().catch(error=>{fontPromise=null;throw error;});
  await fontPromise;
 }
 function finish(onProgress){onProgress?.({phase:'ready',percent:100,remainingSeconds:0});}
@@ -71,27 +76,23 @@ async function installWeaponIcons(){
  if(!await preloadWeaponIcons(Object.keys(WEAPON_ICONS),{visible:true}))throw new Error('Weapon artwork unavailable');
  weaponsReady=true;
 }
-function menuPageFiles(page,{map,character}){
+function menuPageFiles(page){
  switch(page){
-  case 'play':return [character+'.png', 'story-world-'+map+'-small.webp'];
   case 'characters':return Object.keys(CHARACTERS).map(id=>id+'.png');
   case 'weapons':return [...weaponFiles,'expedition.png','expansion-items.png'];
   case 'training':return ['ui.png','expedition.png','expansion-items.png'];
   default:return [];
  }
 }
-export function menuPageReady(page,selection){
- return menuPageFiles(page,selection).every(file=>decoded.has(file))
-   && (page!=='play'||fontReady)
+export function menuPageReady(page){
+ return menuPageFiles(page).every(file=>decoded.has(file))
    && (page!=='weapons'||weaponsReady);
 }
-export async function preloadMenuPage(page,selection){
- const value=await manifest(),files=menuPageFiles(page,selection);
- const names=new Set(page==='play'?[...files,'fonts/Tektur-game.ttf']:files);
+export async function preloadMenuPage(page){
+ const value=await manifest(),names=new Set(menuPageFiles(page));
  const entries=value.files.filter(entry=>names.has(entry.file));
  if(entries.length!==names.size)throw new Error('Incomplete menu page manifest');
  await batch(entries);installSprites();
- if(page==='play')await font();
  if(page==='weapons')await installWeaponIcons();
 }
 export async function preloadScene(scene,hero,onProgress,{previewLandscape=false}={}){
@@ -99,7 +100,9 @@ export async function preloadScene(scene,hero,onProgress,{previewLandscape=false
  const names=new Set([...CORE_UI,`story-world-${world}-small.webp`,...(!previewLandscape?[`story-world-${world}.webp`]:[]),`story-hero-${hero}.png`,...(scene.portrait?[`story-${scene.portrait}.png`]:[])]);
  const entries=[...value.files,...value.scenes].filter(e=>names.has(e.file));
  if(entries.length!==names.size)throw new Error('Incomplete scene manifest');
- await batch(entries,onProgress);installSprites();await font();
+ let last;
+ await batch(entries,value=>{last=value;onProgress?.(value);},{recover:true});installSprites();await font();
+ onProgress?.({...last,phase:'ready'});
 }
 export async function loadSceneDetail(world){
  const value=await manifest(),file=`story-world-${world}.webp`;

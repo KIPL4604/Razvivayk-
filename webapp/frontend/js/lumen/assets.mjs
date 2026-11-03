@@ -24,9 +24,13 @@ export function selectArtFiles(manifest,{map,character,phase}={}){
 async function manifest(pilot){
  const file=pilot?'garden-pilot.json':'manifest.json';
  if(!manifests.has(file))manifests.set(file,(async()=>{
-  const response=await fetch(new URL(file,base));
-  if(!response.ok)throw new Error('Lumen asset manifest unavailable');
-  const value=await response.json();
+  const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),10000);
+  let value;
+  try{
+   const response=await fetch(new URL(file,base),{signal:controller.signal});
+   if(!response.ok)throw new Error('Lumen asset manifest unavailable');
+   value=await response.json();
+  }finally{clearTimeout(timeout);}
   if(value.version!==1||value.frameSize!==48||value.packFormat!=='image/webp'||!Array.isArray(value.packs)||!value.files)throw new Error('Unsupported Lumen artwork');
   if(pilot&&(!Array.isArray(value.groups?.opening)||!Array.isArray(value.groups?.bosses)))throw new Error('Incomplete Biosad artwork');
   return value;
@@ -36,8 +40,8 @@ async function manifest(pilot){
 function download(entry){
  const key=entry.file+':'+entry.sha256;
  if(packs.has(key))return packs.get(key);
- const record={received:0,done:false,promise:null};packs.set(key,record);
- record.promise=assetBytes(entry,size=>{record.received=Math.max(record.received,size);notify();},{recover:true}).then(data=>{record.received=entry.bytes;record.done=true;notify();return data;},error=>{packs.delete(key);throw error;});
+ const record={received:0,retrying:false,promise:null};packs.set(key,record);
+ record.promise=assetBytes(entry,(size,phase)=>{record.received=size;record.retrying=phase==='retry';notify();},{recover:true}).then(data=>{record.received=entry.bytes;record.retrying=false;notify();return data;},error=>{packs.delete(key);throw error;});
  return record;
 }
 export async function loadArt({map,character,phase,onProgress}={}){
@@ -57,7 +61,8 @@ export async function loadArt({map,character,phase,onProgress}={}){
   const total=required.reduce((sum,entry)=>sum+entry.bytes,0),started=performance.now();let completed=0;
   update=()=>{
    const received=required.reduce((sum,entry)=>sum+(packs.get(entry.file+':'+entry.sha256)?.received||0),0),elapsed=(performance.now()-started)/1000,rate=received/Math.max(.1,elapsed);
-   onProgress?.({phase:completed===files.length?'ready':received===total?'decode':'download',received,total,percent:total?Math.min(100,Math.floor(received/total*100)):0,remainingSeconds:elapsed>=1&&received>0&&received<total?Math.ceil((total-received)/rate):null});
+   const retrying=required.some(entry=>packs.get(entry.file+':'+entry.sha256)?.retrying);
+   onProgress?.({phase:completed===files.length?'ready':received===total?'decode':'download',retrying,received,total,percent:total?Math.min(100,Math.floor(received/total*100)):0,remainingSeconds:elapsed>=1&&received>0&&received<total?Math.ceil((total-received)/rate):null});
   };
   listeners.add(update);update();
   // Bounded parallel transfers avoid flooding the mobile connection.

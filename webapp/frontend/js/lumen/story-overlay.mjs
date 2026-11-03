@@ -1,5 +1,11 @@
 import {assetURL,loadSceneDetail} from './preload.mjs';
 const escape=value=>String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const loadStatus={
+ manifest:'Получаем список ресурсов',download:'Загружаем графику мира',
+ waiting:'Данные пока не поступают',offline:'Нет связи. Ждём подключения',
+ retry:'Повторяем запрос к серверу',
+ decode:'Графика загружена. Подготавливаем мир',ready:'Мир готов'
+};
 
 /** DOM-only scene director. It never advances or mutates the simulation. */
 export class StoryOverlay{
@@ -26,7 +32,7 @@ export class StoryOverlay{
  }
  get active(){return !this.root.hidden;}
  wait(onCancel){
-  this.close();this.onCancel=onCancel;this.hold=true;this.previousFocus=document.activeElement;
+  this.close();this.lastProgress=null;this.onCancel=onCancel;this.hold=true;this.previousFocus=document.activeElement;
   this.inert=[...document.querySelectorAll('#lumenGameMount,#lumenSetupMount')].map(el=>[el,el.inert]);this.inert.forEach(([el])=>el.inert=true);
   this.root.hidden=false;this.root.dataset.phase='loading';
   this.root.innerHTML=`<div class="lumen-story-shell" role="dialog" aria-modal="true" aria-labelledby="lumenLoadTitle"><div class="lumen-story-copy" hidden></div><button data-story-action="skip" hidden></button><div class="lumen-story-loading"><span class="lumen-story-kicker">ЛЮМЕН / ПОДГОТОВКА ЭКСПЕДИЦИИ</span><h2 id="lumenLoadTitle">Загружаем мир</h2><p id="lumenLoadPhase" role="status">Получаем список ресурсов</p><div class="lumen-story-progress" role="progressbar" aria-label="Загрузка графики мира" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i></i></div><div class="lumen-load-dots" aria-hidden="true">${'<i></i>'.repeat(8)}</div><div class="lumen-story-load-meta"><strong id="lumenLoadPercent">0%</strong><span id="lumenLoadEta">Оцениваем время…</span></div><button type="button" data-story-action="retry" hidden>Повторить загрузку</button></div><button type="button" class="lumen-story-back" data-story-action="cancel">Вернуться в меню</button></div>`;
@@ -104,14 +110,24 @@ export class StoryOverlay{
  progress(value){
   this.lastProgress=value;if(!this.active)return;
   const phase=this.root.querySelector('#lumenLoadPhase');if(!phase||this.root.dataset.phase==='error')return;
-  phase.textContent=value.phase==='manifest'?'Получаем список ресурсов':value.phase==='decode'?'Графика загружена. Подготавливаем мир':value.phase==='ready'?'Мир готов':'Загружаем графику мира';
-  this.root.querySelector('#lumenLoadPercent').textContent=value.percent+'%';
+  if(phase.textContent!==loadStatus[value.phase])phase.textContent=loadStatus[value.phase];
+  this.root.querySelector('#lumenLoadPercent').textContent=value.percent===null?'—':value.percent+'%';
   this.root.querySelectorAll('.lumen-load-dots i').forEach((dot,i)=>dot.classList.toggle('loaded',value.percent>=(i+1)*12.5));
-  const meter=this.root.querySelector('[role="progressbar"]');meter.setAttribute('aria-valuenow',value.percent);meter.firstElementChild.style.width=value.percent+'%';
-  this.root.querySelector('#lumenLoadEta').textContent=value.remainingSeconds===null?(value.phase==='ready'?'Готово':value.phase==='decode'?'Подготавливаем сцену…':'Оцениваем время…'):`Примерно ${value.remainingSeconds<60?value.remainingSeconds+' с':Math.ceil(value.remainingSeconds/60)+' мин'}`;
+  const meter=this.root.querySelector('[role="progressbar"]');
+  if(value.percent===null)meter.removeAttribute('aria-valuenow');else meter.setAttribute('aria-valuenow',value.percent);
+  meter.firstElementChild.style.width=(value.percent??0)+'%';
+  const paused=['offline','waiting','retry'].includes(value.phase);
+  this.root.querySelector('#lumenLoadEta').textContent=value.remainingSeconds!==null
+   ?`Осталось ≈ ${value.remainingSeconds<60?value.remainingSeconds+' с':Math.ceil(value.remainingSeconds/60)+' мин'}`
+   :paused?'Оценка на паузе':value.phase==='ready'?'Готово':value.phase==='decode'?'Подготовка…':'Оцениваем время…';
+ }
+ watchProgress(read){
+  clearInterval(this.progressTimer);
+  const paint=()=>this.progress(read());
+  paint();this.progressTimer=setInterval(paint,500);
  }
  failure(retry){
-  this.loading();this.root.dataset.phase='error';this.retry=retry;
+  clearInterval(this.progressTimer);this.loading();this.root.dataset.phase='error';this.retry=retry;
   this.root.querySelector('.lumen-story-loading h2').textContent='Не удалось войти';
   this.root.querySelector('#lumenLoadEta').textContent='Можно повторить';
   this.root.querySelector('#lumenLoadPhase').textContent='Не удалось загрузить мир. Проверь соединение и попробуй ещё раз.';
@@ -120,7 +136,7 @@ export class StoryOverlay{
  retrying(){this.root.querySelector('.lumen-story-loading h2').textContent='Подождите…';this.root.dataset.phase='loading';this.root.querySelector('[data-story-action="retry"]').hidden=true;this.retry=null;}
  cancel(){const resolve=this.resolve,onCancel=this.onCancel;this.resolve=null;this.close();if(resolve)resolve(false);else onCancel?.();}
  close(){
-  cancelAnimationFrame(this.raf);this.root.hidden=true;this.inert?.forEach(([el,value])=>el.inert=value);this.inert=null;
+  cancelAnimationFrame(this.raf);clearInterval(this.progressTimer);this.root.hidden=true;this.inert?.forEach(([el,value])=>el.inert=value);this.inert=null;
   const resolve=this.resolve;this.resolve=null;resolve?.(false);this.previousFocus?.isConnected&&this.previousFocus.focus?.({preventScroll:true});
  }
 }
