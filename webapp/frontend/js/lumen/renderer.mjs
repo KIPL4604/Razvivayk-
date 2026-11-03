@@ -3,10 +3,11 @@ import {WEAPONS,weaponStats,BOSSES,MAPS} from './catalog.mjs';
 import {bodyRadius,PLAYER_BODY} from './physics.mjs';
 import {BOSS_VARIANTS} from './bosses.mjs';
 import {ARENA_HAZARD_INSET} from './arena.mjs';
+import {GARDEN_COVER_HP,gardenCover} from './garden-arena.mjs';
 import {WeaponVFX,arenaCamera} from './weapon-vfx.mjs';
 import {CastleView,CASTLE_HALL_VISUAL} from './castle-view.mjs';
 import {EnemyVFX} from './enemy-vfx.mjs';
-import {castleLayout} from './castle.mjs';
+import {castleLayout,MOTH_SPREAD} from './castle.mjs';
 
 const TAU = Math.PI * 2;
 const round = Math.round;
@@ -103,12 +104,12 @@ export class Renderer {
     return this.hitSheets.get(id);
   }
 
-  actor(key, animation, x, y, size, time, since = 0, flip = false, tint) {
+  actor(key, animation, x, y, size, time, since = 0, flip = false, tint, attackFrame) {
     if(this.map==='garden'&&key.startsWith('boss-')&&!this.art.images[key])key='beetle';
     const data = this.art.manifest.animations[animation];
     const actor=this.art.manifest.actors[key],frameSize=actor?.frameSize||48,anchor=(actor?.anchor?.[1]||45)/frameSize;
     const elapsed = Math.max(0, time - since);
-    const frame = this.media.matches && animation === 'idle' ? 0
+    const frame = attackFrame!==undefined?Math.min(data.frames-1,attackFrame):this.media.matches && animation === 'idle' ? 0
       : data.loop ? Math.floor(elapsed * data.fps) % data.frames
         : Math.min(data.frames - 1, Math.floor(elapsed * data.fps));
     if(!tint)this.blit('fx', 0, 0, 16, 16, x, y + 7, size * .58, size * .28, .75);
@@ -149,11 +150,14 @@ export class Renderer {
       const old = this.views.get(enemy.id);
       const near = distance(enemy, state.player) <= bodyRadius(enemy) + PLAYER_BODY + 2;
       const hurtUntil = enemy.hitFlash > (old?.flash || 0) ? t + .375 : old?.hurtUntil || 0;
-      const animation = hurtUntil > t ? 'hurt' : near||enemy.actionTimer>0||enemy.attackFlash>0 ? 'attack'
+      const timed=Boolean(enemy.bossType||castleSprites[enemy.kind]);
+      const cast=timed&&(enemy.actionTimer>0||enemy.attackFlash>0);
+      const attackFrame=cast?(enemy.actionTimer>0?(enemy.actionTimer>.25?0:1):2+Math.min(3,Math.floor((.42-enemy.attackFlash)*10))):undefined;
+      const animation = cast?'attack':hurtUntil > t ? 'hurt' : (!timed&&(near||enemy.actionTimer>0)) ? 'attack'
         : old && distance(enemy, old) < .02 ? 'idle' : 'walk';
       const since = animation === old?.animation && !(animation === 'attack' && (t - old.since >= .8 || near&&biting)) ? old.since : t;
-      next.set(enemy.id, { ...enemy, animation, since, hurtUntil, flash: enemy.hitFlash,
-        flip: enemy.x > state.player.x });
+      next.set(enemy.id, { ...enemy, animation, attackFrame,since, hurtUntil, flash: enemy.hitFlash,
+        flip: cast?Math.cos(enemy.phase)<0:enemy.x > state.player.x });
     }
     for (const [id, old] of this.views) {
       if (next.has(id)) continue;
@@ -228,7 +232,14 @@ export class Renderer {
     const progress=forming?Math.min(1,(arena.time||0)/2.5):1;
     c.save();c.fillStyle='#161820';c.globalAlpha=.17*progress;
     c.beginPath();c.arc(x,y,radius,0,TAU);c.fill();
-    if(danger){
+    if(arena.kind==='garden'){
+      c.globalAlpha=.55;c.fillStyle='#091318';c.beginPath();c.rect(0,0,this.canvas.width,this.canvas.height);
+      c.moveTo(x+radius,y);c.arc(x,y,radius,0,TAU);c.fill('evenodd');
+      c.globalAlpha=.45;c.strokeStyle='#859e6f';c.lineWidth=Math.max(2*this.dpr,6*this.zoom);
+      c.beginPath();c.arc(x,y,radius-25*this.zoom,0,TAU);c.stroke();
+      c.globalAlpha=.22;c.setLineDash([10*this.zoom,16*this.zoom]);
+      c.beginPath();c.arc(x,y,270*this.zoom,0,TAU);c.stroke();
+    }else if(danger){
       // Paint the complete damage band, including its inner threshold.
       c.globalAlpha=.18*progress;c.strokeStyle='#d45b50';c.lineWidth=ARENA_HAZARD_INSET*this.zoom;
       c.beginPath();c.arc(x,y,radius-ARENA_HAZARD_INSET*this.zoom/2,0,TAU*progress);c.stroke();
@@ -247,6 +258,17 @@ export class Renderer {
       c.strokeStyle='#bfa57a';c.globalAlpha=Math.max(.05,.28-(arena.time||0)*.06);c.lineWidth=3*this.zoom;
       c.beginPath();c.arc(x,y,radius,0,TAU);c.stroke();
     }
+    c.restore();
+  }
+
+  arenaCover(cover){
+    const c=this.ctx,[x,y]=this.at(cover.x,cover.y),z=this.zoom,intact=cover.hp>0;
+    this.blit('garden',128,intact?0:44,64,intact?64:20,cover.x,cover.y,102,intact?102:32);
+    if(!intact)return;
+    c.save();c.translate(x,y);c.scale(z,z);
+    c.fillStyle='#172522';c.fillRect(-30,-101,60,7);
+    c.fillStyle=cover.hp<GARDEN_COVER_HP/2?'#e8a474':'#b5c58e';
+    c.fillRect(-28,-99,56*cover.hp/GARDEN_COVER_HP,3);
     c.restore();
   }
 
@@ -270,7 +292,8 @@ export class Renderer {
     if (!this.width || !this.height) return;
     this.alpha=state.status==='playing'&&Math.abs(state.time-(this.previous.time+FIXED_STEP))<1e-6
       ? Math.min(1,state.remainder/FIXED_STEP) : 1;
-    const c = this.ctx, p = {...state.player,...this.pose(state.player)}, t = state.time || 0;
+    const teleport=state.arena?.kind==='garden'&&this.arena!==state.arena;
+    const c = this.ctx, p = teleport?state.player:{...state.player,...this.pose(state.player)}, t = state.time || 0;
     this.map=state.map||'garden';
     this.arena=state.arena;
     const bossArt=this.art.manifest.actors['boss-monarch'],heroArt=this.art.manifest.actors[state.character];
@@ -337,7 +360,7 @@ export class Renderer {
           p.y + Math.sin(angle) * radius, 48, 48, .5);
       }
     }
-    const entities = [...props, ...(this.arena||['crater','castle'].includes(this.map)?[]:[{ kind: 'prop', index: 0, x: 0, y: 0, size: 178 }]),
+    const entities = [...props, ...gardenCover(this.arena), ...(this.arena||['crater','castle'].includes(this.map)?[]:[{ kind: 'prop', index: 0, x: 0, y: 0, size: 178 }]),
       ...(state.chests||[]).map(e=>({...e,kind:'chest'})),...(state.enemies || []), ...this.ghosts.map(e => ({ ...e, kind: 'dead' })), { ...p, kind: 'hero' }]
       .sort((a, b) => a.y - b.y);
     for (const entity of entities) {
@@ -345,12 +368,14 @@ export class Renderer {
         || Math.abs(entity.y - this.camera.y) > this.height / this.scale * .6 + (entity.kind==='castle-hall-prop'?entity.size:180)) continue;
       if(entity.kind==='castle-door'||entity.kind==='castle-open-door'){
         this.castleView.door(this,entity,state);
+      }else if(entity.kind==='arena-cover'){
+        this.arenaCover(entity);
       }else if(entity.kind==='castle-prop'){
         this.castleView.prop(this,entity,p,t);
       }else if(entity.kind==='castle-hall-prop'){
         this.castleView.hallProp(this,entity,p,t);
       }else if (entity.kind === 'prop') {
-        c.globalAlpha = sceneryOpacity(entity,p);
+        c.globalAlpha = sceneryOpacity(entity,p)*(this.arena?.kind==='garden'?.35:1);
         this.blit(MAPS[this.map].props, entity.index * 64, 0, 64, 64, entity.x, entity.y, entity.size);
         c.globalAlpha = 1;
       } else if (entity.kind === 'hero') {
@@ -369,9 +394,19 @@ export class Renderer {
         const view = entity.kind === 'dead' ? entity : this.views.get(entity.id) || entity;
         const key=entity.kind==='dead'?entity.sprite:spriteKey(entity);
         const point=entity.kind==='dead'?entity:this.pose(entity,'enemies');
+        if(entity.kind==='paper-moth'&&entity.actionTimer>0){
+          const [x,y]=this.at(point.x,point.y);
+          c.save();c.strokeStyle='#ffdb98';c.globalAlpha=.82;c.lineWidth=2*this.dpr;c.setLineDash([6*this.dpr,5*this.dpr]);
+          for(let n=-1;n<=1;n++){
+            const angle=entity.phase+n*MOTH_SPREAD;
+            const [tx,ty]=this.at(point.x+Math.cos(angle)*175,point.y+Math.sin(angle)*175);
+            c.beginPath();c.moveTo(x,y);c.lineTo(tx,ty);c.stroke();
+          }
+          c.restore();
+        }
         if(key==='boss-monarch'&&entity.kind!=='dead')this.castleView.monarchLight(this,point.x,point.y,t);
         this.actor(key, entity.kind === 'dead' ? 'death' : view.animation || 'walk',
-          point.x, point.y, entity.kind==='dead'?entity.size:actorSize(entity), t, view.since || 0, view.flip);
+          point.x, point.y, entity.kind==='dead'?entity.size:actorSize(entity), t, view.since || 0, view.flip,undefined,entity.kind==='dead'?undefined:view.attackFrame);
       }
       if (!['hero', 'prop','castle-prop','castle-hall-prop','castle-door','castle-open-door', 'dead','chest','arena-tick'].includes(entity.kind) && (['guardian','arena-boss'].includes(entity.kind) || entity.elite || entity.hp < entity.maxHp)) {
         const point=this.pose(entity,'enemies');
@@ -430,7 +465,8 @@ export class Renderer {
         c.save();c.globalAlpha=Math.min(1,fraction*2);this.expansionItem(10,effect.x,effect.y-18,64);c.restore();
       }else if(effect.kind==='charge'){
         const [x,y]=this.at(effect.x,effect.y),[tx,ty]=this.at(effect.toX,effect.toY);
-        c.save();c.strokeStyle='#f2b9b5';c.globalAlpha=.7;c.lineWidth=2*this.dpr;c.setLineDash([7*this.dpr,6*this.dpr]);c.beginPath();c.moveTo(x,y);c.lineTo(tx,ty);c.stroke();c.setLineDash([]);c.strokeRect(tx-5*this.dpr,ty-5*this.dpr,10*this.dpr,10*this.dpr);c.restore();
+        c.save();c.strokeStyle='#ff9b74';c.globalAlpha=.18;c.lineWidth=effect.radius*2*z;c.beginPath();c.moveTo(x,y);c.lineTo(tx,ty);c.stroke();c.restore();
+        c.save();c.strokeStyle=this.map==='castle'?'#ffdb98':'#f2b9b5';c.globalAlpha=.85;c.lineWidth=2*this.dpr;c.setLineDash([7*this.dpr,6*this.dpr]);c.beginPath();c.moveTo(x,y);c.lineTo(tx,ty);c.stroke();c.setLineDash([]);c.strokeRect(tx-5*this.dpr,ty-5*this.dpr,10*this.dpr,10*this.dpr);c.restore();
       }else if(effect.kind==='shards'){
         const radius=effect.radius;
         c.save();c.globalAlpha=Math.min(.8,fraction+.2);c.fillStyle=this.map==='castle'?'#f0c474':'#d3a8ed';
@@ -439,7 +475,10 @@ export class Renderer {
         if(effect.mega&&this.art.images['mega-chest'])this.blit('mega-chest',(3+Math.min(2,Math.floor((1-fraction)*3)))*96,0,96,96,effect.x,effect.y,154,154,.85);
         else this.blit('arsenal',(3+Math.min(3,Math.floor((1-fraction)*4)))*48,144,48,48,effect.x,effect.y,100,100,.85);
       }else if(effect.kind==='warning'){
-        this.ring(effect.x,effect.y,effect.radius,true,Math.min(.9,fraction));
+        if(this.arena?.kind==='garden'&&effect.radius===this.arena.radius)continue;
+        const [x,y]=this.at(effect.x,effect.y);
+        c.save();c.globalAlpha=.09+.15*(1-fraction);c.fillStyle='#f17153';c.beginPath();c.arc(x,y,effect.radius*z,0,TAU);c.fill();
+        c.globalAlpha=.82;c.strokeStyle='#edab7a';c.lineWidth=Math.max(this.dpr,2*z);c.stroke();c.restore();
       } else if (!this.media.matches) {
         c.save(); c.globalAlpha = Math.min(.8, fraction);
         this.blit('combat', (effect.kind==='hurt'?3:7)*32, 0, 32, 32, effect.x, effect.y, 45 * (1.4 - fraction), undefined, .5); c.restore();

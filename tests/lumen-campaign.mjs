@@ -5,11 +5,13 @@ import {MAPS,MAX_WEAPON_STAGE,weaponStats,CHARACTERS} from '../webapp/frontend/j
 import {normalizeMeta,recordProgress,mapAvailable,buyCharacter,characterRequirement} from '../webapp/frontend/js/lumen/economy.mjs';
 const grant=(r,id)=>{r.status='upgrade';r.choices=[id];assert(chooseUpgrade(r,id));};
 
-test('the first two map level caps start their final boss, with no early map clear or final upgrade',()=>{
+test('the first two map level caps prepare their finales, with no early map clear or final upgrade',()=>{
   for(const [map,type]of [['garden','rootwarden'],['quarry','overseer']]){
     const r=createRun({map});r.level=MAPS[map].goal-1;r.xp=r.xpNext+10;
     step(r,{},1/60);assert.equal(r.level,MAPS[map].goal);assert.equal(r.status,'playing');assert.equal(r.endReason,'');assert.deepEqual(r.choices,[]);
-    assert.equal(r.arena.phase,'forming');assert.equal(r.enemies.find(e=>e.kind==='arena-boss').bossType,type);assert(restore(serialize(r)));
+    if(map==='garden')assert.equal(r.arena,null);
+    else{assert.equal(r.arena.phase,'forming');assert.equal(r.enemies.find(e=>e.kind==='arena-boss').bossType,type);}
+    assert(restore(serialize(r)));
   }
 });
 test('map unlock survives reload; losing or clearing a locked map does not unlock it',()=>{
@@ -20,9 +22,9 @@ test('map unlock survives reload; losing or clearing a locked map does not unloc
   const fresh=normalizeMeta(null);recordProgress(fresh,q);assert.deepEqual(fresh.clearedMaps,[]);
   r.status='lost';recordProgress(fresh,r);assert(!mapAvailable(fresh,'quarry'));
 });
-test('banked XP opens the final fight directly from the pending upgrade choice',()=>{
+test('banked XP reaches the Garden level cap directly from the pending upgrade choice',()=>{
   const r=createRun();r.level=29;r.xp=r.xpNext;r.status='upgrade';r.choices=['orbit'];
-  assert(chooseUpgrade(r,'orbit'));assert.equal(r.status,'playing');assert.equal(r.arena.phase,'forming');assert.equal(r.level,30);assert.deepEqual(r.choices,[]);assert(restore(serialize(r)));
+  assert(chooseUpgrade(r,'orbit'));assert.equal(r.status,'playing');assert.equal(r.arena,null);assert.equal(r.level,30);assert.deepEqual(r.choices,[]);assert(restore(serialize(r)));
 });
 test('coins alone cannot buy paid heroes; a found VIII weapon qualifies after loss and reload',()=>{
   for(const [id,hero] of Object.entries(CHARACTERS).filter(([,h])=>h.price)){
@@ -49,7 +51,8 @@ test('v2 active saves keep wallet-independent state and migrate discovered weapo
   v2.time=479;v2.player.x=125;v2.upgrades={spark:3,ice:5};v2.coinsEarned=85;v2.status='upgrade';v2.choices=['ice'];
   const r=restore(v2);assert(r);assert.equal(r.version,11);assert.equal(r.map,'garden');assert.deepEqual(r.foundWeapons,['ice']);assert.equal(r.coinsEarned,85);assert.equal(r.player.x,125);
   assert(chooseUpgrade(r,'ice'));assert.equal(r.upgrades.ice,6);assert(restore(serialize(r)));
-  v2.level=33;v2.status='playing';v2.choices=[];const completed=restore(v2);assert(completed);step(completed,{},1/60);assert.equal(completed.status,'playing');assert.equal(completed.arena.phase,'forming');
+  v2.level=33;v2.status='playing';v2.choices=[];const atCap=restore(v2);assert(atCap);step(atCap,{},1/60);
+  assert.equal(atCap.status,'playing');assert.equal(atCap.arena,null);assert(atCap.enemies.some(e=>e.kind==='guardian'));
 });
 test('new map, discovery and mastery records reject malformed data without granting unlocks',()=>{
   const valid=serialize(createRun());for(const change of [{map:'unknown'},{foundWeapons:['spark']},{foundWeapons:['flame']},{foundWeapons:['constructor']}])assert.equal(restore({...valid,...change}),null);

@@ -1,10 +1,7 @@
 import {assetBytes,progressReporter} from './asset-cache.mjs';
 import {latestMenuMap,menuBackgroundFile} from './menu-background.mjs';
-import {preloadWeaponIcons} from './weapon-icons.mjs';
-import {CHARACTERS} from './catalog.mjs';
-import {WEAPON_ICONS} from './weapon-icon-data.mjs';
 const base=new URL('../../assets/lumen/',import.meta.url),urls=new Map(),decoded=new Map();
-let manifestPromise,fontPromise,weaponsReady=false;
+let manifestPromise,fontPromise;
 const pendingBackgrounds=new Map();
 const previewFile=map=>menuBackgroundFile(map).slice(0,-5)+'-preview.webp';
 async function manifest(){
@@ -47,6 +44,8 @@ export async function preloadMenuBackground(meta,onProgress){
  const preview=value.backgrounds.find(entry=>entry.file===previewFile(map));
  if(!preview)throw new Error('Map preview unavailable');
  await batch([preview],onProgress);
+ const source=assetURL(preview.file);
+ document.querySelectorAll(`img[data-background-map="${map}"]`).forEach(image=>{image.src=source;});
  upgradeBackground(map,value.backgrounds.find(entry=>entry.file===menuBackgroundFile(map)));
 }
 const CORE_UI=['fonts/Tektur-game.ttf','ui.png','panel.png','weapons.png','arsenal.png','expedition.png','expansion-items.png','scout.png'];
@@ -69,31 +68,6 @@ export async function preloadMenu(onProgress,meta){
  document.documentElement.style.setProperty('--lumen-menu-coin','url("'+assetURL(coin.file)+'")');
  finish(onProgress);
  upgradeBackground(map,value.backgrounds.find(entry=>entry.file===menuBackgroundFile(map)));
-}
-const weaponFiles=Object.values(WEAPON_ICONS).map(entry=>entry.file);
-async function installWeaponIcons(){
- if(weaponsReady)return;
- if(!await preloadWeaponIcons(Object.keys(WEAPON_ICONS),{visible:true}))throw new Error('Weapon artwork unavailable');
- weaponsReady=true;
-}
-function menuPageFiles(page){
- switch(page){
-  case 'characters':return Object.keys(CHARACTERS).map(id=>id+'.png');
-  case 'weapons':return [...weaponFiles,'expedition.png','expansion-items.png'];
-  case 'training':return ['ui.png','expedition.png','expansion-items.png'];
-  default:return [];
- }
-}
-export function menuPageReady(page){
- return menuPageFiles(page).every(file=>decoded.has(file))
-   && (page!=='weapons'||weaponsReady);
-}
-export async function preloadMenuPage(page){
- const value=await manifest(),names=new Set(menuPageFiles(page));
- const entries=value.files.filter(entry=>names.has(entry.file));
- if(entries.length!==names.size)throw new Error('Incomplete menu page manifest');
- await batch(entries);installSprites();
- if(page==='weapons')await installWeaponIcons();
 }
 export async function preloadScene(scene,hero,onProgress,{previewLandscape=false}={}){
  const value=await manifest(),world=scene.map||'garden';

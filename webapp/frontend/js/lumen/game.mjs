@@ -1,4 +1,4 @@
-import {preloadScene,preloadMenuBackground,backgroundReady,preloadMenuPage,menuPageReady} from './preload.mjs';
+import {preloadScene,preloadMenuBackground,backgroundReady} from './preload.mjs';
 import {createRun,step,chooseUpgrade,serialize,restore,UPGRADES,upcomingUpgrade} from './engine.mjs';
 import {Renderer} from './renderer.mjs';
 import {loadArt} from './assets.mjs';
@@ -7,7 +7,7 @@ import {StoryOverlay} from './story-overlay.mjs';
 import {worldScene,bossScene} from './story.mjs';
 import {weaponIcon,prefetchWeaponChoices} from './weapon-icons.mjs';
 import {WORLD_FINALS} from './arena.mjs';
-import {menuViewport,showMenuLoading} from './menu-entry.mjs';
+import {menuViewport} from './menu-entry.mjs';
 import {renderMenu,MENU_PAGES} from './menu.mjs?v=game-menus-2';
 import {buyTraining} from './training.mjs';
 import {WEAPONS,upgradeSummary} from './presentation.mjs';
@@ -34,7 +34,7 @@ export function createGame(context) {
   const {getSaved,persist,navigate,telegram:tg,toast}=context;
   const $=s=>document.querySelector(s), gameMount=$('#lumenGameMount'),setupMount=$('#lumenSetupMount');
   let state=null,renderer=null,preview=null,previewState=null,raf=0,lastFrame=0,lastSave=0,lastHud=0,paused=false,screen='',character='scout',overlayKey='',resultRecorded=false;
-  let art=null,waitingForStart=false,sceneTicket=0,appInactive=false,menuBackgroundTicket=0;
+  let art=null,waitingForStart=false,sceneTicket=0,appInactive=false;
   let bossArtPending=null,bossArtReady=false,retryLaunch=null;
   const readyArt=new Set(),story=new StoryOverlay();
   let pointer=null,stickOrigin=null,input={x:0,y:0},keys=new Set(),audio=null,fullscreenOwned=false;
@@ -116,29 +116,11 @@ export function createGame(context) {
   }
   function setup(page='home',preserveScroll=false){
     if(!MENU_PAGES.includes(page))page='home';
-    const ticket=++menuBackgroundTicket,r=record();
+    const r=record();
     if(!selectionLoaded){character=r.selection.character;map=r.selection.map;selectionLoaded=true;}
     if(map==='crater')map=mapAvailable(r.meta,'castle')?'castle':'quarry';
     const scroll=preserveScroll?$('#lumenMenuContent')?.scrollTop||0:0;
-    const needsBackground=!backgroundReady(r.meta),needsPage=!menuPageReady(page);
-    if(!needsBackground&&!needsPage){setupContent(page,scroll,preserveScroll);return;}
-    if(screen!=='lumen')navigate('lumen');
-    screen='lumen';paused=true;menuPage=page;stopRenderer();lockScreen(true);
-    const pending=setupMount.querySelector('.lumen-shell');
-    if(pending)showMenuLoading(setupMount,{page});
-    else setupMount.innerHTML='<div class="lumen-loading" role="status">Подготавливаем фон открытой карты…</div>';
-    Promise.all([
-      needsBackground&&preloadMenuBackground(r.meta),
-      needsPage&&preloadMenuPage(page)
-    ]).then(()=>{
-      if(screen==='lumen'&&ticket===menuBackgroundTicket)setupContent(page,scroll,preserveScroll);
-    }).catch(()=>{
-      if(screen!=='lumen'||ticket!==menuBackgroundTicket)return;
-      if(pending)showMenuLoading(setupMount,{page,error:true,closeAction:page==='home'?'catalog':'menu'});
-      else setupMount.innerHTML='<div class="lumen-loading" role="alert">Не удалось загрузить фон.<button type="button" class="primary-button" data-lumen-action="setup">Повторить</button><button type="button" class="text-button" data-lumen-action="catalog">К играм</button></div>';
-    });
-  }
-  function setupContent(page,scroll,preserveScroll){
+    if(!backgroundReady(r.meta))void preloadMenuBackground(r.meta).catch(()=>{});
     if(screen!=='lumen')navigate('lumen');
     screen='lumen';paused=true;menuPage=page;stopRenderer();preview?.destroy();preview=null;
     document.documentElement.classList.add('lumen-menu-active');
@@ -233,7 +215,9 @@ export function createGame(context) {
     $('#lumenHealth').textContent=`${Math.ceil(Math.max(0,p.hp))} / ${p.maxHp}`;
     const hp=$('#lumenHealthMeter');hp.setAttribute('aria-valuemax',p.maxHp);hp.setAttribute('aria-valuenow',Math.ceil(Math.max(0,p.hp)));hp.firstElementChild.style.width=`${Math.max(0,p.hp/p.maxHp)*100}%`;
     const capped=state.level>=MAPS[state.map].goal,guidance=Boolean(castleGuidance(state));
-    $('#lumenTimer').textContent=clock(state.time);$('#lumenGoal').textContent=MAPS[state.map].name;$('#lumenLevel').textContent=`Уровень ${state.level} / ${MAPS[state.map].goal}`;$('#lumenXpLabel').textContent=capped?'МАКСИМАЛЬНЫЙ УРОВЕНЬ':`${state.xp} / ${state.xpNext}`;
+    const gardenHunt=state.map==='garden'&&capped&&!state.arena;
+    $('#lumenTimer').textContent=clock(state.time);$('#lumenGoal').textContent=MAPS[state.map].name;$('#lumenLevel').textContent=`Уровень ${state.level} / ${MAPS[state.map].goal}`;
+    $('#lumenXpLabel').textContent=gardenHunt?`СТРАЖИ ${state.bossesDefeated} / 3`:capped?'МАКСИМАЛЬНЫЙ УРОВЕНЬ':`${state.xp} / ${state.xpNext}`;
     const xp=$('#lumenXpMeter');xp.setAttribute('aria-valuemax',state.xpNext);xp.setAttribute('aria-valuenow',capped?state.xpNext:state.xp);xp.firstElementChild.style.width=`${capped?100:Math.min(100,state.xp/state.xpNext*100)}%`;
     if(guidance&&gameMount.dataset.guidance!=='true')$('#lumenAnnouncement').textContent='Достигнут 45-й уровень. Следуй за золотой стрелкой к залу Полого монарха.';
     gameMount.dataset.guidance=String(guidance);
@@ -252,13 +236,13 @@ export function createGame(context) {
     const bossHud=$('#lumenBossHud');bossHud.hidden=!wave;
     if(wave){
       $('#lumenBossName').textContent=bossName;
-      $('#lumenBossPhase').textContent=arena?.phase==='forming'?state.map==='castle'?'ВОРОТА ЗАКРЫВАЮТСЯ':'КОЛЬЦО ЗАМЫКАЕТСЯ':wave.hp<wave.maxHp*.5?'ЯРОСТЬ':'СЛЕДИ ЗА УДАРАМИ';
+      $('#lumenBossPhase').textContent=arena?.phase==='forming'?arena.kind==='garden'?'ПОЛЯНА СМОТРИТЕЛЯ':state.map==='castle'?'ВОРОТА ЗАКРЫВАЮТСЯ':'КОЛЬЦО ЗАМЫКАЕТСЯ':wave.actionTimer>0?'ГОТОВИТ УДАР':wave.hp<wave.maxHp*.5?'ЯРОСТЬ':'СЛЕДИ ЗА УДАРАМИ';
       const meter=$('#lumenBossMeter');meter.setAttribute('aria-valuemax',wave.maxHp);meter.setAttribute('aria-valuenow',Math.ceil(wave.hp));meter.firstElementChild.style.width=`${wave.hp/wave.maxHp*100}%`;
       $('#lumenBossHp').textContent=`${Math.ceil(wave.hp)} / ${wave.maxHp}`;
     }
     const phase=waveAt(state.time);
     const trapped=touchingEnemies(state).length>=3;
-    const arenaText=arena?(arena.phase==='forming'?'ПРИГОТОВЬСЯ К ФИНАЛЬНОМУ БОЮ':arena.phase==='fighting'?'СЛЕДИ ЗА ПРЕДУПРЕЖДЕНИЯМИ И ПРОСВЕТАМИ':arena.phase==='reward'?'СТРАЖ ПОВЕРЖЕН · ОТКРОЙ СОКРОВИЩНИЦУ':arena.phase==='celebrating'?`+${WORLD_FINALS[state.map].reward} МОНЕТ · ПУТЬ ОТКРЫТ`:''):(guidance?'УРОВЕНЬ 45 · СЛЕДУЙ ЗА ЗОЛОТОЙ СТРЕЛКОЙ':'');
+    const arenaText=arena?(arena.phase==='forming'?'ПРИГОТОВЬСЯ К ФИНАЛЬНОМУ БОЮ':arena.phase==='fighting'?arena.kind==='garden'?'СТОЛБЫ ЗАДЕРЖИВАЮТ СНАРЯДЫ':'СЛЕДИ ЗА ПРЕДУПРЕЖДЕНИЯМИ И ПРОСВЕТАМИ':arena.phase==='reward'?'СТРАЖ ПОВЕРЖЕН · ОТКРОЙ СОКРОВИЩНИЦУ':arena.phase==='celebrating'?`+${WORLD_FINALS[state.map].reward} МОНЕТ · ПУТЬ ОТКРЫТ`:''):(guidance?'УРОВЕНЬ 45 · СЛЕДУЙ ЗА ЗОЛОТОЙ СТРЕЛКОЙ':gardenHunt?'ОДОЛЕЙ СТРАЖЕЙ · ОТКРОЙ ПОЛЯНУ':'');
     const text=arenaText||(trapped?'ТЕБЯ ЗАЖАЛИ · ПРОБЕЙ ПРОХОД':wave?bossName.toUpperCase():state.chests.length?'СУНДУК НА ПОЛЕ · ПОДОЙДИ И ОТКРОЙ':state.time<8?'СОБИРАЙ ОСКОЛКИ СВЕТА':phase.kind==='harvest'?'СЛАБЫЙ РОЙ · СОБИРАЙ ОПЫТ':phase.kind==='pressure'&&phase.age<5?`НОВАЯ ВОЛНА · ЭТАП ${phase.stage}`:'');
     $('#lumenWave').dataset.phase=arena?'arena':trapped?'contact':wave?'guardian':phase.kind;
     if($('#lumenWave').textContent!==text)$('#lumenWave').textContent=text;
@@ -371,7 +355,6 @@ export function createGame(context) {
     if(name==='exit'){save();setup();}
   }
   function onScreen(name){
-    if(name!=='lumen')menuBackgroundTicket++;
     if(!['lumen','lumen-game'].includes(name)&&story.active){sceneTicket++;waitingForStart=false;retryLaunch=null;story.close();}
     document.documentElement.classList.toggle('lumen-menu-active',name==='lumen');
     if(screen==='lumen-game'&&name!=='lumen-game'){paused=true;save();stopRenderer();soundSuspend();}

@@ -10,10 +10,11 @@ const hooks={limits:{projectiles:100,effects:80},effect:(s,kind,x,y,radius,life)
 const advance=(s,e,seconds)=>{for(let i=0;i<Math.round(seconds/dt);i++)updateBossAttacks(s,e,dt,hooks);};
 
 test('original and castle boss variants have immutable distinct attack sequences',()=>{
-  assert.deepEqual(Object.keys(BOSS_VARIANTS),['rootwarden','overseer','drillguard','resonator','carapace','tempest','matriarch','conductor','gatekeeper','monarch']);
+  assert.deepEqual(Object.keys(BOSS_VARIANTS),['rootwarden','overseer','drillguard','resonator','carapace','tempest','matriarch','conductor','gatekeeper','monarch','briar','queen','ash']);
   for(const [id,v]of Object.entries(BOSS_VARIANTS)){
     assert(v.name&&v.sprite===`boss-${id}`);assert(Object.isFrozen(v)&&Object.isFrozen(v.attacks));
     assert(v.attacks.length>=3);for(const a of v.attacks)assert(Object.isFrozen(a)&&a.windup>=.6&&a.cooldown<=4);
+    assert(v.attacks.some(a=>a.kind==='slam'&&a.windup===2));
   }
   assert.notDeepEqual(BOSS_VARIANTS.carapace.attacks,BOSS_VARIANTS.tempest.attacks);
 });
@@ -23,8 +24,8 @@ test('every boss telegraphs before attacking and respects projectile and timer b
     const s=state(),e=enemy(id);s.enemies=[e];updateBossAttacks(s,e,dt,hooks);
     assert(e.actionTimer>=.6);assert(s.effects.length>0);assert.equal(s.projectiles.length,0);assert.equal(s.player.hp,150);
     advance(s,e,.3);assert.equal(s.projectiles.length,0);assert.equal(s.player.hp,150);
-    advance(s,e,1);assert(s.projectiles.length>0||s.player.hp<150,id);
-    assert(e.fireTimer>=0&&e.fireTimer<=4&&e.actionTimer<=1.2);assert(validateBossFields(e));
+    s.player.x=100;advance(s,e,BOSS_VARIANTS[id].attacks[0].windup+.05);assert(s.projectiles.length>0||s.player.hp<150,id);
+    assert(e.fireTimer>=0&&e.fireTimer<=4&&e.actionTimer<=2);assert(validateBossFields(e));
     for(let i=0;i<500;i++){updateBossAttacks(s,e,dt,hooks);assert(s.projectiles.length<=100);assert(s.effects.length<=80);}
   }
 });
@@ -55,14 +56,14 @@ test('every configured attack releases after its warning and slams can be escape
     assert.equal(e.attackStage,(attackStage+1)%variant.attacks.length);
   }
   const s=state(),e=enemy('carapace');e.attackStage=1;s.player.x=100;s.enemies=[e];
-  updateBossAttacks(s,e,dt,hooks);s.player.x=260;advance(s,e,1.2);assert.equal(s.player.hp,150);
+  updateBossAttacks(s,e,dt,hooks);s.player.x=260;advance(s,e,2.05);assert.equal(s.player.hp,150);
 });
 
-test('engine spawns distinct quarry and crater guardians while garden keeps its original bosses',()=>{
+test('engine spawns distinct garden, quarry and crater guardians',()=>{
   for(const map of ['garden','quarry','crater'])for(const [time,stage,type]of [[120,1,'carapace'],[240,2,'tempest'],[420,3,'carapace']]){
     const s=createRun({map,seed:stage});s.time=time-dt;s.spawnedGuardians=stage-1;s.spawnedElites=4;s.spawnTimer=3;
     step(s,{},dt);const boss=s.enemies.find(e=>e.kind==='guardian');assert(boss);
-    assert.equal(boss.guardianStage,stage);assert.equal(boss.bossType,map==='crater'?type:map==='quarry'?(stage===2?'resonator':'drillguard'):undefined);
+    assert.equal(boss.guardianStage,stage);assert.equal(boss.bossType,map==='crater'?type:map==='quarry'?(stage===2?'resonator':'drillguard'):['briar','queen','ash'][stage-1]);
     const saved=restore(serialize(s));assert(saved,`${map} stage ${stage} cannot restore`);assert.deepEqual(serialize(saved),serialize(s));
     if(map==='crater'){
       boss.fireTimer=0;step(s,{},dt);assert(boss.actionTimer>.6);assert(s.effects.some(e=>['charge','shards','warning'].includes(e.kind)));

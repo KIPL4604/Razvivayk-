@@ -77,7 +77,13 @@ export class EnemyVFX{
       // The complete stationary danger footprint remains visible below the droplet.
       const c=r.ctx,[x,y]=r.at(point.x,point.y);
       c.save();c.globalAlpha=.78;c.fillStyle='#5b3b27';c.beginPath();c.ellipse(x,y,shot.radius*r.zoom,shot.radius*r.zoom,0,0,TAU);c.fill();
-      c.strokeStyle='#efc47c';c.lineWidth=Math.max(r.dpr,1.5*r.zoom);c.stroke();c.restore();
+      c.strokeStyle='#efc47c';c.lineWidth=Math.max(r.dpr,1.5*r.zoom);c.stroke();
+      const age=time-(old?.since??time);
+      if(age<.3&&!r.media.matches){
+        c.globalAlpha=.7*(1-age/.3);c.strokeStyle='#fff0b6';c.beginPath();
+        c.arc(x,y,shot.radius*r.zoom*(1+age*1.5),0,TAU);c.stroke();
+      }
+      c.restore();
       this.sprite(r,row,frame,point.x,point.y,size,0,.95);return true;
     }
     if(!r.media.matches&&old&&old.points.length>1&&this.trails<MAX_TRAILS){

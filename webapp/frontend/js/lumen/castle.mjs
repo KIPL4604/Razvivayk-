@@ -4,6 +4,8 @@ import {waveAt} from './progression.mjs';
 export const CASTLE=Object.freeze({halfWidth:360,segmentLength:1600,carpetHalfWidth:120,
   bossY:-2000,hallHalfWidth:720,hallHalfHeight:650,gateY:-1280,triggerRadius:510});
 export const CASTLE_DOOR_HP=6000;
+const GUARD_REACH=130,GUARD_WIDTH=28,WAX_REACH=72,WAX_RADIUS=24;
+export const MOTH_SPREAD=.23;
 const TAU=Math.PI*2;
 const clamp=(v,min,max)=>Math.max(min,Math.min(max,v));
 export const createCastle=()=>({phase:'exploring',targetX:0,targetY:null,doorY:null,hallY:null,
@@ -127,6 +129,7 @@ export function castleCreatureStats(kind,wave){
 export function updateCastleEnemy(state,e,dt,{hurt,effect,limits}){
   if(!['palace-guard','wax-servant','paper-moth'].includes(e.kind))return false;
   e.hitFlash=Math.max(0,e.hitFlash-dt);e.slowTime=Math.max(0,e.slowTime-dt);
+  if(e.attackFlash)e.attackFlash=Math.max(0,e.attackFlash-dt);
   // Opening (24HP after map scaling) and harvest (12HP) survivors remain
   // harmless melee creatures when the next pressure wave starts. Otherwise
   // an entire surviving harvest would turn into casters on the same tick.
@@ -135,32 +138,40 @@ export function updateCastleEnemy(state,e,dt,{hurt,effect,limits}){
   const previous=e.actionTimer||0;
   e.actionTimer=Math.max(0,previous-dt);e.fireTimer=Math.max(0,e.fireTimer-dt);
   const dx=state.player.x-e.x,dy=state.player.y-e.y,distance=Math.hypot(dx,dy)||1;
+  const guard=e.kind==='palace-guard',wax=e.kind==='wax-servant';
+  const aimX=Math.cos(e.phase),aimY=Math.sin(e.phase);
+  const emit=(kind,x,y,radius,life,toX,toY)=>{
+    if(state.effects.length>=limits.effects)state.effects.shift();
+    effect(state,kind,x,y,radius,life);
+    if(toX!==undefined)Object.assign(state.effects.at(-1),{toX,toY});
+  };
   if(previous>0){
     if(e.actionTimer>0)return true;
-    if(e.kind==='palace-guard'){
-      const along=dx*Math.cos(e.phase)+dy*Math.sin(e.phase),across=Math.abs(dx*Math.sin(e.phase)-dy*Math.cos(e.phase));
-      effect(state,'arc',e.x,e.y,28,.25);
-      Object.assign(state.effects.at(-1),{toX:e.x+Math.cos(e.phase)*130,toY:e.y+Math.sin(e.phase)*130});
-      if(along>=0&&along<=130&&across<28+state.player.radius)hurt(state,18,.3);
+    e.attackFlash=.42;
+    if(guard){
+      const along=dx*aimX+dy*aimY,across=Math.abs(dx*aimY-dy*aimX);
+      emit('arc',e.x,e.y,GUARD_WIDTH,.25,e.x+aimX*GUARD_REACH,e.y+aimY*GUARD_REACH);
+      if(along>=0&&along<=GUARD_REACH&&across<GUARD_WIDTH+state.player.radius)hurt(state,18,.3);
+    }else if(wax){
+      const x=e.x+aimX*WAX_REACH,y=e.y+aimY*WAX_REACH;
+      if(state.projectiles.length<limits.projectiles)state.projectiles.push({id:state.nextId++,x,y,
+        vx:0,vy:0,radius:WAX_RADIUS,damage:12,life:3.8,hostile:true,weapon:'hostile',pierce:0,hits:[],returning:false});
     }else{
-      const wax=e.kind==='wax-servant',count=wax?1:3;
-      for(let n=0;n<count&&state.projectiles.length<limits.projectiles;n++){
-        const angle=e.phase+(n-(count-1)/2)*.23;
-        state.projectiles.push({id:state.nextId++,x:e.x+Math.cos(angle)*(wax?72:15),y:e.y+Math.sin(angle)*(wax?72:15),
-          vx:Math.cos(angle)*(wax?0:145),vy:Math.sin(angle)*(wax?0:145),radius:wax?24:6,damage:wax?12:9,
-          life:wax?3.8:4,hostile:true,weapon:'hostile',pierce:0,hits:[],returning:false});
+      for(let n=-1;n<=1&&state.projectiles.length<limits.projectiles;n++){
+        const angle=e.phase+n*MOTH_SPREAD;
+        state.projectiles.push({id:state.nextId++,x:e.x+Math.cos(angle)*15,y:e.y+Math.sin(angle)*15,
+          vx:Math.cos(angle)*145,vy:Math.sin(angle)*145,radius:6,damage:9,
+          life:4,hostile:true,weapon:'hostile',pierce:0,hits:[],returning:false});
       }
     }
-    e.fireTimer=e.kind==='palace-guard'?2.5:3.4;
+    e.fireTimer=guard?2.5:3.4;
     return true;
   }
-  if(active&&e.fireTimer<=0&&distance<(e.kind==='palace-guard'?135:350)){
-    e.phase=(Math.atan2(dy,dx)+TAU)%TAU;e.actionTimer=e.kind==='wax-servant'?.8:.65;
-    if(e.kind==='palace-guard'){
-      effect(state,'charge',e.x,e.y,28,e.actionTimer);
-      Object.assign(state.effects.at(-1),{toX:e.x+Math.cos(e.phase)*130,toY:e.y+Math.sin(e.phase)*130});
-    }else effect(state,'warning',e.x+Math.cos(e.phase)*(e.kind==='wax-servant'?72:0),
-      e.y+Math.sin(e.phase)*(e.kind==='wax-servant'?72:0),e.kind==='wax-servant'?30:45,e.actionTimer);
+  if(active&&e.fireTimer<=0&&distance<(guard?GUARD_REACH+5:350)){
+    e.phase=(Math.atan2(dy,dx)+TAU)%TAU;e.actionTimer=wax?.8:.65;
+    if(guard)emit('charge',e.x,e.y,GUARD_WIDTH,e.actionTimer,e.x+Math.cos(e.phase)*GUARD_REACH,e.y+Math.sin(e.phase)*GUARD_REACH);
+    else if(wax)emit('warning',e.x+Math.cos(e.phase)*WAX_REACH,e.y+Math.sin(e.phase)*WAX_REACH,30,e.actionTimer);
+    else emit('warning',e.x,e.y,45,e.actionTimer);
     return true;
   }
   const spacing=e.kind==='paper-moth'?(distance<155?-.5:distance<270?.15:1):distance<65?0:1;

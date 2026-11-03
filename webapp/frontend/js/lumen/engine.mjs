@@ -9,8 +9,9 @@ import {CHARACTERS,WEAPONS,WEAPON_IDS,BASE_WEAPON_IDS,HYBRIDS,ARTIFACTS,MAX_WEAP
 import {updateWeapons,flameImpact} from './combat.mjs';
 import {CONTACT_PERIOD,movePlayer,separateCrowd,touchingEnemies,contactDamage} from './physics.mjs';
 import {normalizeTraining,validTraining} from './training.mjs';
-import {startArena,updateArena,enforceArenaBoundary,bossDeath,markArenaChestOpened,validateArena} from './arena.mjs';
-import {updateBossAttacks,validateBossFields} from './bosses.mjs';
+import {startArena,updateArena,enforceArenaBoundary,bossDeath,markArenaChestOpened,validateArena,expandLegacyGardenArena} from './arena.mjs';
+import {GARDEN_GUARDIANS,updateBossAttacks,validateBossFields} from './bosses.mjs';
+import {gardenCover,gardenFinalReady,strikeGardenCover} from './garden-arena.mjs';
 import {CASTLE,createCastle,castleLayout,ensureCastleExit,breakCastleDoor,updateCastleGoal,castleColliders,constrainCastleEntity,validateCastle,castleCreatureStats,updateCastleEnemy} from './castle.mjs';
 
 export const DURATION = 480; // Historical benchmark for older harnesses; no time limit.
@@ -200,6 +201,7 @@ function spawn(state, guardianStage = 0, wave = waveAt(state.time),elite=false) 
   state.enemies.push({ id: state.nextId++, kind, x: state.player.x + Math.cos(angle) * range,
     y: state.player.y + Math.sin(angle) * range, ...base, value, maxHp: base.hp,
     phase: random(state) * TAU, hitFlash: 0, guardianStage, fireTimer: 2.8,elite,slowTime:0,actionTimer:0 });
+  if(guardianStage&&state.map==='garden')Object.assign(state.enemies.at(-1),{bossType:GARDEN_GUARDIANS[guardianStage-1],attackStage:0});
   if(guardianStage&&state.map==='quarry')Object.assign(state.enemies.at(-1),{bossType:guardianStage===2?'resonator':'drillguard',attackStage:0});
   if(guardianStage&&state.map==='crater')Object.assign(state.enemies.at(-1),{bossType:guardianStage===2?'tempest':'carapace',attackStage:0});
   if(guardianStage&&state.map==='castle')Object.assign(state.enemies.at(-1),{bossType:guardianStage===2?'conductor':'gatekeeper',attackStage:0});
@@ -218,12 +220,14 @@ function spawn(state, guardianStage = 0, wave = waveAt(state.time),elite=false) 
     if(distanceSquared(enemy,state.player)<minimum**2){state.enemies.pop();return;}
   }
   if (guardianStage) effect(state, 'warning', state.player.x, state.player.y, 160, 1.5);
+  return true;
 }
 
 function creatures(state, dt) {
   for (const enemy of state.enemies) {
     if (enemy.hp <= 0) continue;
     if(['arena-boss','arena-tick','castle-door'].includes(enemy.kind))continue;
+    if(state.map==='garden'&&enemy.kind==='guardian'&&!enemy.bossType)Object.assign(enemy,{bossType:GARDEN_GUARDIANS[enemy.guardianStage-1],attackStage:0,actionTimer:0});
     if(enemy.bossType){updateBossAttacks(state,enemy,dt,{hurt,effect,limits:LIMITS});continue;}
     if(updateCastleEnemy(state,enemy,dt,{hurt,effect,limits:LIMITS}))continue;
     enemy.hitFlash = Math.max(0, enemy.hitFlash - dt);
@@ -287,10 +291,12 @@ function projectiles(state, dt) {
       const dx=state.player.x-projectile.x,dy=state.player.y-projectile.y,d=Math.hypot(dx,dy)||1;
       projectile.vx=dx/d*330;projectile.vy=dy/d*330;
     }
+    const origin=projectile.hostile&&state.arena?.kind==='garden'?{x:projectile.x,y:projectile.y}:null;
     projectile.life -= dt;
     projectile.x += projectile.vx * dt;
     projectile.y += projectile.vy * dt;
     if (projectile.hostile) {
+      if(origin&&strikeGardenCover(state,origin,projectile,projectile.damage,projectile.radius)){projectile.life=0;continue;}
       if (distanceSquared(projectile, state.player) < (projectile.radius + state.player.radius) ** 2) {
         hurt(state, projectile.damage);
         projectile.life = 0;
@@ -361,6 +367,7 @@ export function upcomingUpgrade(state){
 }
 
 function offerUpgrade(state) {
+  if(state.map==='garden'&&state.level>=MAPS.garden.goal)return;
   if (state.status !== 'playing' || state.arena || state.map==='castle'&&state.level>=45 || state.xp < state.xpNext) return;
   const planned=upcomingUpgrade(state);
   state.xp -= state.xpNext;
@@ -369,7 +376,10 @@ function offerUpgrade(state) {
   if(state.level>=MAPS[state.map].goal){
     state.choices=[];state.nextUpgrade=null;state.remainder=0;
     if(state.map==='castle')state.xp=0;
-    if(MAPS[state.map].bossGoal){updateCastleGoal(state);startArena(state,{effect});}else{state.status='won';state.endReason='level';}
+    if(MAPS[state.map].bossGoal){
+      updateCastleGoal(state);
+      if(state.map!=='garden')startArena(state,{effect});
+    }else{state.status='won';state.endReason='level';}
     return;
   }
   // Keep the encounter stream's established advancement at promotion. Moving
@@ -388,13 +398,13 @@ function offerUpgrade(state) {
   state.remainder = 0;
 }
 
-function collect(state, dt) {
+function collect(state, dt, bankGuardianChests=false) {
   const remaining = [];
   for (const crystal of state.gems) {
     const dx = state.player.x - crystal.x;
     const dy = state.player.y - crystal.y;
     const distance = Math.hypot(dx, dy);
-    if (distance < state.player.radius + 8) { if(state.map!=='castle'||state.level<45)state.xp += crystal.value; continue; }
+    if (distance < state.player.radius + 8) { if(!['garden','castle'].includes(state.map)||state.level<MAPS[state.map].goal)state.xp += crystal.value; continue; }
     if (distance < state.pickupRadius) {
       const movement = Math.min(distance, (230 + (state.pickupRadius - distance) * 3) * dt);
       crystal.x += dx / distance * movement;
@@ -405,7 +415,7 @@ function collect(state, dt) {
   state.gems = remaining;
   let chestChangedKit=false;
   state.chests=state.chests.filter(chest=>{
-    if(distanceSquared(chest,state.player)>(state.player.radius+24)**2)return true;
+    if(!(bankGuardianChests&&chest.boss&&!chest.mega)&&distanceSquared(chest,state.player)>(state.player.radius+24)**2)return true;
     const candidates=WEAPON_IDS.filter(id=>rank(state,id)>0&&rank(state,id)<WEAPONS[id].max);
     const weapon=chest.upgrade&&candidates.length?candidates[Math.floor(random(state)*candidates.length)]:'';
     if(weapon){state.upgrades[weapon]++;chestChangedKit=true;}
@@ -432,7 +442,10 @@ function tick(state, input, dt) {
     state.player.invulnerable=Math.max(state.player.invulnerable,.8);
   }
   if(state.level>=MAPS[state.map].goal&&!MAPS[state.map].bossGoal){state.status='won';state.endReason='level';state.choices=[];return;}
-  if(state.level>=MAPS[state.map].goal&&MAPS[state.map].bossGoal&&!state.arena)startArena(state,{effect});
+  if(state.level>=MAPS[state.map].goal&&MAPS[state.map].bossGoal&&!state.arena){
+    if(gardenFinalReady(state))collect(state,0,true);
+    startArena(state,{effect});
+  }
   state.time += dt;
   const player = state.player;
   player.invulnerable = Math.max(0, player.invulnerable - dt);
@@ -447,7 +460,8 @@ function tick(state, input, dt) {
   state.effects = state.effects.filter((event) => event.life > 0);
   if(state.arena){updateArena(state,dt,{hit,hurt,effect,limits:LIMITS});if(state.status!=='playing')return;enforceArenaBoundary(state,{hurt,effect});if(state.status!=='playing')return;}
   const wind=player.hp>=player.maxHp?1+rank(state,'compass')*.05:1;
-  const bodies=state.map==='castle'?[...state.enemies,...castleColliders(player.y-180,player.y+180,state)]:state.enemies;
+  const bodies=state.map==='castle'?[...state.enemies,...castleColliders(player.y-180,player.y+180,state)]
+    :state.arena?.kind==='garden'?[...state.enemies,...gardenCover(state.arena)]:state.enemies;
   movePlayer(player,bodies,input.x*player.speed*dt*wind,input.y*player.speed*dt*wind);
   if(state.map==='castle'){
     constrainCastleEntity(player,state);
@@ -455,7 +469,13 @@ function tick(state, input, dt) {
   }
   if(state.arena){enforceArenaBoundary(state,{hurt,effect});if(state.status!=='playing')return;}
   if (Math.hypot(input.x, input.y) > 0.01) { player.facingX = input.x; player.facingY = input.y; }
-  if(!state.arena){
+  const gardenHunt=state.map==='garden'&&state.level>=MAPS.garden.goal&&!state.arena;
+  if(gardenHunt){
+    if(!state.enemies.some(enemy=>enemy.kind==='guardian'&&enemy.hp>0)){
+      const stage=state.bossesDefeated+1;
+      if(stage<=3&&spawn(state,stage))state.spawnedGuardians=stage;
+    }
+  }else if(!state.arena){
   while (state.spawnedGuardians < 3 && state.time + 1e-7 >= GUARDIAN_TIMES[state.spawnedGuardians]) {
     state.spawnedGuardians += 1;
     spawn(state, state.spawnedGuardians);
@@ -669,8 +689,9 @@ export function restore(snapshot) {
         !integer(enemy.value, ['arena-boss','arena-tick','castle-door'].includes(enemy.kind)?0:1, 1e5) || !number(enemy.phase, 0, TAU) || !number(enemy.hitFlash, 0, 1) ||
         !integer(enemy.guardianStage, 0, 3) || (enemy.kind === 'guardian') !== (enemy.guardianStage > 0) ||
         !number(enemy.fireTimer, -H, 4) ||(own(enemy,'elite')&&typeof enemy.elite!=='boolean')||
-        !number(enemy.slowTime??0,0,2)||!number(enemy.actionTimer??0,0,2)||!validateBossFields(enemy)||own(enemy,'bossType')&&!({garden:['rootwarden'],quarry:['drillguard','resonator','overseer'],crater:['carapace','tempest','matriarch'],castle:['conductor','gatekeeper','monarch']}[state.map]||[]).includes(enemy.bossType)||
+        !number(enemy.slowTime??0,0,2)||!number(enemy.actionTimer??0,0,2)||!number(enemy.attackFlash??0,0,.5)||!validateBossFields(enemy)||own(enemy,'bossType')&&!({garden:['rootwarden',...GARDEN_GUARDIANS],quarry:['drillguard','resonator','overseer'],crater:['carapace','tempest','matriarch'],castle:['conductor','gatekeeper','monarch']}[state.map]||[]).includes(enemy.bossType)||
         own(enemy,'bossType')&&['rootwarden','overseer','matriarch','monarch'].includes(enemy.bossType)!==(enemy.kind==='arena-boss')||
+        state.map==='garden'&&enemy.kind==='guardian'&&own(enemy,'bossType')&&enemy.bossType!==GARDEN_GUARDIANS[enemy.guardianStage-1]||
         ['palace-guard','wax-servant','paper-moth','castle-door'].includes(enemy.kind)&&state.map!=='castle') return null;
       ids.add(enemy.id);
       state.enemies.push({ id: enemy.id, kind: enemy.kind, x: enemy.x, y: enemy.y, hp: enemy.hp, maxHp: enemy.maxHp,
@@ -678,6 +699,7 @@ export function restore(snapshot) {
         phase: enemy.phase, hitFlash: enemy.hitFlash, guardianStage: enemy.guardianStage, fireTimer: enemy.fireTimer,
         elite:enemy.elite===true,slowTime:enemy.slowTime||0,actionTimer:enemy.actionTimer||0 });
       if(own(enemy,'bossType'))Object.assign(state.enemies.at(-1),{bossType:enemy.bossType,attackStage:enemy.attackStage});
+      if(own(enemy,'attackFlash'))state.enemies.at(-1).attackFlash=enemy.attackFlash;
     }
     for (const projectile of snapshot.projectiles) {
       if (!position(projectile) || !integer(projectile.id, 1, 0x7fffffff) || ids.has(projectile.id) ||
@@ -742,6 +764,8 @@ export function restore(snapshot) {
     state.arena=snapshot.arena===null?null:{...snapshot.arena};
     state.castle=snapshot.castle===null?null:{...snapshot.castle};
     if(!validateCastle(snapshot.castle,state)||!validateArena(snapshot.arena,state))return null;
+    expandLegacyGardenArena(state);
+    if(state.arena?.kind==='garden')state.arena.cover=state.arena.cover.slice();
     if(!own(snapshot,'nextUpgrade'))state.nextUpgrade=upcomingUpgrade(state);
     return state;
   } catch { return null; }

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {createRun,step,chooseUpgrade,serialize,restore} from '../webapp/frontend/js/lumen/engine.mjs';
 import {BOSS_VARIANTS} from '../webapp/frontend/js/lumen/bosses.mjs';
 import {MAPS} from '../webapp/frontend/js/lumen/catalog.mjs';
+import {GARDEN_ARENA_RADIUS,GARDEN_COVER_HP,gardenCover} from '../webapp/frontend/js/lumen/garden-arena.mjs';
 import {normalizeMeta,recordProgress,bankCoins} from '../webapp/frontend/js/lumen/economy.mjs';
 import {steer} from './helpers/lumen-pilot.mjs';
 
@@ -11,7 +12,8 @@ const worlds=[['garden','rootwarden',300],['quarry','overseer',500]];
 const advance=(s,seconds)=>{for(let n=0;n<Math.round(seconds/dt);n++)step(s,{},dt);};
 function atFinal(map){
   const s=createRun({map,seed:81});s.level=MAPS[map].goal-1;s.xp=s.xpNext;
-  step(s,{},dt);return s;
+  if(map==='garden'){s.spawnedGuardians=s.bossesDefeated=3;s.finalGuardianDefeated=true;}
+  step(s,{},dt);if(map==='garden')step(s,{},dt);return s;
 }
 function roundTrip(s){const snapshot=serialize(s),copy=restore(snapshot);assert(copy,s.arena?.phase);assert.deepEqual(serialize(copy),snapshot);return copy;}
 function killFinal(s){
@@ -20,6 +22,76 @@ function killFinal(s){
     weapon:'spark',hostile:false,pierce:0,hits:[],returning:false});
   step(s,{},dt);assert.equal(s.arena.phase,'reward');
 }
+
+test('Garden opens a spacious clearing only after level 30 and the three guardians',()=>{
+  const s=createRun({map:'garden',seed:80});
+  s.level=29;s.xp=s.xpNext;
+  step(s,{},dt);assert.equal(s.level,30);assert.equal(s.arena,null);
+  for(const [index,type] of ['briar','queen','ash'].entries()){
+    step(s,{},dt);assert.equal(s.arena,null);assert.equal(s.bossesDefeated,index);
+    const boss=s.enemies.find(e=>e.kind==='guardian');assert.equal(boss.bossType,type);
+    boss.hp=1;
+    s.projectiles.push({id:s.nextId++,x:boss.x,y:boss.y,vx:0,vy:0,radius:4,damage:1,life:1,
+      weapon:'spark',hostile:false,pierce:0,hits:[],returning:false});
+    step(s,{},dt);assert.equal(s.bossesDefeated,index+1);
+  }
+  s.player.hp=1;
+  const old={...s.player};
+  step(s,{},dt);
+  assert.equal(s.arena.kind,'garden');assert.equal(s.arena.radius,GARDEN_ARENA_RADIUS);
+  assert(Math.hypot(s.player.x-old.x,s.player.y-old.y)>900);
+  assert.equal(s.player.hp,Math.ceil(s.player.maxHp*.3));
+  assert.equal(s.coinsEarned,240);
+  assert.equal(gardenCover(s.arena).length,6);
+  roundTrip(s);
+  advance(s,2.5);
+  s.player.invulnerable=0;s.player.x=s.arena.x+s.arena.radius+30;s.player.y=s.arena.y;
+  const hp=s.player.hp;
+  step(s,{x:1},dt);
+  assert(s.player.x<s.arena.x+s.arena.radius);
+  assert.equal(s.player.hp,hp);
+});
+
+test('Garden pillars block shots, lose durability, then stop obstructing movement',()=>{
+  const s=atFinal('garden');advance(s,2.5);
+  const pillar=gardenCover(s.arena)[0];
+  const projectile=damage=>({id:s.nextId++,x:pillar.x,y:pillar.y-35,vx:0,vy:180,radius:6,damage,life:1,
+    weapon:'hostile',hostile:true,pierce:0,hits:[],returning:false});
+  s.projectiles.push(projectile(18));step(s,{},dt);
+  assert.equal(s.arena.cover[0],GARDEN_COVER_HP-18);
+  assert(!s.projectiles.some(shot=>shot.hostile));
+  roundTrip(s);
+  s.player.x=pillar.x;s.player.y=pillar.y+57;
+  for(let i=0;i<14;i++)step(s,{y:-1},dt);
+  assert(s.player.y>=pillar.y+53);
+  s.projectiles.push(projectile(GARDEN_COVER_HP));step(s,{},dt);
+  assert.equal(s.arena.cover[0],0);
+  for(let i=0;i<14;i++)step(s,{y:-1},dt);
+  assert(s.player.y<pillar.y+35);
+  roundTrip(s);
+  const beamCover=gardenCover(s.arena)[1],boss=s.enemies.find(e=>e.kind==='arena-boss');
+  s.player.x=boss.x+(beamCover.x-boss.x)*1.25;s.player.y=boss.y+(beamCover.y-boss.y)*1.25;
+  s.player.invulnerable=0;boss.attackStage=3;boss.fireTimer=0;boss.actionTimer=0;
+  const hp=s.player.hp;
+  advance(s,1.08);
+  assert.equal(s.player.hp,hp);
+  assert.equal(s.arena.cover[1],GARDEN_COVER_HP-BOSS_VARIANTS.rootwarden.attacks[3].damage);
+});
+
+test('the former small Garden arena expands in place without resetting the boss',()=>{
+  const s=atFinal('garden');
+  delete s.arena.kind;delete s.arena.cover;s.arena.radius=330;
+  s.bossesDefeated=0;
+  const boss=s.enemies.find(e=>e.kind==='arena-boss');boss.hp=8000;
+  for(const enemy of s.enemies)if(enemy.kind==='arena-tick'){
+    enemy.x=s.arena.x+Math.cos(enemy.phase)*330;
+    enemy.y=s.arena.y+Math.sin(enemy.phase)*330;
+  }
+  const restored=restore(serialize(s));assert(restored);
+  assert.equal(restored.enemies.find(e=>e.kind==='arena-boss').hp,8000);
+  assert(restored.arena.legacyEntry);assert.equal(restored.arena.radius,GARDEN_ARENA_RADIUS);
+  advance(restored,2.5);assert.equal(restored.arena.phase,'fighting');roundTrip(restored);
+});
 
 test('garden and quarry finals have independent identities, large bodies and mandatory victory gates',()=>{
   for(const [map,type]of worlds){
@@ -58,7 +130,10 @@ test('v10 completed level victories remain completed and eligible while active c
     assert.equal(s.status,'won');assert.equal(s.arena,null);assert.equal(s.coinsEarned,97);s=roundTrip(s);
     const meta=normalizeMeta({clearedMaps:map==='quarry'?['garden']:[]});recordProgress(meta,s);assert(meta.clearedMaps.includes(map));
     old.status='playing';old.endReason='';s=restore(old);assert(s);assert.equal(s.legacyLevelWin,false);
-    step(s,{},dt);assert.equal(s.status,'playing');assert.equal(s.enemies.find(e=>e.kind==='arena-boss').bossType,type);roundTrip(s);
+    step(s,{},dt);assert.equal(s.status,'playing');
+    if(map==='garden')assert(s.enemies.some(e=>e.kind==='guardian'));
+    else assert.equal(s.enemies.find(e=>e.kind==='arena-boss').bossType,type);
+    roundTrip(s);
   }
 });
 
@@ -90,7 +165,9 @@ test('legal level-budget builds defeat both new finals using ordinary directiona
     const build=map==='garden'?{sunlance:8,spark:6,drone:4,focus:2,haste:2,vitality:2,laurel:3,heart:1,aegis:1}
       :{sunlance:8,spark:8,drone:5,focus:3,haste:3,vitality:2,laurel:3,heart:1,aegis:1};
     for(const [id,rank]of Object.entries(build))while((s.upgrades[id]||0)<rank){s.status='upgrade';s.choices=[id];assert(chooseUpgrade(s,id));choices++;}
-    assert.equal(choices,MAPS[map].goal-2);s.level=MAPS[map].goal-1;s.xp=s.xpNext;step(s,{},dt);
+    assert.equal(choices,MAPS[map].goal-2);s.level=MAPS[map].goal-1;s.xp=s.xpNext;
+    if(map==='garden'){s.spawnedGuardians=s.bossesDefeated=3;s.finalGuardianDefeated=true;s.player.hp=1;}
+    step(s,{},dt);if(map==='garden')step(s,{},dt);
     const memory={};let frames=0;
     while(s.status==='playing'&&s.arena.phase!=='reward'&&frames<120*60){
       step(s,steer(s,frames,memory),dt);if(++frames===300)s=roundTrip(s);

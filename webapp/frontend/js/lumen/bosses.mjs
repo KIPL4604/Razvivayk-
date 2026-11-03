@@ -1,5 +1,12 @@
+import {gardenCover,strikeGardenCover} from './garden-arena.mjs';
+
 const TAU=Math.PI*2;
-const freezeVariant=value=>Object.freeze({...value,attacks:Object.freeze(value.attacks.map(Object.freeze))});
+const freezeVariant=value=>{
+  const attacks=value.attacks.some(a=>a.kind==='slam')?value.attacks:[...value.attacks,
+    {kind:'slam',radius:155,damage:24,cooldown:3.4}];
+  return Object.freeze({...value,attacks:Object.freeze(attacks.map(a=>Object.freeze(a.kind==='slam'?{...a,windup:2}:a)))});
+};
+export const GARDEN_GUARDIANS=Object.freeze(['briar','queen','ash']);
 
 export const BOSS_VARIANTS=Object.freeze({
   rootwarden:freezeVariant({name:'Смотритель корней',sprite:'boss-rootwarden',hp:16000,radius:70,damage:24,attacks:[
@@ -62,6 +69,21 @@ export const BOSS_VARIANTS=Object.freeze({
     {kind:'ring',count:38,speed:145,damage:24,windup:1,cooldown:2.7},
     {kind:'line',range:900,width:32,damage:40,windup:1,cooldown:2.7},
   ]}),
+  briar:freezeVariant({name:'Шипоносец',sprite:'boss-briar',attacks:[
+    {kind:'fan',count:5,speed:120,damage:11,spread:.25,windup:.9,cooldown:2.9},
+    {kind:'slam',radius:144,damage:19,cooldown:3.3},
+    {kind:'line',range:310,width:19,damage:17,windup:1.25,cooldown:3},
+  ]}),
+  queen:freezeVariant({name:'Матка роя',sprite:'boss-queen',attacks:[
+    {kind:'ring',count:13,speed:124,damage:12,windup:1.1,cooldown:3},
+    {kind:'fan',count:8,speed:142,damage:13,spread:.19,windup:1,cooldown:2.8},
+    {kind:'slam',radius:164,damage:22,cooldown:3.2},
+  ]}),
+  ash:freezeVariant({name:'Пепельный колосс',sprite:'boss-ash',attacks:[
+    {kind:'line',range:385,width:28,damage:24,windup:1.35,cooldown:3.3},
+    {kind:'slam',radius:190,damage:27,cooldown:3.5},
+    {kind:'spiral',count:13,speed:125,damage:15,windup:1.1,cooldown:3.2},
+  ]}),
 });
 export const BOSS_TYPES=Object.freeze(Object.keys(BOSS_VARIANTS));
 
@@ -79,6 +101,7 @@ export function updateBossAttacks(state,enemy,dt,{hurt,effect,limits}){
   const variant=BOSS_VARIANTS[enemy.bossType];
   if(!variant||!['guardian','arena-boss'].includes(enemy.kind)||enemy.hp<=0)return false;
   enemy.hitFlash=Math.max(0,(enemy.hitFlash||0)-dt);
+  if(enemy.attackFlash)enemy.attackFlash=Math.max(0,enemy.attackFlash-dt);
   enemy.slowTime=Math.max(0,(enemy.slowTime||0)-dt);
   enemy.fireTimer=Math.max(0,(enemy.fireTimer||0)-dt);
   enemy.attackStage ||= 0;
@@ -87,20 +110,24 @@ export function updateBossAttacks(state,enemy,dt,{hurt,effect,limits}){
     if(state.effects.length>=limits.effects)state.effects.shift();
     effect(state,kind,x,y,radius,life);return state.effects.at(-1);
   };
-  const line=(kind,life)=>Object.assign(emit(kind,enemy.x,enemy.y,attack.width||22,life),{
-    toX:enemy.x+Math.cos(enemy.phase)*(attack.range||520),toY:enemy.y+Math.sin(enemy.phase)*(attack.range||520),
-  });
+  const aim=()=>({x:enemy.x+Math.cos(enemy.phase)*(attack.range||520),y:enemy.y+Math.sin(enemy.phase)*(attack.range||520)});
+  const line=(kind,life,to=aim())=>Object.assign(emit(kind,enemy.x,enemy.y,attack.width||22,life),{toX:to.x,toY:to.y});
   const previous=enemy.actionTimer||0;
   if(previous>0){
     enemy.actionTimer=Math.max(0,previous-dt);
     if(enemy.actionTimer>0)return true;
+    enemy.attackFlash=.42;
     if(attack.kind==='slam'){
       emit('pulse',enemy.x,enemy.y,attack.radius,.45);
+      for(const cover of gardenCover(state.arena)){
+        if(Math.hypot(cover.x-enemy.x,cover.y-enemy.y)<attack.radius+cover.radius)state.arena.cover[cover.index]=Math.max(0,cover.hp-attack.damage);
+      }
       if(Math.hypot(state.player.x-enemy.x,state.player.y-enemy.y)<attack.radius+state.player.radius)hurt(state,attack.damage,.35);
     }else if(attack.kind==='line'){
-      line('arc',.3);
+      const target=aim(),cover=strikeGardenCover(state,enemy,target,attack.damage,attack.width);
+      line('arc',.3,cover||target);
       const x=state.player.x-enemy.x,y=state.player.y-enemy.y,dx=Math.cos(enemy.phase),dy=Math.sin(enemy.phase),along=x*dx+y*dy;
-      if(along>=0&&along<=attack.range&&Math.abs(x*dy-y*dx)<attack.width+(state.player.radius||13))hurt(state,attack.damage,.35);
+      if(along>=0&&along<=(cover?.distance??attack.range)&&Math.abs(x*dy-y*dx)<attack.width+(state.player.radius||13))hurt(state,attack.damage,.35);
     }else{
       const raging=enemy.hp<enemy.maxHp*.5,count=attack.count+(raging?2:0);
       for(let n=0;n<count&&state.projectiles.length<limits.projectiles;n++){

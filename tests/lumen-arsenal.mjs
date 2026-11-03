@@ -67,7 +67,7 @@ test('maxed weapon chest awards extra coins, and a four-weapon build cannot offe
 test('three bosses have different shot patterns; all six common species spawn in pressure',()=>{
   const counts=[];
   for(const stage of [1,2,3]){
-    const r=createRun();r.upgrades={};r.enemies=[mob({kind:'guardian',guardianStage:stage,x:400,fireTimer:0})];r.nextId=2;
+    const r=createRun({map:'quarry'});r.upgrades={};r.enemies=[mob({kind:'guardian',guardianStage:stage,x:400,fireTimer:0})];r.nextId=2;
     step(r,{},1/60);counts.push(r.projectiles.filter(p=>p.hostile).length);
   }
   assert.deepEqual(counts,[6,8,10]);

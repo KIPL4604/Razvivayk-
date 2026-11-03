@@ -202,8 +202,10 @@ test('castle inhabitants warn before a captured strike and guard aim can be dodg
     const hp=s.player.hp;step(s,{},dt);assert.equal(s.player.hp,hp);assert(s.enemies[0].actionTimer>.6);
     assert(s.effects.some(e=>['charge','warning'].includes(e.kind)));
     advance(s,.3);assert.equal(s.player.hp,hp);assert(!s.projectiles.some(p=>p.hostile));
-    if(kind==='palace-guard'){s.player.y=100;advance(s,.4);assert.equal(s.player.hp,hp,'captured guard direction can be escaped');}
-    else{advance(s,.55);assert(s.player.hp<hp||s.projectiles.some(p=>p.hostile),kind+' did not release');}
+    if(kind==='palace-guard'){s.player.y=100;advance(s,.4);assert.equal(s.player.hp,hp,'captured guard direction can be escaped');assert(s.effects.some(e=>e.kind==='arc'));}
+    else if(kind==='wax-servant'){s.player.y=100;advance(s,.55);assert.equal(s.player.hp,hp);assert(s.projectiles.some(p=>p.hostile&&p.vx===0&&p.vy===0));}
+    else{advance(s,.55);assert(s.projectiles.some(p=>p.hostile),kind+' did not release');}
+    assert(s.enemies[0].attackFlash>0);
     roundTrip(s);
   }
 });

@@ -18,6 +18,10 @@ export function arenaCamera(width, height, baseScale, player, arena, insets) {
     const top=insets.top??220,bottom=insets.bottom??height-140,available=Math.max(80,bottom-top);
     const upper=Math.max(arena.radius+32,(insets.bossHeight||252)*.96+16),lower=arena.radius+32;
     const scale=Math.min(baseScale,width/(arena.radius*2+160),available/(upper+lower));
+    if(arena.kind==='garden'&&scale<baseScale*.60){
+      return {x:arena.x+(player.x-arena.x)*.72,y:arena.y+(player.y-arena.y)*.72,
+        scale:baseScale*.60,screenY:top+available/2};
+    }
     return {x:arena.x,y:arena.y,scale,screenY:top+upper*scale+(available-(upper+lower)*scale)/2};
   }
   const radius = arena?.radius || 330;
