@@ -10,13 +10,13 @@ const p=await context.newPage();p.on('pageerror',e=>errors.push(e.message));
 await p.route('https://telegram.org/**',r=>r.fulfill({body:'',contentType:'text/javascript'}));
 const cdp=await context.newCDPSession(p);
 let failBackground=true,failWorld=false,assetRequests=[];
-await p.route('**/menu-backgrounds/garden.webp?*',r=>failBackground?r.abort('failed'):r.continue());
+await p.route('**/menu-backgrounds/garden-preview.webp?*',r=>failBackground?r.abort('failed'):r.continue());
 await p.route('**/sprites-*.pack?*',r=>failWorld?r.abort('failed'):r.continue());
 p.on('request',r=>{if(/\/assets\/lumen\/.*\?v=/.test(r.url()))assetRequests.push(r.url());});
 try{
  await p.goto(origin);await p.locator('#campaignCards [data-lumen-action=open]').click();await p.locator('[data-lumen-action=open]').filter({hasText:'Повторить загрузку'}).waitFor();check(await p.locator('.lumen-shell').count()===0,'Failed background never exposes incomplete menu');
  failBackground=false;
- await cdp.send('Network.emulateNetworkConditions',{offline:false,latency:80,downloadThroughput:60000,uploadThroughput:150000});
+ await cdp.send('Network.emulateNetworkConditions',{offline:false,latency:80,downloadThroughput:2500,uploadThroughput:150000});
  const start=Date.now();await p.getByRole('button',{name:'Повторить загрузку',exact:true}).click();await p.waitForFunction(()=>{const e=document.querySelector('#lumenEntryPercent');return e&&parseInt(e.textContent)>5&&parseInt(e.textContent)<90;});
  check(await p.locator('.lumen-shell').count()===0,'Throttled menu waits for complete map background and interface');
  await p.waitForFunction(()=>document.querySelector('#lumenEntryEta')?.textContent.startsWith('≈'));
@@ -31,6 +31,7 @@ try{
   await p.setViewportSize({width,height:width<800?812:1000});
   for(const theme of ['dark','light']){
    await p.evaluate(t=>MenuUI.set('theme',t),theme);await p.locator('.lumen-main-actions [data-lumen-value=play]').click();
+   await p.locator('.lumen-shell[data-page=play]').waitFor();
    await p.screenshot({path:path.join(out,`lumen-play-${width}-${theme}-i2.png`)});
    check(await p.locator('.menu-motion-layer').count()===0,'No slide clone on Lumen button '+width+' '+theme);
    check(await p.locator('.lumen-game-window').evaluate(e=>e.getBoundingClientRect().width<=innerWidth),'Window fits '+width+' '+theme);
@@ -45,6 +46,7 @@ try{
  await p.screenshot({path:path.join(out,'story-ready-375-i2.png')});
  check(await p.locator('#lumenStory img').evaluateAll(images=>images.every(i=>i.complete&&i.naturalWidth>0)),'Story portraits and scene are decoded before story opens');
  await p.locator('[data-story-action=skip]').click();await p.locator('#lumenCanvas').waitFor({timeout:30000});
+ await p.waitForFunction(()=>document.querySelector('.lumen-menu-background')?.naturalWidth===960);
  await p.reload();await p.locator('#hubSearch').waitFor();assetRequests=[];const warm=Date.now();await p.locator('#campaignCards [data-lumen-action=open]').click();await p.locator('.lumen-title-screen').waitFor({timeout:30000});times.warmMenuMs=Date.now()-warm;
  check(assetRequests.length===0,'Reload uses persistent cache: zero versioned asset network requests');
  await p.locator('.lumen-main-actions [data-lumen-value=play]').click();p.once('dialog',d=>d.accept());await p.locator('[data-lumen-action=start]').click();await p.locator('[data-story-action=skip]:visible').waitFor({timeout:30000});await p.locator('[data-story-action=skip]').click();await p.locator('#lumenCanvas').waitFor();

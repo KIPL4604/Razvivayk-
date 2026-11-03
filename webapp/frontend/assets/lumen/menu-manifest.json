@@ -27,6 +27,11 @@
       "sha256": "5ec82a38eaba2e0004c92104d8b082afe42124175f7fba042f5dda380074553a"
     },
     {
+      "file": "menu-coin.png",
+      "bytes": 1988,
+      "sha256": "3b115957c71bf26c11fa1bf51997a5f602940a786bcd809f9ee2e10eefbf9cae"
+    },
+    {
       "file": "expedition.png",
       "bytes": 26890,
       "sha256": "6b7edf3f2dc2c8a1350953e5aa2ae47ac57b0091c0493c2b932a298946cf3c63"
@@ -376,19 +381,34 @@
   ],
   "backgrounds": [
     {
+      "file": "menu-backgrounds/castle-preview.webp",
+      "bytes": 9632,
+      "sha256": "8de7b5a7efd0cc5fac0f23c5a0f221385eefe740e2b45b13769ce9ae9e65f5f0"
+    },
+    {
       "file": "menu-backgrounds/castle.webp",
-      "bytes": 236588,
-      "sha256": "77eb5b492b4ba8752deaa89c03ca1320ff363ab46f8146568f46bf3ef069a142"
+      "bytes": 73764,
+      "sha256": "05cd13eabb76184568a0d183b3eb3ab72b51eb50778dca6bb0243c168fd2fb7d"
+    },
+    {
+      "file": "menu-backgrounds/garden-preview.webp",
+      "bytes": 6050,
+      "sha256": "a50fd36dca8f2a99c9b1abd778318e2cea3e0e01ddc2e0c090549508ee396bcb"
     },
     {
       "file": "menu-backgrounds/garden.webp",
-      "bytes": 157774,
-      "sha256": "5cb9d6b14ecf31fcc3fd19f718c3bbf770b3c2a45d1c2cf1ba2b68a3ffcba56d"
+      "bytes": 50798,
+      "sha256": "0e8013c1a013d30905c1779f278cbf0298469d4ea9dd2054dd19ac079efcdb26"
+    },
+    {
+      "file": "menu-backgrounds/quarry-preview.webp",
+      "bytes": 6190,
+      "sha256": "5de2b337a0879390a7e611c32602e8d1cd2b91c8d7d0b2cfc369374e06f38181"
     },
     {
       "file": "menu-backgrounds/quarry.webp",
-      "bytes": 137132,
-      "sha256": "e1c8a251e515e5a665c496b559a334a3342caa6e757417915335c3540b3606fb"
+      "bytes": 45904,
+      "sha256": "0a5c14fa51df33f930cb2526a46c9a669360cafbc97ac04857ceef9a60a48acb"
     }
   ]
 }

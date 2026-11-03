@@ -4,3 +4,4 @@
 
 .lumen-shell .lumen-menu-content .lumen-maps button:disabled{opacity:1}
 .lumen-hud,.lumen-dialog{border-image-source:var(--lumen-cached-panel)}
+.lumen-shell .lumen-coin-icon{background:var(--lumen-menu-coin) center/contain no-repeat}

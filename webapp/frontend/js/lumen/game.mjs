@@ -1,4 +1,4 @@
-import {preloadScene,preloadMenuBackground,backgroundReady} from './preload.mjs';
+import {preloadScene,preloadMenuBackground,backgroundReady,preloadMenuPage,menuPageReady} from './preload.mjs';
 import {createRun,step,chooseUpgrade,serialize,restore,UPGRADES,upcomingUpgrade} from './engine.mjs';
 import {Renderer} from './renderer.mjs';
 import {loadArt} from './assets.mjs';
@@ -6,6 +6,7 @@ import {StoryOverlay} from './story-overlay.mjs';
 import {worldScene,bossScene} from './story.mjs';
 import {weaponIcon,prefetchWeaponChoices} from './weapon-icons.mjs';
 import {WORLD_FINALS} from './arena.mjs';
+import {menuViewport,showMenuLoading} from './menu-entry.mjs';
 import {renderMenu,MENU_PAGES} from './menu.mjs?v=game-menus-2';
 import {buyTraining} from './training.mjs';
 import {WEAPONS,upgradeSummary} from './presentation.mjs';
@@ -54,10 +55,7 @@ export function createGame(context) {
   function unlockAudio(){if(!record().settings.sound)return;try{audio ||= new (window.AudioContext||window.webkitAudioContext)();audio.resume().catch(()=>{});}catch(_){}}
   function clearInput(){keys.clear();input={x:0,y:0};pointer=null;stickOrigin=null;const stick=$('#lumenStick');if(stick)stick.hidden=true;}
   function viewport(){
-    const root=document.documentElement,webview=Boolean(tg?.initData),height=webview&&tg.viewportHeight>0?tg.viewportHeight:window.visualViewport?.height||innerHeight;
-    root.style.setProperty('--lumen-height',`${height}px`);
-    const safe=tg?.safeAreaInset||{},content=tg?.contentSafeAreaInset||{};
-    for(const edge of ['top','bottom','left','right'])root.style.setProperty(`--lumen-safe-${edge}`,`${Math.max(safe[edge]||0,content[edge]||0)}px`);
+    menuViewport(tg);
     renderer?.resize();if(state){updateHud();renderer?.draw(state);}
   }
   function lockScreen(locked){
@@ -110,24 +108,31 @@ export function createGame(context) {
     demo.enemies=[{id:1,x:-180,y:20,kind:map==='castle'?'palace-guard':map==='quarry'?'shardback':'beetle',radius:15,hp:40,maxHp:40},{id:2,x:190,y:100,kind:map==='castle'?'paper-moth':map==='quarry'?'quartzling':'mote',radius:12,hp:20,maxHp:20}];
     demo.gems=[{x:80,y:170,value:2,tier:1},{x:190,y:120,value:12,tier:2}];previewState=demo;preview.draw(demo,true);
   }
-  function setup(page='home',preserveScroll=false,direction=1){
-    const backgroundTicket=++menuBackgroundTicket;
-    const meta=record().meta;
-    if(!backgroundReady(meta)){
-      if(screen!=='lumen')navigate('lumen');screen='lumen';paused=true;stopRenderer();lockScreen(true);
-      setupMount.innerHTML='<div class="lumen-loading" role="status">Подготавливаем фон открытой карты…</div>';
-      preloadMenuBackground(meta).then(()=>{if(screen==='lumen'&&backgroundTicket===menuBackgroundTicket)setupContent(page,preserveScroll,direction);}).catch(()=>{
-        if(screen!=='lumen'||backgroundTicket!==menuBackgroundTicket)return;
-        setupMount.innerHTML='<div class="lumen-loading" role="alert">Не удалось загрузить фон.<button type="button" class="primary-button" data-lumen-action="setup">Повторить</button><button type="button" class="text-button" data-lumen-action="catalog">К играм</button></div>';
-      });return;
-    }
-    setupContent(page,preserveScroll,direction);
-  }
-  function setupContent(page='home',preserveScroll=false,direction=1){
+  function setup(page='home',preserveScroll=false){
     if(!MENU_PAGES.includes(page))page='home';
-    const scroll=$('#lumenMenuContent')?.scrollTop||0,r=record();
+    const ticket=++menuBackgroundTicket,r=record();
     if(!selectionLoaded){character=r.selection.character;map=r.selection.map;selectionLoaded=true;}
     if(map==='crater')map=mapAvailable(r.meta,'castle')?'castle':'quarry';
+    const selection={map,character},scroll=preserveScroll?$('#lumenMenuContent')?.scrollTop||0:0;
+    const needsBackground=!backgroundReady(r.meta),needsPage=!menuPageReady(page,selection);
+    if(!needsBackground&&!needsPage){setupContent(page,scroll,preserveScroll);return;}
+    if(screen!=='lumen')navigate('lumen');
+    screen='lumen';paused=true;menuPage=page;stopRenderer();lockScreen(true);
+    const pending=setupMount.querySelector('.lumen-shell');
+    if(pending)showMenuLoading(setupMount,{page});
+    else setupMount.innerHTML='<div class="lumen-loading" role="status">Подготавливаем фон открытой карты…</div>';
+    Promise.all([
+      needsBackground&&preloadMenuBackground(r.meta),
+      needsPage&&preloadMenuPage(page,selection)
+    ]).then(()=>{
+      if(screen==='lumen'&&ticket===menuBackgroundTicket)setupContent(page,scroll,preserveScroll);
+    }).catch(()=>{
+      if(screen!=='lumen'||ticket!==menuBackgroundTicket)return;
+      if(pending)showMenuLoading(setupMount,{page,error:true,closeAction:page==='home'?'catalog':'menu'});
+      else setupMount.innerHTML='<div class="lumen-loading" role="alert">Не удалось загрузить фон.<button type="button" class="primary-button" data-lumen-action="setup">Повторить</button><button type="button" class="text-button" data-lumen-action="catalog">К играм</button></div>';
+    });
+  }
+  function setupContent(page,scroll,preserveScroll){
     if(screen!=='lumen')navigate('lumen');
     screen='lumen';paused=true;menuPage=page;stopRenderer();preview?.destroy();preview=null;
     document.documentElement.classList.add('lumen-menu-active');
@@ -135,7 +140,7 @@ export function createGame(context) {
     window.MenuUI?.apply();
     lockScreen(true);
     drawPreview();
-    if(preserveScroll)$('#lumenMenuContent').scrollTop=scroll;
+    if(preserveScroll){$('#lumenMenuContent').scrollTop=scroll;focusControl(`[data-lumen-action="map"][data-lumen-value="${map}"]`);}
     else if(page==='home')setupMount.querySelector('[data-lumen-value="play"]')?.focus({preventScroll:true});
     else $('#lumenMenuHeading')?.focus({preventScroll:true});
   }
@@ -322,7 +327,7 @@ export function createGame(context) {
     if(story.active)return;
     if(name==='setup'){setup();return;}
     if(name==='catalog'){navigate('home');return;}
-    if(name==='menu'&&MENU_PAGES.includes(value)){setup(value,false,MENU_PAGES.indexOf(value)<MENU_PAGES.indexOf(menuPage)?-1:1);return;}
+    if(name==='menu'&&MENU_PAGES.includes(value)){setup(value);return;}
     if(name==='book'&&['weapons','hybrids','artifacts'].includes(value)){book=value;setup('weapons');focusControl(`[data-lumen-action="book"][data-lumen-value="${value}"]`);return;}
     if(name==='character'&&Object.hasOwn(CHARACTERS,value)){
       character=value;const r=record();if(r.meta.unlocked.includes(value)){r.selection.character=value;persist();}

@@ -53,11 +53,11 @@ try{
  check(await a.evaluate(()=>activeScreen)==='home','Horizontal drag does not join independent sections');check(await a.locator('.menu-motion-layer').count()===0,'No stale screen behind library');
  // Fresh anonymous context measures the complete map background gate without private data.
  const p=await pageFor(null);let release;
- const gate=new Promise(resolve=>release=resolve);await p.route('**/menu-backgrounds/garden.webp?*',async r=>{await gate;await r.continue();});
+ const gate=new Promise(resolve=>release=resolve);await p.route('**/menu-backgrounds/garden-preview.webp?*',async r=>{await gate;await r.continue();});
  await p.locator('#campaignCards [data-lumen-action=open]').click();await p.locator('#lumenEntryPercent').waitFor();
  check(await p.locator('.lumen-shell').count()===0,'Menu hidden while background transfer is incomplete');check(await p.locator('.lumen-load-dots i').count()===8,'Loading progress has eight circles');await p.screenshot({path:path.join(output,`loading-375-${iteration}.png`)});release();
  await p.locator('.lumen-title-screen').waitFor({timeout:60000});
- const background=await p.locator('.lumen-menu-background').evaluate(img=>({src:img.src,width:img.naturalWidth,complete:img.complete}));check(background.src.startsWith('blob:')&&background.complete&&background.width===1440,'Complete decoded map screenshot uses local blob');check(await p.locator('video').count()===0,'Menu has no video element');
+ const background=await p.locator('.lumen-menu-background').evaluate(img=>({src:img.src,width:img.naturalWidth,complete:img.complete}));check(background.src.startsWith('blob:')&&background.complete&&[320,960].includes(background.width),'Complete decoded map screenshot uses local blob');check(await p.locator('video').count()===0,'Menu has no video element');
  await p.locator('.lumen-main-actions [data-lumen-value=play]').click();check(await p.locator('.lumen-window-pager').count()===0,'Independent Lumen windows have no next-section pager');
  await p.screenshot({path:path.join(output,`lumen-play-375-${iteration}.png`)});
  await p.locator('[data-lumen-action=start]').click();await p.locator('#lumenStory:not([hidden])').waitFor();await p.locator('[data-story-action=skip]:visible').click({timeout:60000});await p.locator('#lumenCanvas').waitFor({timeout:60000});check(true,'World and story decode before playable canvas');

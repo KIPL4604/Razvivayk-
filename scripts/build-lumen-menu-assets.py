@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 
 root = Path(__file__).resolve().parents[1] / 'webapp/frontend/assets/lumen'
-names = ['fonts/Tektur-game.ttf','ui.png','panel.png','weapons.png','arsenal.png','expedition.png','expansion-items.png']
+names = ['fonts/Tektur-game.ttf','ui.png','panel.png','weapons.png','arsenal.png','menu-coin.png','expedition.png','expansion-items.png']
 # catalog entries are supplied by Node, so keep the build independent of hand-maintained hero names.
 import subprocess
 catalog = subprocess.check_output(['node','--input-type=module','-e',"import{CHARACTERS}from'./webapp/frontend/js/lumen/catalog.mjs';console.log(JSON.stringify(Object.keys(CHARACTERS)))"], cwd=root.parents[3], text=True)
