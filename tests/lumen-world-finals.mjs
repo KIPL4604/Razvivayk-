@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {createRun,step,chooseUpgrade,serialize,restore} from '../webapp/frontend/js/lumen/engine.mjs';
 import {BOSS_VARIANTS} from '../webapp/frontend/js/lumen/bosses.mjs';
 import {MAPS} from '../webapp/frontend/js/lumen/catalog.mjs';
-import {GARDEN_ARENA_RADIUS,GARDEN_COVER_HP,gardenCover} from '../webapp/frontend/js/lumen/garden-arena.mjs';
+import {GARDEN_ARENA_RADIUS,GARDEN_COVER_HP,QUARRY_ARENA_RADIUS,arenaCover} from '../webapp/frontend/js/lumen/arena-cover.mjs';
 import {normalizeMeta,recordProgress,bankCoins} from '../webapp/frontend/js/lumen/economy.mjs';
 import {steer} from './helpers/lumen-pilot.mjs';
 
@@ -42,7 +42,7 @@ test('Garden opens a spacious clearing only after level 30 and the three guardia
   assert(Math.hypot(s.player.x-old.x,s.player.y-old.y)>900);
   assert.equal(s.player.hp,Math.ceil(s.player.maxHp*.3));
   assert.equal(s.coinsEarned,240);
-  assert.equal(gardenCover(s.arena).length,6);
+  assert.equal(arenaCover(s.arena).length,6);
   roundTrip(s);
   advance(s,2.5);
   s.player.invulnerable=0;s.player.x=s.arena.x+s.arena.radius+30;s.player.y=s.arena.y;
@@ -54,7 +54,7 @@ test('Garden opens a spacious clearing only after level 30 and the three guardia
 
 test('Garden pillars block shots, lose durability, then stop obstructing movement',()=>{
   const s=atFinal('garden');advance(s,2.5);
-  const pillar=gardenCover(s.arena)[0];
+  const pillar=arenaCover(s.arena)[0];
   const projectile=damage=>({id:s.nextId++,x:pillar.x,y:pillar.y-35,vx:0,vy:180,radius:6,damage,life:1,
     weapon:'hostile',hostile:true,pierce:0,hits:[],returning:false});
   s.projectiles.push(projectile(18));step(s,{},dt);
@@ -69,7 +69,7 @@ test('Garden pillars block shots, lose durability, then stop obstructing movemen
   for(let i=0;i<14;i++)step(s,{y:-1},dt);
   assert(s.player.y<pillar.y+35);
   roundTrip(s);
-  const beamCover=gardenCover(s.arena)[1],boss=s.enemies.find(e=>e.kind==='arena-boss');
+  const beamCover=arenaCover(s.arena)[1],boss=s.enemies.find(e=>e.kind==='arena-boss');
   s.player.x=boss.x+(beamCover.x-boss.x)*1.25;s.player.y=boss.y+(beamCover.y-boss.y)*1.25;
   s.player.invulnerable=0;boss.attackStage=3;boss.fireTimer=0;boss.actionTimer=0;
   const hp=s.player.hp;
@@ -91,6 +91,28 @@ test('the former small Garden arena expands in place without resetting the boss'
   assert.equal(restored.enemies.find(e=>e.kind==='arena-boss').hp,8000);
   assert(restored.arena.legacyEntry);assert.equal(restored.arena.radius,GARDEN_ARENA_RADIUS);
   advance(restored,2.5);assert.equal(restored.arena.phase,'fighting');roundTrip(restored);
+});
+
+test('the old quarry ring expands in place and the rim is safe at low HP',()=>{
+  const old=atFinal('quarry');
+  delete old.arena.kind;delete old.arena.cover;old.arena.radius=330;
+  for(const tick of old.enemies.filter(e=>e.kind==='arena-tick')){
+    tick.x=old.arena.x+Math.cos(tick.phase)*330;
+    tick.y=old.arena.y+Math.sin(tick.phase)*330;
+  }
+  const boss=old.enemies.find(e=>e.kind==='arena-boss');boss.hp=4321;
+  old.player.hp=1;
+  const run=restore(serialize(old));assert(run);
+  assert.equal(run.arena.radius,QUARRY_ARENA_RADIUS);
+  assert.equal(run.enemies.find(e=>e.kind==='arena-boss').hp,4321);
+  assert.equal(run.player.hp,Math.ceil(run.player.maxHp*.3));
+  advance(run,2.5);run.player.invulnerable=0;
+  run.player.x=run.arena.x+run.arena.radius;run.player.y=run.arena.y;
+  const hp=run.player.hp;
+  step(run,{x:1},dt);
+  assert.equal(run.player.hp,hp);
+  assert(run.player.x<run.arena.x+run.arena.radius);
+  roundTrip(run);
 });
 
 test('garden and quarry finals have independent identities, large bodies and mandatory victory gates',()=>{

@@ -242,7 +242,8 @@ export function createGame(context) {
     }
     const phase=waveAt(state.time);
     const trapped=touchingEnemies(state).length>=3;
-    const arenaText=arena?(arena.phase==='forming'?'ПРИГОТОВЬСЯ К ФИНАЛЬНОМУ БОЮ':arena.phase==='fighting'?arena.kind==='garden'?'СТОЛБЫ ЗАДЕРЖИВАЮТ СНАРЯДЫ':'СЛЕДИ ЗА ПРЕДУПРЕЖДЕНИЯМИ И ПРОСВЕТАМИ':arena.phase==='reward'?'СТРАЖ ПОВЕРЖЕН · ОТКРОЙ СОКРОВИЩНИЦУ':arena.phase==='celebrating'?`+${WORLD_FINALS[state.map].reward} МОНЕТ · ПУТЬ ОТКРЫТ`:''):(guidance?'УРОВЕНЬ 45 · СЛЕДУЙ ЗА ЗОЛОТОЙ СТРЕЛКОЙ':gardenHunt?'ОДОЛЕЙ СТРАЖЕЙ · ОТКРОЙ ПОЛЯНУ':'');
+    const fightHint=arena?.kind==='garden'?'СТОЛБЫ ЗАДЕРЖИВАЮТ СНАРЯДЫ':arena?.cover?'УКРЫТИЯ ЗАДЕРЖИВАЮТ СНАРЯДЫ':'СЛЕДИ ЗА ПРЕДУПРЕЖДЕНИЯМИ И ПРОСВЕТАМИ';
+    const arenaText=arena?(arena.phase==='forming'?'ПРИГОТОВЬСЯ К ФИНАЛЬНОМУ БОЮ':arena.phase==='fighting'?fightHint:arena.phase==='reward'?'СТРАЖ ПОВЕРЖЕН · ОТКРОЙ СОКРОВИЩНИЦУ':arena.phase==='celebrating'?`+${WORLD_FINALS[state.map].reward} МОНЕТ · ПУТЬ ОТКРЫТ`:''):(guidance?'УРОВЕНЬ 45 · СЛЕДУЙ ЗА ЗОЛОТОЙ СТРЕЛКОЙ':gardenHunt?'ОДОЛЕЙ СТРАЖЕЙ · ОТКРОЙ ПОЛЯНУ':'');
     const text=arenaText||(trapped?'ТЕБЯ ЗАЖАЛИ · ПРОБЕЙ ПРОХОД':wave?bossName.toUpperCase():state.chests.length?'СУНДУК НА ПОЛЕ · ПОДОЙДИ И ОТКРОЙ':state.time<8?'СОБИРАЙ ОСКОЛКИ СВЕТА':phase.kind==='harvest'?'СЛАБЫЙ РОЙ · СОБИРАЙ ОПЫТ':phase.kind==='pressure'&&phase.age<5?`НОВАЯ ВОЛНА · ЭТАП ${phase.stage}`:'');
     $('#lumenWave').dataset.phase=arena?'arena':trapped?'contact':wave?'guardian':phase.kind;
     if($('#lumenWave').textContent!==text)$('#lumenWave').textContent=text;

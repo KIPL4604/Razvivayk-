@@ -4,7 +4,7 @@ import {bodyRadius,PLAYER_BODY} from './physics.mjs';
 import {BOSS_IMPACTS,BOSS_VARIANTS,bossCast} from './bosses.mjs';
 import {drawBossAim,drawBossFlight,drawBossImpact} from './boss-vfx.mjs';
 import {ARENA_HAZARD_INSET} from './arena.mjs';
-import {GARDEN_COVER_HP,gardenCover} from './garden-arena.mjs';
+import {arenaCover} from './arena-cover.mjs';
 import {WeaponVFX,arenaCamera} from './weapon-vfx.mjs';
 import {CastleView,CASTLE_HALL_VISUAL} from './castle-view.mjs';
 import {EnemyVFX} from './enemy-vfx.mjs';
@@ -239,13 +239,41 @@ export class Renderer {
     const progress=forming?Math.min(1,(arena.time||0)/2.5):1;
     c.save();c.fillStyle='#161820';c.globalAlpha=.17*progress;
     c.beginPath();c.arc(x,y,radius,0,TAU);c.fill();
-    if(arena.kind==='garden'){
-      c.globalAlpha=.55;c.fillStyle='#091318';c.beginPath();c.rect(0,0,this.canvas.width,this.canvas.height);
+    if(arena.cover){
+      const quarry=arena.kind==='quarry';
+      c.globalAlpha=.55;c.fillStyle=quarry?'#151222':'#091318';c.beginPath();c.rect(0,0,this.canvas.width,this.canvas.height);
       c.moveTo(x+radius,y);c.arc(x,y,radius,0,TAU);c.fill('evenodd');
-      c.globalAlpha=.45;c.strokeStyle='#859e6f';c.lineWidth=Math.max(2*this.dpr,6*this.zoom);
+      c.globalAlpha=quarry?.52:.45;c.strokeStyle=quarry?'#b898d3':'#859e6f';c.lineWidth=Math.max(2*this.dpr,6*this.zoom);
       c.beginPath();c.arc(x,y,radius-25*this.zoom,0,TAU);c.stroke();
       c.globalAlpha=.22;c.setLineDash([10*this.zoom,16*this.zoom]);
       c.beginPath();c.arc(x,y,270*this.zoom,0,TAU);c.stroke();
+      if(quarry){
+        c.setLineDash([]);
+        const z=this.zoom;
+        c.save();c.translate(x,y);
+        c.globalAlpha=.32;c.strokeStyle='#a88ab9';c.lineWidth=3*z;
+        c.beginPath();
+        for(let i=0;i<8;i++){
+          const a=(i+.5)*TAU/8;
+          c.lineTo(Math.cos(a)*154*z,Math.sin(a)*154*z);
+        }
+        c.closePath();c.stroke();
+        for(let i=0;i<4;i++){
+          c.save();c.rotate((i+.5)*TAU/4);
+          c.fillStyle='#8e749f';
+          for(const side of [-1,1])c.fillRect(174*z,side*18*z,345*z,3*z);
+          for(let j=0;j<10;j++)c.fillRect((182+j*34)*z,-24*z,4*z,48*z);
+          c.restore();
+        }
+        c.restore();
+        for(let i=0;i<12;i++){
+          const a=i*TAU/12;
+          c.save();c.translate(x,y);c.rotate(a);
+          c.fillStyle='#b99bce';c.fillRect(radius-60*z,-3*z,29*z,6*z);
+          c.fillRect(radius-83*z,-2*z,12*z,4*z);
+          c.restore();
+        }
+      }
     }else if(danger){
       // Paint the complete damage band, including its inner threshold.
       c.globalAlpha=.18*progress;c.strokeStyle='#d45b50';c.lineWidth=ARENA_HAZARD_INSET*this.zoom;
@@ -270,12 +298,21 @@ export class Renderer {
 
   arenaCover(cover){
     const c=this.ctx,[x,y]=this.at(cover.x,cover.y),z=this.zoom,intact=cover.hp>0;
-    this.blit('garden',128,intact?0:44,64,intact?64:20,cover.x,cover.y,102,intact?102:32);
+    const kind=this.arena.kind;
+    let height=102,bar='#b5c58e';
+    if(kind==='quarry'){
+      height=112;bar='#d4b4ec';
+      this.blit('quarry-props',intact?0:64,0,64,64,cover.x,cover.y,intact?112:76,intact?height:76);
+    }else if(kind==='castle'){
+      height=124;bar='#ebca8d';
+      this.blit('castle-hall-decor',512,intact?66:213,256,intact?190:43,
+        cover.x,cover.y,intact?146:122,intact?height:32);
+    }else this.blit('garden',128,intact?0:44,64,intact?64:20,cover.x,cover.y,102,intact?102:32);
     if(!intact)return;
     c.save();c.translate(x,y);c.scale(z,z);
-    c.fillStyle='#172522';c.fillRect(-30,-101,60,7);
-    c.fillStyle=cover.hp<GARDEN_COVER_HP/2?'#e8a474':'#b5c58e';
-    c.fillRect(-28,-99,56*cover.hp/GARDEN_COVER_HP,3);
+    c.fillStyle='#172522';c.fillRect(-30,-height,60,7);
+    c.fillStyle=cover.hp<cover.maxHp/2?'#e8a474':bar;
+    c.fillRect(-28,-height+2,56*cover.hp/cover.maxHp,3);
     c.restore();
   }
 
@@ -368,7 +405,7 @@ export class Renderer {
           p.y + Math.sin(angle) * radius, 48, 48, .5);
       }
     }
-    const entities = [...props, ...gardenCover(this.arena), ...(this.arena||['crater','castle'].includes(this.map)?[]:[{ kind: 'prop', index: 0, x: 0, y: 0, size: 178 }]),
+    const entities = [...props, ...arenaCover(this.arena), ...(this.arena||['crater','castle'].includes(this.map)?[]:[{ kind: 'prop', index: 0, x: 0, y: 0, size: 178 }]),
       ...(state.chests||[]).map(e=>({...e,kind:'chest'})),...(state.enemies || []), ...this.ghosts.map(e => ({ ...e, kind: 'dead' })), { ...p, kind: 'hero' }]
       .sort((a, b) => a.y - b.y);
     for (const entity of entities) {
@@ -383,7 +420,7 @@ export class Renderer {
       }else if(entity.kind==='castle-hall-prop'){
         this.castleView.hallProp(this,entity,p,t);
       }else if (entity.kind === 'prop') {
-        c.globalAlpha = sceneryOpacity(entity,p)*(this.arena?.kind==='garden'?.35:1);
+        c.globalAlpha = sceneryOpacity(entity,p)*(this.arena?.cover?(this.map==='quarry'?.48:.35):1);
         this.blit(MAPS[this.map].props, entity.index * 64, 0, 64, 64, entity.x, entity.y, entity.size);
         c.globalAlpha = 1;
       } else if (entity.kind === 'hero') {
@@ -488,7 +525,7 @@ export class Renderer {
         if(effect.mega&&this.art.images['mega-chest'])this.blit('mega-chest',(3+Math.min(2,Math.floor((1-fraction)*3)))*96,0,96,96,effect.x,effect.y,154,154,.85);
         else this.blit('arsenal',(3+Math.min(3,Math.floor((1-fraction)*4)))*48,144,48,48,effect.x,effect.y,100,100,.85);
       }else if(effect.kind==='warning'){
-        if(this.arena?.kind==='garden'&&effect.radius===this.arena.radius)continue;
+        if(this.arena?.cover&&this.arena.kind!=='castle'&&effect.radius===this.arena.radius)continue;
         const [x,y]=this.at(effect.x,effect.y);
         c.save();c.globalAlpha=.09+.15*(1-fraction);c.fillStyle='#f17153';c.beginPath();c.arc(x,y,effect.radius*z,0,TAU);c.fill();
         c.globalAlpha=.82;c.strokeStyle='#edab7a';c.lineWidth=Math.max(this.dpr,2*z);c.stroke();c.restore();

@@ -1,11 +1,11 @@
-import {gardenCover,strikeGardenCover} from './garden-arena.mjs';
+import {arenaCover,strikeArenaCover} from './arena-cover.mjs';
 
 const TAU=Math.PI*2;
 export const BOSS_IMPACTS=Object.freeze(['brambles','boulder','glass-cross']);
 export const glassCrossHalfWidth=radius=>radius*.19;
 const brambles=Object.freeze({kind:'brambles',radius:75,range:490,damage:19,windup:1.7,cooldown:3.1});
 const boulder=Object.freeze({kind:'boulder',radius:81,range:550,damage:28,windup:1.82,flight:.77,cooldown:3.3});
-const glassCross=Object.freeze({kind:'glass-cross',radius:153,range:1000,damage:32,windup:1.8,cooldown:3.1});
+const glassCross=Object.freeze({kind:'glass-cross',radius:153,range:1120,damage:32,windup:1.8,cooldown:3.1});
 const freezeVariant=value=>{
   const attacks=value.attacks.some(a=>a.kind==='slam')?value.attacks:[...value.attacks,
     {kind:'slam',radius:155,damage:24,cooldown:3.4}];
@@ -28,7 +28,7 @@ export const BOSS_VARIANTS=Object.freeze({
     {kind:'slam',radius:195,damage:32,windup:1.2,cooldown:3},
     {kind:'fan',count:9,speed:160,damage:17,spread:.18,windup:.9,cooldown:2.6},
     {kind:'spiral',count:20,speed:120,damage:16,windup:1,cooldown:3},
-    {...boulder,radius:105,damage:34},
+    {...boulder,radius:105,range:620,damage:34},
   ]}),
   drillguard:freezeVariant({name:'Буровой голем',sprite:'boss-drillguard',attacks:[
     {kind:'slam',radius:170,damage:28,windup:1.2,cooldown:3.2},
@@ -148,18 +148,18 @@ export function updateBossAttacks(state,enemy,dt,{hurt,effect,limits}){
       const target=enemy.castTarget;
       delete enemy.castTarget;
       emit(attack.kind,target.x,target.y,attack.radius,attack.kind==='brambles'?1.05:.75);
-      for(const cover of gardenCover(state.arena)){
+      for(const cover of arenaCover(state.arena)){
         if(castHits(attack,target,cover))state.arena.cover[cover.index]=Math.max(0,cover.hp-attack.damage);
       }
       if(castHits(attack,target,state.player))hurt(state,attack.damage,.35);
     }else if(attack.kind==='slam'){
       emit('pulse',enemy.x,enemy.y,attack.radius,.45);
-      for(const cover of gardenCover(state.arena)){
+      for(const cover of arenaCover(state.arena)){
         if(Math.hypot(cover.x-enemy.x,cover.y-enemy.y)<attack.radius+cover.radius)state.arena.cover[cover.index]=Math.max(0,cover.hp-attack.damage);
       }
       if(Math.hypot(state.player.x-enemy.x,state.player.y-enemy.y)<attack.radius+state.player.radius)hurt(state,attack.damage,.35);
     }else if(attack.kind==='line'){
-      const target=aim(),cover=strikeGardenCover(state,enemy,target,attack.damage,attack.width);
+      const target=aim(),cover=strikeArenaCover(state,enemy,target,attack.damage,attack.width);
       line('arc',.3,cover||target);
       const x=state.player.x-enemy.x,y=state.player.y-enemy.y,dx=Math.cos(enemy.phase),dy=Math.sin(enemy.phase),along=x*dx+y*dy;
       if(along>=0&&along<=(cover?.distance??attack.range)&&Math.abs(x*dy-y*dx)<attack.width+(state.player.radius||13))hurt(state,attack.damage,.35);

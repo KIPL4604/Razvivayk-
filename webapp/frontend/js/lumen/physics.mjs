@@ -92,7 +92,7 @@ export function separateCrowd(enemies,player) {
 }
 
 export const touchingEnemies = state => state.enemies.filter(e=>e.hp>0&&e.kind!=='castle-door'
-  && !(state.arena?.kind==='garden'&&e.kind==='arena-tick')
+  && !(state.arena?.cover&&e.kind==='arena-tick')
   && Math.hypot(e.x-state.player.x,e.y-state.player.y)<=PLAYER_BODY+bodyRadius(e)+1);
 export function contactDamage(contacts) {
   return contacts.length ? Math.round(Math.max(...contacts.map(e=>e.damage))

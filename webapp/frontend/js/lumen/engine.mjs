@@ -9,9 +9,9 @@ import {CHARACTERS,WEAPONS,WEAPON_IDS,BASE_WEAPON_IDS,HYBRIDS,ARTIFACTS,MAX_WEAP
 import {updateWeapons,flameImpact} from './combat.mjs';
 import {CONTACT_PERIOD,movePlayer,separateCrowd,touchingEnemies,contactDamage} from './physics.mjs';
 import {normalizeTraining,validTraining} from './training.mjs';
-import {startArena,updateArena,enforceArenaBoundary,bossDeath,markArenaChestOpened,validateArena,expandLegacyGardenArena} from './arena.mjs';
+import {startArena,updateArena,enforceArenaBoundary,bossDeath,markArenaChestOpened,validateArena,upgradeArenaLayout} from './arena.mjs';
 import {BOSS_IMPACTS,GARDEN_GUARDIANS,updateBossAttacks,validateBossFields} from './bosses.mjs';
-import {gardenCover,gardenFinalReady,strikeGardenCover} from './garden-arena.mjs';
+import {arenaCover,gardenFinalReady,strikeArenaCover} from './arena-cover.mjs';
 import {CASTLE,createCastle,castleLayout,ensureCastleExit,breakCastleDoor,updateCastleGoal,castleColliders,constrainCastleEntity,validateCastle,castleCreatureStats,updateCastleEnemy} from './castle.mjs';
 
 export const DURATION = 480; // Historical benchmark for older harnesses; no time limit.
@@ -291,12 +291,12 @@ function projectiles(state, dt) {
       const dx=state.player.x-projectile.x,dy=state.player.y-projectile.y,d=Math.hypot(dx,dy)||1;
       projectile.vx=dx/d*330;projectile.vy=dy/d*330;
     }
-    const origin=projectile.hostile&&state.arena?.kind==='garden'?{x:projectile.x,y:projectile.y}:null;
+    const origin=projectile.hostile&&state.arena?.cover?{x:projectile.x,y:projectile.y}:null;
     projectile.life -= dt;
     projectile.x += projectile.vx * dt;
     projectile.y += projectile.vy * dt;
     if (projectile.hostile) {
-      if(origin&&strikeGardenCover(state,origin,projectile,projectile.damage,projectile.radius)){projectile.life=0;continue;}
+      if(origin&&strikeArenaCover(state,origin,projectile,projectile.damage,projectile.radius)){projectile.life=0;continue;}
       if (distanceSquared(projectile, state.player) < (projectile.radius + state.player.radius) ** 2) {
         hurt(state, projectile.damage);
         projectile.life = 0;
@@ -460,8 +460,9 @@ function tick(state, input, dt) {
   state.effects = state.effects.filter((event) => event.life > 0);
   if(state.arena){updateArena(state,dt,{hit,hurt,effect,limits:LIMITS});if(state.status!=='playing')return;enforceArenaBoundary(state,{hurt,effect});if(state.status!=='playing')return;}
   const wind=player.hp>=player.maxHp?1+rank(state,'compass')*.05:1;
-  const bodies=state.map==='castle'?[...state.enemies,...castleColliders(player.y-180,player.y+180,state)]
-    :state.arena?.kind==='garden'?[...state.enemies,...gardenCover(state.arena)]:state.enemies;
+  const cover=arenaCover(state.arena);
+  const bodies=state.map==='castle'?[...state.enemies,...castleColliders(player.y-180,player.y+180,state),...cover]
+    :cover.length?[...state.enemies,...cover]:state.enemies;
   movePlayer(player,bodies,input.x*player.speed*dt*wind,input.y*player.speed*dt*wind);
   if(state.map==='castle'){
     constrainCastleEntity(player,state);
@@ -768,8 +769,8 @@ export function restore(snapshot) {
     state.arena=snapshot.arena===null?null:{...snapshot.arena};
     state.castle=snapshot.castle===null?null:{...snapshot.castle};
     if(!validateCastle(snapshot.castle,state)||!validateArena(snapshot.arena,state))return null;
-    expandLegacyGardenArena(state);
-    if(state.arena?.kind==='garden')state.arena.cover=state.arena.cover.slice();
+    if(state.arena?.cover)state.arena.cover=state.arena.cover.slice();
+    upgradeArenaLayout(state);
     if(!own(snapshot,'nextUpgrade'))state.nextUpgrade=upcomingUpgrade(state);
     return state;
   } catch { return null; }

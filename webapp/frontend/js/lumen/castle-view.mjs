@@ -9,6 +9,7 @@ const hash=(x,y)=>((Math.imul(x,374761393)^Math.imul(y,668265263))>>>0);
 // Neither number changes a combat body or a simulation coordinate.
 export const CASTLE_HALL_VISUAL=Object.freeze({heroSize:96,monarchSize:744});
 const WALL=Object.freeze({bay:320,depth:160,rise:240,cap:12});
+const HALL_CARPET_WIDTH=1440;
 
 /** Castle-only view data. No random calls, state writes, collision bodies or save data. */
 export class CastleView{
@@ -114,8 +115,9 @@ export class CastleView{
   hallBackdrop(r,layout){
     const top=layout.hallY-CASTLE.hallHalfHeight,width=CASTLE.hallHalfWidth*2;
     const image=r.art.images['castle-hall-floor'];
-    if(image)r.blit('castle-hall-floor',0,0,image.width,image.height,0,layout.doorY,width,CASTLE.hallHalfHeight*2,1);
-    else this.fill(r,'carpet',-CASTLE.hallHalfWidth,top,width,CASTLE.hallHalfHeight*2);
+    this.fill(r,'parquet',-CASTLE.hallHalfWidth,top,width,CASTLE.hallHalfHeight*2);
+    if(image)r.blit('castle-hall-floor',0,0,image.width,image.height,0,layout.doorY,HALL_CARPET_WIDTH,CASTLE.hallHalfHeight*2,1);
+    else this.fill(r,'carpet',-HALL_CARPET_WIDTH/2,top,HALL_CARPET_WIDTH,CASTLE.hallHalfHeight*2);
     // A single tall architectural composition: wide rear niche, paired crests,
     // statues and four pilasters. The floor remains one broad carpeted space.
     this.hallDecor(r,5,0,top+96,520,420);
@@ -124,6 +126,7 @@ export class CastleView{
       this.hallDecor(r,1,side*430,top+128,182,308);
       this.hallDecor(r,2,side*575,top+152,190,256,side===1);
       this.hallDecor(r,0,side*710,top+170,214,410,side===1);
+      this.hallDecor(r,4,side*790,top+115,230,375,side===1);
       this.hallDecor(r,0,side*235,top+118,150,320,side===1);
       // The entrance shoulders are large walnut bays rather than a tile grid.
       this.hallDecor(r,4,side*(CASTLE.halfWidth+180),layout.doorY+52,360,230,side===1);

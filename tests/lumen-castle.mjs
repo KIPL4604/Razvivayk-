@@ -6,6 +6,7 @@ import {MAPS,MAX_WEAPONS,MAX_ARTIFACTS} from '../webapp/frontend/js/lumen/catalo
 import {normalizeMeta,mapAvailable,recordProgress,bankCoins} from '../webapp/frontend/js/lumen/economy.mjs';
 import {xpForLevel} from '../webapp/frontend/js/lumen/progression.mjs';
 import {BOSS_VARIANTS,updateBossAttacks} from '../webapp/frontend/js/lumen/bosses.mjs';
+import {arenaCover} from '../webapp/frontend/js/lumen/arena-cover.mjs';
 const dt=1/60;
 const advance=(s,seconds,input={})=>{for(let n=0;n<Math.round(seconds/dt)&&s.status==='playing';n++)step(s,input,dt);};
 function goal(){const s=createRun({map:'castle',seed:430});s.spawnedGuardians=3;s.spawnedElites=4;s.spawnTimer=3;s.level=44;s.xpNext=xpForLevel(44);s.xp=s.xpNext;step(s,{},dt);return s;}
@@ -17,6 +18,30 @@ function breach(s){
 }
 function fight(){const s=breach(goal());s.player.y=s.castle.hallY+500;step(s,{},dt);assert.equal(s.arena.phase,'forming');advance(s,2.5);assert.equal(s.arena.phase,'fighting');return s;}
 
+test('the expanded hall restores its cover and blocks hostile shots until a pedestal breaks',()=>{
+  const old=fight();
+  delete old.arena.cover;
+  old.enemies[0].hp=13000;
+  const s=restore(serialize(old));
+  assert(s);
+  assert.equal(s.enemies[0].hp,13000);
+  assert.equal(arenaCover(s.arena).length,6);
+  const cover=arenaCover(s.arena)[0];
+  const shoot=damage=>{
+    const shot={id:s.nextId++,x:cover.x,y:cover.y-48,vx:0,vy:360,radius:6,damage,
+      life:1,weapon:'hostile',hostile:true,pierce:0,hits:[],returning:false};
+    s.projectiles.push(shot);
+    advance(s,.1);
+    return s.projectiles.includes(shot);
+  };
+  assert.equal(shoot(25),false);
+  assert.equal(s.arena.cover[0],cover.maxHp-25);
+  assert.equal(shoot(cover.maxHp),false);
+  assert.equal(s.arena.cover[0],0);
+  assert.equal(shoot(1),true);
+  roundTrip(s);
+});
+
 test('castle is the third expedition, requires quarry and preserves earlier map targets and loadout caps',()=>{
   assert.equal(MAPS.quarry.next,'castle');assert.equal(MAPS.garden.goal,30);assert.equal(MAPS.quarry.goal,35);
   assert.equal(MAPS.castle.goal,45);assert.equal(MAX_WEAPONS,4);assert.equal(MAX_ARTIFACTS,5);
@@ -27,7 +52,7 @@ test('castle is the third expedition, requires quarry and preserves earlier map 
 
 test('shared corridor geometry is22.5m wide,50m long, repeats fullsize props and has no guidance collider',()=>{
   assert.equal(CASTLE.halfWidth*2/32,22.5);assert.equal(CASTLE.segmentLength/32,50);
-  assert.equal(CASTLE.carpetHalfWidth*2/32,7.5);assert.equal(CASTLE.hallHalfWidth*2/32,45);
+  assert.equal(CASTLE.carpetHalfWidth*2/32,7.5);assert.equal(CASTLE.hallHalfWidth*2/32,54);
   const props=castleProps(0,319).filter(p=>p.y>=0&&p.y<320);
   const repeated=castleProps(1600,1919).filter(p=>p.y>=1600&&p.y<1920).map(p=>({...p,y:p.y-1600}));
   assert.deepEqual(repeated,props);assert(props.some(p=>p.kind==='column'));

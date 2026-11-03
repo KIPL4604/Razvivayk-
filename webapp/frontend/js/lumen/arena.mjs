@@ -1,6 +1,6 @@
 import {BOSS_VARIANTS,updateBossAttacks,validateBossFields} from './bosses.mjs';
 import {CASTLE,castleLayout} from './castle.mjs';
-import {GARDEN_ARENA_RADIUS,createGardenCover,gardenFinalReady,validGardenCover} from './garden-arena.mjs';
+import {GARDEN_ARENA_RADIUS,QUARRY_ARENA_RADIUS,createArenaCover,gardenFinalReady,validArenaCover} from './arena-cover.mjs';
 
 export const ARENA_RADIUS=330;
 export const ARENA_TICK_COUNT=32;
@@ -26,7 +26,8 @@ export function startArena(state,{effect}){
   const garden=state.map==='garden';
   if(garden&&!gardenFinalReady(state))return false;
   const p=state.player,direction=Math.hypot(p.facingX,p.facingY)||1;
-  const radius=garden?GARDEN_ARENA_RADIUS:ARENA_RADIUS;
+  const quarry=state.map==='quarry';
+  const radius=garden?GARDEN_ARENA_RADIUS:quarry?QUARRY_ARENA_RADIUS:ARENA_RADIUS;
   const x=garden?p.x:p.x+(p.facingX||0)/direction*150;
   const y=garden?p.y-1300:p.y+(p.facingY||0)/direction*150;
   for(const enemy of state.enemies)emit(state,effect,'dissolve',enemy.x,enemy.y,enemy.radius+8,.4);
@@ -34,9 +35,9 @@ export function startArena(state,{effect}){
   state.choices=[];state.status='playing';state.endReason='';state.remainder=0;
   const stats=BOSS_VARIANTS[final.bossType],bossId=state.nextId++;
   state.arena={phase:'forming',x,y,radius,time:0,bossId,rewardId:0};
-  if(garden){
-    Object.assign(state.arena,{kind:'garden',cover:createGardenCover()});
-    p.x=x;p.y=y+320;
+  if(garden||quarry){
+    Object.assign(state.arena,{kind:state.map,cover:createArenaCover(state.map)});
+    if(garden){p.x=x;p.y=y+320;}
     p.hp=Math.max(p.hp,Math.ceil(p.maxHp*.30));
     p.invulnerable=Math.max(p.invulnerable,.8);
     state.effects=[];
@@ -51,17 +52,22 @@ export function startArena(state,{effect}){
   emit(state,effect,'warning',x,y,radius,2.5);return true;
 }
 
-export function expandLegacyGardenArena(state){
+export function upgradeArenaLayout(state){
   const arena=state.arena;
-  if(state.map!=='garden'||!arena||arena.kind)return;
-  Object.assign(arena,{kind:'garden',radius:GARDEN_ARENA_RADIUS,cover:createGardenCover()});
-  if(!gardenFinalReady(state))arena.legacyEntry=true;
+  if(!arena||arena.cover||state.map==='crater')return;
+  const {map}=state;
+  arena.kind=map;
+  arena.cover=createArenaCover(map);
+  if(map==='garden'&&!gardenFinalReady(state))arena.legacyEntry=true;
+  if(map==='garden'||map==='quarry'){
+    arena.radius=map==='garden'?GARDEN_ARENA_RADIUS:QUARRY_ARENA_RADIUS;
+    state.effects=state.effects.filter(e=>!(e.kind==='warning'&&e.radius===ARENA_RADIUS&&e.x===arena.x&&e.y===arena.y));
+  }
   for(const tick of state.enemies){
     if(tick.kind!=='arena-tick')continue;
     tick.x=arena.x+Math.cos(tick.phase)*arena.radius;
     tick.y=arena.y+Math.sin(tick.phase)*arena.radius;
   }
-  state.effects=state.effects.filter(e=>!(e.kind==='warning'&&e.radius===ARENA_RADIUS&&e.x===arena.x&&e.y===arena.y));
   if(inBattle(arena)&&state.status==='playing'){
     state.player.hp=Math.max(state.player.hp,Math.ceil(state.player.maxHp*.30));
     state.player.invulnerable=Math.max(state.player.invulnerable,.8);
@@ -76,7 +82,9 @@ function startCastleArena(state,{effect}){
   state.enemies=[];state.projectiles=[];state.zones=[];state.gems=[];state.chests=[];
   state.choices=[];state.status='playing';state.endReason='';state.remainder=0;
   const stats=BOSS_VARIANTS.monarch,bossId=state.nextId++;
-  state.arena={kind:'castle',phase:'forming',x:0,y:hallY,radius:CASTLE.hallHalfHeight,time:0,bossId,rewardId:0};
+  state.arena={kind:'castle',phase:'forming',x:0,y:hallY,radius:CASTLE.hallHalfHeight,time:0,bossId,rewardId:0,cover:createArenaCover('castle')};
+  state.player.hp=Math.max(state.player.hp,Math.ceil(state.player.maxHp*.30));
+  state.player.invulnerable=Math.max(state.player.invulnerable,.8);
   state.castle.phase='arena';
   state.enemies.push({id:bossId,kind:'arena-boss',bossType:'monarch',attackStage:0,x:0,y:hallY,
     hp:stats.hp,maxHp:stats.hp,radius:stats.radius,speed:0,damage:stats.damage,value:0,phase:0,hitFlash:0,
@@ -94,7 +102,7 @@ export function enforceArenaBoundary(state,{hurt}={}){
     return false;
   }
   const p=state.player,dx=p.x-arena.x,dy=p.y-arena.y,distance=Math.hypot(dx,dy),safe=arena.radius-p.radius-36;
-  if(arena.kind!=='garden'&&arena.phase==='fighting'&&distance>=arena.radius-ARENA_HAZARD_INSET&&hurt)hurt(state,Math.max(80,p.maxHp*.45),.4);
+  if(!arena.cover&&arena.phase==='fighting'&&distance>=arena.radius-ARENA_HAZARD_INSET&&hurt)hurt(state,Math.max(80,p.maxHp*.45),.4);
   if(distance>safe){p.x=arena.x+dx/distance*safe;p.y=arena.y+dy/distance*safe;}
   return distance>=arena.radius-ARENA_HAZARD_INSET;
 }
@@ -112,7 +120,7 @@ export function updateArena(state,dt,hooks){
     arena.time=Math.min(2.5,arena.time+dt);
     if(arena.time>=2.5-1e-9){
       arena.phase='fighting';arena.time=0;
-      if(arena.kind==='garden')state.player.invulnerable=Math.max(state.player.invulnerable,.8);
+      if(arena.cover)state.player.invulnerable=Math.max(state.player.invulnerable,.8);
     }
   }else if(arena.phase==='fighting'){
     const boss=state.enemies.find(e=>e.id===arena.bossId&&e.kind==='arena-boss');
@@ -161,11 +169,13 @@ export function validateArena(value,state){
   if(state.map==='castle')return validateCastleArena(value,state,number,integer);
   const final=WORLD_FINALS[state.map];
   const garden=value?.kind==='garden';
-  const validLayout=garden?state.map==='garden'&&validGardenCover(value.cover)&&
+  const quarry=value?.kind==='quarry';
+  const validLayout=garden?state.map==='garden'&&validArenaCover('garden',value.cover)&&
     (Object.hasOwn(value,'legacyEntry')?value.legacyEntry===true&&state.bossesDefeated<3:gardenFinalReady(state))
+    :quarry?state.map==='quarry'&&validArenaCover('quarry',value.cover)&&!Object.hasOwn(value,'legacyEntry')
     :!Object.hasOwn(value||{},'kind')&&!Object.hasOwn(value||{},'cover')&&!Object.hasOwn(value||{},'legacyEntry');
   if(!value||typeof value!=='object'||Array.isArray(value)||!validLayout||!final||state.level<final.goal||!ARENA_PHASES.includes(value.phase)||
-    !number(value.x,-1e7,1e7)||!number(value.y,-1e7,1e7)||value.radius!==(garden?GARDEN_ARENA_RADIUS:ARENA_RADIUS)||!number(value.time,0,3)||
+    !number(value.x,-1e7,1e7)||!number(value.y,-1e7,1e7)||value.radius!==(garden?GARDEN_ARENA_RADIUS:quarry?QUARRY_ARENA_RADIUS:ARENA_RADIUS)||!number(value.time,0,3)||
     !integer(value.bossId,1,state.nextId-1)||!integer(value.rewardId,0,state.nextId-1))return false;
   const ticks=state.enemies.filter(e=>e.kind==='arena-tick'),bosses=state.enemies.filter(e=>e.kind==='arena-boss'),mega=state.chests.filter(c=>c.mega);
   if(inBattle(value)){
@@ -194,6 +204,7 @@ export function validateArena(value,state){
 
 function validateCastleArena(value,state,number,integer){
   if(!value||typeof value!=='object'||Array.isArray(value)||value.kind!=='castle'||state.level!==45||
+    (Object.hasOwn(value,'cover')&&!validArenaCover('castle',value.cover))||
     !ARENA_PHASES.includes(value.phase)||value.x!==0||value.y!==state.castle?.hallY||value.radius!==CASTLE.hallHalfHeight||
     !number(value.time,0,3)||!integer(value.bossId,1,state.nextId-1)||!integer(value.rewardId,0,state.nextId-1))return false;
   const bosses=state.enemies.filter(e=>e.kind==='arena-boss'),mega=state.chests.filter(c=>c.mega);

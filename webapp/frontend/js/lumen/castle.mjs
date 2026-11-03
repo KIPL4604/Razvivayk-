@@ -2,7 +2,7 @@
 // Presentation reads this module; it never changes the simulation.
 import {waveAt} from './progression.mjs';
 export const CASTLE=Object.freeze({halfWidth:360,segmentLength:1600,carpetHalfWidth:120,
-  bossY:-2000,hallHalfWidth:720,hallHalfHeight:650,gateY:-1280,triggerRadius:510});
+  bossY:-2000,hallHalfWidth:864,hallHalfHeight:650,gateY:-1280,triggerRadius:510});
 export const CASTLE_DOOR_HP=6000;
 const GUARD_REACH=130,GUARD_WIDTH=28,WAX_REACH=72,WAX_RADIUS=24;
 export const MOTH_SPREAD=.23;
