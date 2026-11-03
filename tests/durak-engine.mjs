@@ -91,6 +91,40 @@ test('throws can match either attack or defense ranks; a beaten bout changes att
   assert.equal(state.discard.length, 32);
 });
 
+test('transfer swaps roles, keeps both attacks pending, and refills the first attacker first', () => {
+  const state = fixture({
+    hands: [['7h', '8c', '9h', 'Kh'], ['6c', 'Td', 'Qc']],
+    stock: ['Jc', 'As'], table: [{ attack: '6h', defense: null }],
+  });
+  play(state, { type: 'transfer', card: '6c' });
+  assert.deepEqual([state.attacker, state.turn, state.firstAttacker, state.limit], [1, 0, 0, 4]);
+  assert.deepEqual(restoreDurak(state), state);
+  play(state, { type: 'defend', card: '7h', index: 0 });
+  assert.equal(state.turn, 0);
+  assert.equal(state.phase, 'defend');
+  assert.equal(legalDurak(state).some(a => a.type === 'transfer'), false);
+  play(state, { type: 'defend', card: '8c', index: 1 });
+  play(state, { type: 'pass' });
+  assert.ok(state.hands[0].includes('Jc') && state.hands[0].includes('As'));
+  assert.equal(Object.hasOwn(state, 'firstAttacker'), false);
+});
+
+test('the same rank can return the attack only while the next defender has capacity', () => {
+  const state = fixture({
+    hands: [['6d', '7h', '8c', '9h'], ['6c', '6s', 'Qc', 'Jh']],
+    stock: ['As'], table: [{ attack: '6h', defense: null }],
+  });
+  play(state, { type: 'transfer', card: '6c' });
+  play(state, { type: 'transfer', card: '6d' });
+  const before = clone(state);
+  assert.equal(actDurak(state, { type: 'transfer', card: '6s' }), false);
+  assert.deepEqual(state, before);
+  assert.ok(legalDurak(state).some(a => a.type === 'defend' && a.card === '6s'));
+  play(state, { type: 'take' });
+  assert.equal(state.table.length, 0);
+  assertConserved(state);
+});
+
 test('taking allows extra matching throws, then pickup and attacker-first refilling', () => {
   const state = fixture({
     hands: [['6h', '7h', '8d', 'Kh'], ['7c', '8c', '9d', 'Qc']],

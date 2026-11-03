@@ -1,4 +1,4 @@
-// Original two-player throw-in Durak rules. No DOM, network or external assets.
+// Two-player throw-in and transfer Durak rules. No DOM, network or external assets.
 // Cards use rank + suit (6h, Td, As); stock[0] is drawn first, trumpCard last.
 const RANKS = '6789TJQKA';
 const SUITS = 'shdc';
@@ -104,6 +104,9 @@ function validState(state) {
     }
   }
   if (cards.length !== 36 || cards.some((card) => !CARDS.has(card)) || new Set(cards).size !== 36) return false;
+  if (Object.hasOwn(state, 'firstAttacker')
+    && (![0, 1].includes(state.firstAttacker) || state.table.length < 2
+      || state.table[0].attack[0] !== state.table[1].attack[0])) return false;
   if (state.status !== 'playing') {
     if (state.stock.length || state.table.length || state.phase !== 'attack' || state.turn !== state.attacker) return false;
     const empty0 = state.hands[0].length === 0;
@@ -115,7 +118,9 @@ function validState(state) {
   if (state.phase === 'attack') return state.table.length === 0 && state.turn === state.attacker
     && state.hands.every((hand) => hand.length > 0);
   if (!state.table.length) return false;
-  if (state.phase === 'defend') return state.turn === defender && unmatched === 1 && state.table.at(-1).defense === null;
+  if (state.phase === 'defend') return state.turn === defender && unmatched > 0
+    && (unmatched === 1 || (Object.hasOwn(state, 'firstAttacker')
+      && state.table.every((pair) => pair.attack[0] === state.table[0].attack[0])));
   if (state.turn !== state.attacker) return false;
   if (state.phase === 'throw') return unmatched === 0;
   return unmatched > 0 && state.table.length < state.limit;
@@ -128,9 +133,14 @@ export function legalDurak(state, player = state?.turn) {
   if (state.phase === 'attack') return hand.map((card) => ({ type: 'attack', card }));
   if (state.phase === 'defend') {
     const index = state.table.findIndex((pair) => pair.defense === null);
+    const transfers = state.table.every((pair) => pair.defense === null)
+      && state.table.length < Math.min(6, state.hands[1 - player].length)
+      ? hand.filter((card) => card[0] === state.table[0].attack[0]).map((card) => ({ type: 'transfer', card }))
+      : [];
     return [
       ...hand.filter((card) => beats(card, state.table[index].attack, state.trump))
         .map((card) => ({ type: 'defend', card, index })),
+      ...transfers,
       { type: 'take' },
     ];
   }
@@ -147,10 +157,12 @@ function finishBout(state, taking) {
   (taking ? state.hands[defender] : state.discard).push(...tableCards);
   state.table = [];
   // The original attacker always draws first, even after a successful defense.
-  for (const player of [attacker, defender]) {
+  const first = state.firstAttacker ?? attacker;
+  for (const player of [first, 1 - first]) {
     while (state.hands[player].length < 6 && state.stock.length) state.hands[player].push(state.stock.shift());
   }
   sortHands(state);
+  delete state.firstAttacker;
   state.round += 1;
   state.attacker = taking ? attacker : defender;
   state.turn = state.attacker;
@@ -181,11 +193,21 @@ export function actDurak(state, action) {
       state.turn = 1 - state.attacker;
       setMessage(state);
     }
+  } else if (action.type === 'transfer') {
+    state.firstAttacker ??= state.attacker;
+    state.hands[state.turn].splice(state.hands[state.turn].indexOf(action.card), 1);
+    state.table.push({ attack: action.card, defense: null });
+    state.attacker = state.turn;
+    state.turn = 1 - state.attacker;
+    state.limit = Math.min(6, state.hands[state.turn].length);
+    setMessage(state, state.attacker === 0 ? 'Вы перевели атаку. ' : 'Соперник перевёл атаку. ');
   } else if (action.type === 'defend') {
     state.hands[state.turn].splice(state.hands[state.turn].indexOf(action.card), 1);
     state.table[action.index].defense = action.card;
-    state.phase = 'throw';
-    state.turn = state.attacker;
+    if (state.table.every((pair) => pair.defense !== null)) {
+      state.phase = 'throw';
+      state.turn = state.attacker;
+    }
     setMessage(state);
   } else if (action.type === 'take') {
     state.phase = 'taking';
@@ -204,7 +226,7 @@ export function botDurak(state) {
   if (!actions.length) return null;
   const cards = actions.filter((action) => action.card)
     .sort((a, b) => order(a.card, state.trump) - order(b.card, state.trump));
-  return cards[0] || actions[0];
+  return cards.find((action) => action.type === 'transfer') || cards[0] || actions[0];
 }
 
 /** Validate the whole snapshot, discard extra fields, and return an owned clone. */
@@ -218,6 +240,7 @@ export function restoreDurak(raw) {
       table: raw.table.map(({ attack, defense }) => ({ attack, defense })),
       attacker: raw.attacker, turn: raw.turn, phase: raw.phase, limit: raw.limit,
       round: raw.round, message: raw.message,
+      ...(Object.hasOwn(raw, 'firstAttacker') ? { firstAttacker: raw.firstAttacker } : {}),
     };
     sortHands(state);
     return state;
