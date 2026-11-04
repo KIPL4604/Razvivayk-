@@ -16,7 +16,7 @@ export function attachCardGestures({mount,enabled,source,swipe,drop,restoreHighl
     ghost=document.createElement('div');ghost.className='card-drag-ghost';ghost.setAttribute('aria-hidden','true');
     ghost.style.width=p.rect.width+'px';
     p.nodes.forEach(node=>{
-      const r=node.getBoundingClientRect(),copy=document.createElement('div');
+      const r=(node.matches('.hand-card')?node.querySelector('.playing-card'):node).getBoundingClientRect(),copy=document.createElement('div');
       copy.innerHTML=node.querySelector('.playing-card').outerHTML;
       copy.style.cssText=`position:absolute;left:${r.x-p.rect.x}px;top:${r.y-p.rect.y}px;width:${r.width}px`;
       copy.querySelectorAll('[data-card-key]').forEach(e=>e.removeAttribute('data-card-key'));
@@ -29,7 +29,7 @@ export function attachCardGestures({mount,enabled,source,swipe,drop,restoreHighl
     const node=e.target.closest('.hand-card,.sol-card[data-cardgame-action="sol-source"]');
     if(!node)return;
     const data=source(node);if(!data)return;
-    pointer={...data,id:e.pointerId,x:e.clientX,y:e.clientY,rect:node.getBoundingClientRect(),mode:null,canSwipe:!!node.closest('.table-hand:not(.blackjack-hand)')};
+    pointer={...data,id:e.pointerId,x:e.clientX,y:e.clientY,rect:(node.matches('.hand-card')?node.querySelector('.playing-card'):node).getBoundingClientRect(),mode:null,canSwipe:!!node.closest('.table-hand:not(.blackjack-hand)')};
   });
   document.addEventListener('pointermove',e=>{
     const p=pointer;if(!p||p.id!==e.pointerId)return;
