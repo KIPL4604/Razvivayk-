@@ -22,10 +22,14 @@ async(page)=>{
     const encoded=Buffer.concat(sourceChunks.map(c=>buffers.get(c.pack).subarray(c.offset,c.offset+c.bytes)));
     const split=Math.floor(encoded.length/2),a='loading-qa-a.pack',b='loading-qa-b.pack',range='loading-qa-range.pack';
     const payloads=new Map([[a,encoded.subarray(0,split)],[b,encoded.subarray(split)],[range,Buffer.from([0,1,2])]]);
-    const descriptor=name=>({file:name,bytes:payloads.get(name).length,sha256:'a'.repeat(64)});
     const chunked={bytes:source.bytes,sha256:source.sha256,chunks:[{pack:a,offset:0,bytes:split},{pack:b,offset:0,bytes:encoded.length-split}]};
     // Keep a single-range fixture even if Scout itself ever crosses a pack.
     const legacyPack='loading-qa-legacy.pack';payloads.set(legacyPack,encoded);
+    const hashes=await p.evaluate(async payloads=>Object.fromEntries(await Promise.all(payloads.map(async ([name,bytes])=>{
+      const hash=await crypto.subtle.digest('SHA-256',Uint8Array.from(bytes));
+      return [name,Array.from(new Uint8Array(hash),byte=>byte.toString(16).padStart(2,'0')).join('')];
+    }))),Array.from(payloads,([name,body])=>[name,Array.from(body)]));
+    const descriptor=name=>({file:name,bytes:payloads.get(name).length,sha256:hashes[name]});
     const good={version:1,frameSize:48,packFormat:'image/webp',packs:[descriptor(legacyPack),descriptor(a),descriptor(b)],
       files:{'legacy.png':{pack:legacyPack,offset:0,packBytes:encoded.length},'chunked.png':chunked}};
     let served=good,aRequests=0;
@@ -64,8 +68,8 @@ async(page)=>{
       const result=await load('invalid-'+n+'-'+Date.now());
       assert(!result.ok&&result.error==='Invalid Lumen artwork entry: invalid.png','Invalid chunk accepted or failed at wrong boundary: '+JSON.stringify({n,result}));
     }
-    // A failed load resets the memoized promise; retrying the same module after
-    // the manifest recovers should decode the artwork normally.
+    // A rejected manifest resets the memoized promise so the same module can retry.
+    served={...good,version:0};
     const recoveryToken='recovery-'+Date.now();
     const failed=await load(recoveryToken);assert(!failed.ok,'Recovery fixture should start invalid');
     served=good;const recovered=await load(recoveryToken);assert(recovered.ok&&recovered.samePixels,'Failed load remained cached');

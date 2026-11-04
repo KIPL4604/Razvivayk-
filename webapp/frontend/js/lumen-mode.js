@@ -14,7 +14,7 @@ const LumenMode = (() => {
     try{window.Telegram?.WebApp?.onEvent?.(event,resizeTitle);}catch(_){}
   }
   async function ensureController(ticket){
-    loading ||= import('/static/js/lumen/game.mjs?v=garden-finale-1').catch(error=>{loading=null;throw error;});
+    loading ||= import('/static/js/lumen/game.mjs?v=world-warmup-1').catch(error=>{loading=null;throw error;});
     const module=await loading;
     if(!current(ticket))return false;
     if(!controller){

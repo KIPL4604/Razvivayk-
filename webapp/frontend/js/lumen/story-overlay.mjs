@@ -1,7 +1,7 @@
 import {assetURL,loadSceneDetail} from './preload.mjs';
 const escape=value=>String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const loadStatus={
- manifest:'Получаем список ресурсов',download:'Загружаем графику мира',
+ manifest:'Получаем список ресурсов',download:'Спасибо, что ждёшь. Готовим мир для твоей экспедиции.',
  waiting:'Данные пока не поступают',offline:'Нет связи. Ждём подключения',
  retry:'Повторяем запрос к серверу',
  decode:'Графика загружена. Подготавливаем мир',ready:'Мир готов'

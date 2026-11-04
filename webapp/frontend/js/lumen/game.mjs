@@ -1,7 +1,7 @@
-import {preloadScene,preloadMenuBackground,backgroundReady} from './preload.mjs';
+import {preloadScene,preloadMenuBackground,backgroundReady,warmScene} from './preload.mjs';
 import {createRun,step,chooseUpgrade,serialize,restore,UPGRADES,upcomingUpgrade} from './engine.mjs';
 import {Renderer} from './renderer.mjs';
-import {loadArt} from './assets.mjs';
+import {loadArt,warmWorldArt} from './assets.mjs';
 import {worldLoadProgress} from './load-progress.mjs';
 import {StoryOverlay} from './story-overlay.mjs';
 import {worldScene,bossScene} from './story.mjs';
@@ -36,7 +36,8 @@ export function createGame(context) {
   let state=null,renderer=null,preview=null,previewState=null,raf=0,lastFrame=0,lastSave=0,lastHud=0,paused=false,screen='',character='scout',overlayKey='',resultRecorded=false;
   let art=null,waitingForStart=false,sceneTicket=0,appInactive=false;
   let bossArtPending=null,bossArtReady=false,retryLaunch=null;
-  const readyArt=new Set(),story=new StoryOverlay();
+  const readyArt=new Set(),warmedWorlds=new Set(),story=new StoryOverlay();
+  let warmingWorld=false,warmAfter=0;
   let pointer=null,stickOrigin=null,input={x:0,y:0},keys=new Set(),audio=null,fullscreenOwned=false;
   let terminalFrameStart=0,map='garden',menuPage='home',book='weapons',selectionLoaded=false;
   const handlers=new AbortController(),signal=handlers.signal;
@@ -83,7 +84,25 @@ export function createGame(context) {
     bossArtPending=loadArt({map:'garden',phase:'bosses'})
       .then(()=>{bossArtReady=true;}).catch(()=>{}).finally(()=>{bossArtPending=null;});
   }
-  window.addEventListener('online',()=>{prefetchGardenBosses();retryLaunch?.();},{signal});
+  function warmNextWorld(now){
+    if(warmingWorld||now<warmAfter||state.time<8)return;
+    const run=state;
+    const canContinue=()=>state===run&&screen==='lumen-game'&&!paused&&!waitingForStart
+      &&run.status==='playing'&&!story.active&&!document.hidden&&!appInactive
+      &&navigator.onLine!==false&&!navigator.connection?.saveData;
+    if(!canContinue())return;
+    if(run.map==='garden'&&!bossArtReady){prefetchGardenBosses();warmAfter=now+5000;return;}
+    let world=MAPS[run.map].next;
+    while(world&&warmedWorlds.has(world+':'+run.character))world=MAPS[world].next;
+    if(!world)return;
+    warmingWorld=true;
+    void (async()=>{
+      if(await warmWorldArt(world,run.character,canContinue)&&await warmScene(worldScene(world),run.character,canContinue)){
+        warmedWorlds.add(world+':'+run.character);
+      }
+    })().catch(()=>{warmAfter=performance.now()+30000;}).finally(()=>{warmingWorld=false;});
+  }
+  window.addEventListener('online',()=>{warmAfter=0;prefetchGardenBosses();retryLaunch?.();},{signal});
   function storyScope(){
     const r=record();
     if(!r.story||r.story.runId!==state.runId||!Array.isArray(r.story.seen))r.story={runId:state.runId,seen:[]};
@@ -278,6 +297,7 @@ export function createGame(context) {
       if(['won','lost'].includes(state.status)){updateHud();showResult();}
       else if(state.status==='playing')bossDialogue();
       if(now-lastSave>5000)save();
+      warmNextWorld(now);
     }
     // Finish only the presentation of death. No step(), reward or save mutation.
     if(state.status==='lost'&&!terminalFrameStart)terminalFrameStart=now;

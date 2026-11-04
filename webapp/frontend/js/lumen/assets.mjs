@@ -37,17 +37,14 @@ async function manifest(pilot){
  })().catch(error=>{manifests.delete(file);throw error;}));
  return manifests.get(file);
 }
-function download(entry){
+function download(entry,priority){
  const key=entry.file+':'+entry.sha256;
  if(packs.has(key))return packs.get(key);
  const record={received:0,retrying:false,promise:null};packs.set(key,record);
- record.promise=assetBytes(entry,(size,phase)=>{record.received=size;record.retrying=phase==='retry';notify();},{recover:true}).then(data=>{record.received=entry.bytes;record.retrying=false;notify();return data;},error=>{packs.delete(key);throw error;});
+ record.promise=assetBytes(entry,(size,phase)=>{record.received=size;record.retrying=phase==='retry';notify();},{recover:true,priority}).then(data=>{record.received=entry.bytes;record.retrying=false;notify();return data;},error=>{packs.delete(key);throw error;});
  return record;
 }
-export async function loadArt({map,character,phase,onProgress}={}){
- let update;
- try{
-  onProgress?.({phase:'manifest',received:0,total:0,percent:0,remainingSeconds:null});
+async function artPlan({map,character,phase}){
   const value=await manifest(map==='garden'&&Boolean(phase)),files=selectArtFiles(value,{map,character,phase}),needed=new Set(),chunksByFile=new Map();
   for(const [file,entry]of files){
    const invalid=()=>{throw new Error(`Invalid Lumen artwork entry: ${file}`);};
@@ -57,7 +54,22 @@ export async function loadArt({map,character,phase,onProgress}={}){
    for(const chunk of chunks){const pack=value.packs.find(pack=>pack.file===chunk?.pack);if(!pack||!Number.isSafeInteger(chunk.offset)||!Number.isSafeInteger(chunk.bytes)||chunk.offset<0||chunk.bytes<1||chunk.offset+chunk.bytes>pack.bytes)invalid();needed.add(chunk.pack);}
    chunksByFile.set(file,chunks);
   }
-  const required=value.packs.filter(entry=>needed.has(entry.file));
+  return {value,files,chunksByFile,required:value.packs.filter(entry=>needed.has(entry.file))};
+}
+export async function warmWorldArt(map,character,canContinue){
+ if(!canContinue())return false;
+ const {required}=await artPlan({map,character});
+ for(const entry of required){
+  if(!canContinue())return false;
+  await download(entry,'low').promise;
+ }
+ return true;
+}
+export async function loadArt({map,character,phase,onProgress}={}){
+ let update;
+ try{
+  onProgress?.({phase:'manifest',received:0,total:0,percent:0,remainingSeconds:null});
+  const {value,files,chunksByFile,required}=await artPlan({map,character,phase});
   const total=required.reduce((sum,entry)=>sum+entry.bytes,0),started=performance.now();let completed=0;
   update=()=>{
    const received=required.reduce((sum,entry)=>sum+(packs.get(entry.file+':'+entry.sha256)?.received||0),0),elapsed=(performance.now()-started)/1000,rate=received/Math.max(.1,elapsed);

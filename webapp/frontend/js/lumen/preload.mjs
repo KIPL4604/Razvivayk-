@@ -69,11 +69,23 @@ export async function preloadMenu(onProgress,meta){
  finish(onProgress);
  upgradeBackground(map,value.backgrounds.find(entry=>entry.file===menuBackgroundFile(map)));
 }
-export async function preloadScene(scene,hero,onProgress,{previewLandscape=false}={}){
+async function sceneEntries(scene,hero,previewLandscape){
  const value=await manifest(),world=scene.map||'garden';
  const names=new Set([...CORE_UI,`story-world-${world}-small.webp`,...(!previewLandscape?[`story-world-${world}.webp`]:[]),`story-hero-${hero}.png`,...(scene.portrait?[`story-${scene.portrait}.png`]:[])]);
  const entries=[...value.files,...value.scenes].filter(e=>names.has(e.file));
  if(entries.length!==names.size)throw new Error('Incomplete scene manifest');
+ return entries;
+}
+export async function warmScene(scene,hero,canContinue){
+ if(!canContinue())return false;
+ for(const entry of await sceneEntries(scene,hero,false)){
+  if(!canContinue())return false;
+  await assetBytes(entry,undefined,{recover:true,priority:'low'});
+ }
+ return true;
+}
+export async function preloadScene(scene,hero,onProgress,{previewLandscape=false}={}){
+ const entries=await sceneEntries(scene,hero,previewLandscape);
  let last;
  await batch(entries,value=>{last=value;onProgress?.(value);},{recover:true});installSprites();await font();
  onProgress?.({...last,phase:'ready'});

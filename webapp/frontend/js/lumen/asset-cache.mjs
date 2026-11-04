@@ -9,7 +9,7 @@ function waitForRetry(delay){
   globalThis.addEventListener?.('online',done,{once:true});
  });
 }
-export async function assetBytes(entry,onProgress,{recover=false}={}){
+export async function assetBytes(entry,onProgress,{recover=false,priority}={}){
  const key=entry.file+':'+entry.sha256;
  if(memory.has(key)){const value=await memory.get(key);onProgress?.(entry.bytes);return value;}
  const pending=(async()=>{
@@ -34,7 +34,7 @@ export async function assetBytes(entry,onProgress,{recover=false}={}){
    try{
     const start=resume?offset:0,end=resume?Math.min(start+RESUME_BYTES,entry.bytes)-1:entry.bytes-1;
     const headers=resume?{'Range':`bytes=${start}-${end}`,...(validator?{'If-Range':validator}:{})}:undefined;
-    touch();const response=await fetch(url,{signal:controller.signal,headers});
+    touch();const response=await fetch(url,{signal:controller.signal,headers,priority});
     if(!response.ok){
      retryable=response.status===408||response.status===429||response.status>=500;
      const advice=response.headers.get('Retry-After');
