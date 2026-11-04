@@ -25,6 +25,7 @@ async (page) => {
     await b.locator('#pokerRoomCode').fill('XXXXXX');await b.locator('#pokerJoinForm button').click();await b.locator('[role="alert"]:not(.hidden)').waitFor();await snap(b,'poker-online-invalid-code-375');
     await b.locator('#pokerRoomCode').fill(waiting.code);await b.locator('#pokerJoinForm button').click();await b.locator('.poker-table').waitFor();await a.locator('[data-poker-action="call"]:not(:disabled)').waitFor();
     const av=await stateOf(a),bv=await stateOf(b);assert(av.roomId===bv.roomId,'Same actual room');assert(av.players[1].hole.every(c=>c===null)&&bv.players[0].hole.every(c=>c===null),'Private opponent holes');assert(av.players[0].hole.every(Boolean)&&bv.players[1].hole.every(Boolean),'Own cards visible');
+    assert(await b.locator('.poker-actions').count()===0,'No disabled action buttons while opponent acts');
     await snap(a,'poker-online-alice-375');await snap(b,'poker-online-boris-375');
     await a.reload();await a.locator('[data-resume="poker"]').click();await a.locator('.poker-table').waitFor();assert((await stateOf(a)).roomId===waiting.roomId,'Online reconnect');
     for(let i=0;i<12;i++){const latest=await stateOf(a);if(latest.phase!=='playing')break;const p=clients[latest.turnIndex];const own=await stateOf(p);await p.locator('[data-poker-action="'+(own.legalActions.includes('check')?'check':'call')+'"]:not(:disabled)').click();await p.waitForFunction(()=>!document.querySelector('.poker-controls')?.innerText.includes('Сохраняем ход'));}

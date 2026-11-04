@@ -9,7 +9,7 @@ async page => {
   const settle=()=>p.evaluate(async()=>{await Promise.all(document.getAnimations().filter(a=>a.effect.getTiming().iterations!==Infinity).map(a=>a.finished.catch(()=>{})));});
   try{
     await p.goto(base);await p.evaluate(()=>showScreen('cards'));await p.locator('.club-game-poker').click();await p.locator('[data-poker-action="solo"]').click();
-    await p.locator('#pokerRaiseAmount').waitFor();const initial=await state();
+    await p.locator('[data-poker-action="toggle-raise"]').click();await p.locator('#pokerRaiseAmount').waitFor();const initial=await state();
     for(const value of ['min','half','pot','max']){
       await p.locator('[data-poker-action="preset"][data-poker-value="'+value+'"]').click();
       const n=Number(await p.locator('#pokerRaiseAmount').inputValue()),me=initial.players.find(x=>x.isYou);

@@ -2,7 +2,7 @@
 export function createPokerController() {
   const streets={preflop:"Префлоп",flop:"Флоп",turn:"Тёрн",river:"Ривер",showdown:"Вскрытие"};
   let state=null,busy=false,error="",poll=null,epoch=0,hint=null,hintLoading=false,rulesOpen=false,mathOpen=false,previousCards=new Set(),lastPaintVersion=null,errorStatus=0,refreshing=false,focusTarget=null;
-  let liveSocket=null,liveRoom=null,liveStatus="connecting",deadlineTimer=null;
+  let liveSocket=null,liveRoom=null,liveStatus="connecting",deadlineTimer=null,raiseOpen=false;
   const active=()=>activeScreen==="poker-game";
   const fmt=n=>Number(n||0).toLocaleString("ru-RU");
   const pct=n=>(Number(n||0)*100).toFixed(1).replace(".",",")+"%";
@@ -24,7 +24,7 @@ export function createPokerController() {
   function remember(data){
     const next=data.state||data;
     if(state?.roomId===next.roomId&&next.version<state.version)return false;
-    if(!state||next.version!==state.version)hint=null;
+    if(!state||next.version!==state.version){hint=null;raiseOpen=false;}
     state=next;error="";errorStatus=0;
     saved.poker={...saved.poker,roomId:state.roomId,mode:state.mode,code:state.code,token:data.token||saved.poker?.token,lastTouchedAt:Date.now()};saveState();
   }
@@ -67,7 +67,8 @@ export function createPokerController() {
     if(s.phase==="waiting")return `<div class="poker-wait"><strong>Ждём второго игрока</strong><p>Друг входит в «С другом» и вводит этот код.</p><div class="poker-code-row"><strong class="poker-room-code">${escapeHtml(s.code)}</strong>${button("copy","Копировать код")}</div><p>Стол обновляется автоматически.</p></div>`;
     if(s.phase==="closed")return `<div class="poker-wait"><strong>Стол закрыт</strong><p>Игрок покинул комнату. Можно начать новую партию.</p>${button("clear","К выбору режима","primary-button")}</div>`;
     if(s.phase==="complete"||s.phase==="finished")return `<div class="poker-result" role="status"><span class="eyebrow">${s.phase==="finished"?"Матч завершён":"Раздача завершена"}</span><h2>${escapeHtml(s.result?.message||"Результат раздачи")}</h2>${s.result?.winners?.map(w=>`<p>${escapeHtml(s.players.find(p=>p.seat===w.seat)?.name||"Игрок")}: ${escapeHtml(w.handName||"")} · банк ${fmt(w.amount)}</p>`).join("")||""}${legal.includes("next")?button("next",icon("shuffle")+"Следующая раздача","primary-button"):s.phase==="complete"?'<p>Ты готов. Ждём подтверждения соперника.</p>':button("leave","Завершить стол","primary-button")}</div>`;
-    return `<div class="poker-action-status" role="status"><span class="${isTurn?"poker-your-turn":""}">${busy?"Сохраняем ход…":isTurn?"Твой ход":"Ход соперника"}</span><span>${isTurn?(s.toCall?"Колл: "+fmt(s.toCall):"Можно сыграть чек"):""}</span></div><div class="poker-actions">${button("fold","Пас","poker-fold",!legal.includes("fold"))}${button(legal.includes("call")?"call":"check",legal.includes("call")?"Колл "+fmt(s.toCall):"Чек","primary-button",!legal.includes("call")&&!legal.includes("check"))}</div>${legal.includes("raise")?`<form id="pokerRaiseForm" class="poker-raise-form"><label for="pokerRaiseAmount">${s.currentBet?"Повысить до":"Ставка"}<span>${fmt(s.minRaiseTo)}–${fmt(s.maxRaiseTo)}</span></label><div class="poker-raise-row"><input id="pokerRaiseAmount" type="number" inputmode="numeric" min="${s.minRaiseTo}" max="${s.maxRaiseTo}" step="1" value="${s.minRaiseTo}" required><button type="submit" class="secondary-button" ${busy?"disabled":""}>${s.currentBet?"Рейз":"Ставка"}</button>${button("allin","Олл-ин")}</div><div class="poker-raise-presets" aria-label="Быстрый выбор ставки">${[["min","Мин."],["half","½ банка"],["pot","Банк"],["max","Макс."]].map(([value,title])=>`<button type="button" data-poker-action="preset" data-poker-value="${value}" ${busy?"disabled":""}>${title}</button>`).join("")}</div><small>Сумма включает уже поставленные тобой фишки этой улицы.</small></form>`:""}`;
+    if(!isTurn&&!busy)return '<div class="poker-action-status" role="status"><span>Ход соперника</span></div>';
+    return `<div class="poker-action-status" role="status"><span class="${isTurn?"poker-your-turn":""}">${busy?"Сохраняем ход…":isTurn?"Твой ход":"Ход соперника"}</span><span>${isTurn?(s.toCall?"Колл: "+fmt(s.toCall):"Можно сыграть чек"):""}</span></div><div class="poker-actions">${button("fold","Пас","poker-fold",!legal.includes("fold"))}${button(legal.includes("call")?"call":"check",legal.includes("call")?"Колл "+fmt(s.toCall):"Чек","primary-button",!legal.includes("call")&&!legal.includes("check"))}${legal.includes("raise")?`<button type="button" class="secondary-button poker-raise-toggle" data-poker-action="toggle-raise" aria-expanded="${raiseOpen}" ${raiseOpen?'aria-controls="pokerRaiseForm"':""} ${busy?"disabled":""}>${s.currentBet?"Повысить":"Ставка"}</button>`:""}</div>${legal.includes("raise")&&raiseOpen?`<form id="pokerRaiseForm" class="poker-raise-form"><label for="pokerRaiseAmount">${s.currentBet?"Повысить до":"Ставка"}<span>${fmt(s.minRaiseTo)}–${fmt(s.maxRaiseTo)}</span></label><div class="poker-raise-row"><input id="pokerRaiseAmount" type="number" inputmode="numeric" min="${s.minRaiseTo}" max="${s.maxRaiseTo}" step="1" value="${s.minRaiseTo}" required><button type="submit" class="secondary-button" ${busy?"disabled":""}>${s.currentBet?"Рейз":"Ставка"}</button>${button("allin","Олл-ин")}</div><div class="poker-raise-presets" aria-label="Быстрый выбор ставки">${[["min","Мин."],["half","½ банка"],["pot","Банк"],["max","Макс."]].map(([value,title])=>`<button type="button" data-poker-action="preset" data-poker-value="${value}" ${busy?"disabled":""}>${title}</button>`).join("")}</div><small>Сумма включает уже поставленные тобой фишки этой улицы.</small></form>`:""}`;
   }
   function mathPanel(){
     const h=hint;
@@ -143,6 +144,7 @@ export function createPokerController() {
     else if(a==="closemath"){mathOpen=false;render();}
     else if(a==="closerules"){rulesOpen=false;render();}
     else if(a==="rules"){rulesOpen=true;mathOpen=false;render();}
+    else if(a==="toggle-raise"){raiseOpen=!raiseOpen;render();}
     else if(a==="preset"){
       const input=$("#pokerRaiseAmount");if(!input||busy||!state?.legalActions?.includes("raise"))return true;
       const me=state.players.find(p=>p.isYou),value=target.dataset.pokerValue;

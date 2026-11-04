@@ -424,3 +424,20 @@
   .cardroom-bandana>i::after{animation:none;will-change:auto;transform:none}
   .cardroom .table-button,.cardroom-poker .poker-controls button{transition:none}
 }
+
+/* The player's decision and cards take priority over the table ornament. */
+.cardroom-poker .poker-actions{grid-template-columns:1fr 1.35fr 1fr}
+.cardroom-poker .poker-raise-toggle[aria-expanded="true"]{border-color:#efd19a;color:#fff0cf}
+.cardroom-poker .poker-table-bottom .poker-own-hand{--poker-card-width:clamp(48px,15cqh,112px)}
+.cardroom-poker .poker-board{--poker-card-width:clamp(42px,13cqh,96px);max-width:520px}
+.cardroom-poker .poker-board .poker-card{--poker-card-width:100%}
+.cardroom-poker .poker-board .poker-card-slot{width:100%;min-width:0}
+@media(max-width:600px){
+  .cardroom-poker .poker-table-bottom .poker-own-hand{--poker-card-width:clamp(52px,12cqh,66px)}
+  .cardroom-poker .poker-board{--poker-card-width:clamp(44px,12cqh,58px);gap:5px}
+  .cardroom-poker .poker-table-bottom{column-gap:8px}.cardroom-poker .poker-table-bottom .poker-seat strong{overflow-wrap:normal;word-break:normal}
+}
+@media(max-height:450px){
+  .cardroom-poker .poker-table-bottom .poker-own-hand{--poker-card-width:38px}
+  .cardroom-poker .poker-board{--poker-card-width:32px;gap:4px}
+}

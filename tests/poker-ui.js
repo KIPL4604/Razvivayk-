@@ -35,7 +35,7 @@ async (page) => {
   await page.unroute('**/api/poker/**');await page.locator('[data-poker-action="closemath"]').click();await page.locator('[data-poker-action="retry"]').click();await page.locator('#pokerConnectionError.hidden').waitFor({state:'attached'});
   await page.locator('[data-poker-action="rules"]').focus();await page.keyboard.press('Enter');assert(await page.locator('#pokerRules').evaluate(el=>el.open),'Keyboard rules button');await page.locator('[data-poker-action="closerules"]').click();
   // Legal raise and then actual play to a resolved hand, always through visible UI.
-  if((await stateOf(page)).legalActions.includes('raise')){await page.locator('#pokerRaiseForm button[type="submit"]').click();await page.locator('.poker-controls button:not(:disabled)').first().waitFor();}
+  if((await stateOf(page)).legalActions.includes('raise')){await page.locator('[data-poker-action="toggle-raise"]').click();await page.locator('#pokerRaiseForm button[type="submit"]').click();await page.locator('.poker-controls button:not(:disabled)').first().waitFor();}
   for(let i=0;i<12;i++){
     const s=await stateOf(page);if(s.phase!=='playing')break;
     const action=s.legalActions.includes('check')?'check':'call';await page.locator('[data-poker-action="'+action+'"]:not(:disabled)').click();

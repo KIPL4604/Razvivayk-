@@ -17,7 +17,7 @@ const GameAssets = (() => {
   const attempts = new Map();
   const factories = {
     chess: async suffix => (await import("/static/js/chess-mode.js?v=lazy-catalog-1" + suffix)).createChessController,
-    poker: async suffix => (await import("/static/js/poker-mode.js?v=lazy-catalog-1" + suffix)).createPokerController,
+    poker: async suffix => (await import("/static/js/poker-mode.js?v=lazy-catalog-2" + suffix)).createPokerController,
   };
   document.querySelectorAll("template[data-game-style]").forEach(slot => {
     const group = slot.dataset.gameStyle;
