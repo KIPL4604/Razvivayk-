@@ -170,6 +170,9 @@
   font: 500 11px/1.3 var(--neon-mono);
 }
 .neon-best strong { color: var(--neon-text); font-size: 14px; }
+.neon-bounty { color: #ffce85; font: 700 12px/1.3 var(--neon-mono); }
+.neon-panel [hidden] { display: none; }
+.neon-depot-button { background: transparent; }
 .neon-start { background: var(--neon-ice); color: #0a1a25; border-color: transparent; font-weight: 800; }
 .neon-start:hover:not(:disabled) { background: #c8f8fb; }
 .neon-start:active:not(:disabled) { background: #64c6d1; }

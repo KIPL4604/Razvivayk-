@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { HEIGHT, HULL, SECTORS, WIDTH, newFlight, stepFlight } from "../webapp/frontend/js/neon-frontier/flight.mjs";
+import {
+  acknowledgeCase, completeFlight, fitModule, openCase, restoreHangar, rewardFor, selectShip,
+  shipStats, upgradeShip,
+} from "../webapp/frontend/js/neon-frontier/economy.mjs";
 
 const STEP = 1 / 60;
 
@@ -83,4 +87,110 @@ test("defeating the commanders clears their fire, repairs the ship and ends the 
   lastHit();
   assert.equal(run.phase, "won");
   assert.equal(run.score, 6000);
+});
+
+test("an old browser record survives migration and malformed upgrades are repaired", () => {
+  const fresh = restoreHangar(null, 15900);
+  assert.equal(fresh.best, 15900);
+  assert.equal(fresh.coins, 120);
+  assert.equal(fresh.active, "swift");
+  const restored = restoreHangar({
+    version: 1, coins: -100, ships: { ion: { cannon: 7, drive: 2 } }, active: "unknown",
+    modules: { cannon: 99, drive: 1, reactor: -4 }, pending: { id: 9, part: "unknown" },
+  }, 15900);
+  assert.equal(restored.best, 15900);
+  assert.equal(restored.coins, 120);
+  assert.deepEqual(restored.ships.ion, { cannon: 0, drive: 2, armor: 0 });
+  assert.deepEqual(restored.modules, { core: 0, cockpit: 0, cannon: 0, drive: 1, armor: 0, reactor: 0 });
+  assert.equal(restored.active, "swift");
+  assert.equal(restored.pending, null);
+});
+
+test("purchase, selection and upgrades charge once at the current price", () => {
+  const profile = restoreHangar(null);
+  assert.ok(selectShip(profile, "ion"));
+  assert.equal(profile.coins, 120);
+  completeFlight(profile, 15900, 1000);
+  assert.equal(profile.best, 15900);
+  assert.equal(selectShip(profile, "ion"), undefined);
+  assert.equal(profile.active, "ion");
+  assert.equal(profile.coins, 770);
+  selectShip(profile, "swift");
+  selectShip(profile, "ion");
+  assert.equal(profile.coins, 770);
+  assert.equal(upgradeShip(profile, "ion", "drive", 0), undefined);
+  assert.ok(upgradeShip(profile, "ion", "drive", 0));
+  assert.equal(profile.coins, 650);
+  assert.equal(shipStats(profile).speed, 267);
+});
+
+test("opening commits one reward and one debit, including duplicate recovery after reload", () => {
+  let profile = restoreHangar(null);
+  profile.coins = 900;
+  const rig = (rank, part) => {
+    const rolls = [rank, part];
+    return () => rolls.shift();
+  };
+  assert.equal(openCase(profile, "patrol", rig(.25, .6)), undefined);
+  assert.deepEqual(profile.pending, { id: 1, caseId: "patrol", part: "drive", rank: 1, refund: 0 });
+  assert.equal(profile.coins, 800);
+  assert.ok(openCase(profile, "orbital", rig(.95, .9)));
+  profile = restoreHangar(JSON.parse(JSON.stringify(profile)));
+  acknowledgeCase(profile, 1);
+  openCase(profile, "orbital", rig(.95, .9));
+  assert.equal(profile.modules.reactor, 3);
+  assert.equal(profile.coins, 600);
+  acknowledgeCase(profile, 2);
+  openCase(profile, "stellar", rig(.7, .9));
+  assert.deepEqual(profile.pending, { id: 3, caseId: "stellar", part: "reactor", rank: 3, refund: 140 });
+  assert.equal(profile.coins, 240);
+  acknowledgeCase(profile, 2);
+  assert.equal(profile.pending.id, 3);
+  fitModule(profile, "swift", "reactor", 3);
+  assert.equal(rewardFor({ score: 2800, phase: "won", build: shipStats(profile) }), 299);
+});
+
+test("installing, swapping to stock and reloading preserve a separate loadout per ship", () => {
+  let profile = restoreHangar(null);
+  profile.coins = 700;
+  openCase(profile, "orbital", () => .03);
+  assert.equal(profile.pending.part, "core");
+  assert.equal(profile.modules.core, 1);
+  assert.ok(fitModule(profile, "swift", "core", 2));
+  assert.equal(fitModule(profile, "swift", "core", 1), undefined);
+  assert.equal(shipStats(profile).hull, 4);
+  assert.ok(fitModule(profile, "ion", "core", 1));
+  selectShip(profile, "ion");
+  assert.equal(shipStats(profile).hull, 3);
+  profile = restoreHangar(JSON.parse(JSON.stringify(profile)));
+  assert.equal(shipStats(profile, "swift").parts.core, 1);
+  assert.equal(fitModule(profile, "swift", "core", 0), undefined);
+  assert.equal(shipStats(profile, "swift").hull, 3);
+});
+
+test("a flight takes a snapshot of the active ship and the modules affect combat", () => {
+  const profile = restoreHangar(null);
+  profile.coins = 1100;
+  selectShip(profile, "prism");
+  profile.modules.armor = 3;
+  profile.modules.cannon = 2;
+  profile.modules.cockpit = 3;
+  fitModule(profile, "prism", "armor", 3);
+  fitModule(profile, "prism", "cannon", 2);
+  fitModule(profile, "prism", "cockpit", 3);
+  const loadout = shipStats(profile);
+  const run = newFlight(loadout);
+  loadout.hull = 2;
+  loadout.parts.armor = 0;
+  assert.equal(run.build.parts.armor, 3);
+  assert.ok(run.build.cadence < .123);
+  assert.equal(run.player.hull, 6);
+  advance(run, STEP, {x: 1});
+  assert.equal(run.bolts.length, 5);
+  assert.equal(run.player.x, WIDTH / 2 + 230 / 60);
+  run.threats.push({ x: run.player.x, y: run.player.y, vx: 0, vy: 0, kind: "amber" });
+  advance(run, STEP);
+  assert.equal(run.player.hull, 5);
+  assert.ok(run.player.guard > 1.9);
+  assert.equal(run.build.damage, 1.24);
 });

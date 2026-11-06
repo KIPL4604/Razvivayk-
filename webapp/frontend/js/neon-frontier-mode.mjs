@@ -1,7 +1,8 @@
-import { WIDTH, HEIGHT, HULL, SECTORS, newFlight, stepFlight } from "./neon-frontier/flight.mjs?v=2";
-import { createPainter } from "./neon-frontier/art.mjs?v=2";
+import { WIDTH, HEIGHT, SECTORS, newFlight, stepFlight } from "./neon-frontier/flight.mjs?v=4";
+import { createPainter } from "./neon-frontier/art.mjs?v=4";
+import { rewardFor } from "./neon-frontier/economy.mjs?v=2";
+import { createDepot } from "./neon-frontier/depot.mjs?v=2";
 
-const RECORD = "teramont.neon-frontier.best.v1";
 const STEP = 1 / 60;
 const CONTROLS = {
   ArrowLeft: [-1, 0], KeyA: [-1, 0],
@@ -14,12 +15,12 @@ const format = score => String(score).padStart(6, "0");
 export function createNeonFrontierController() {
   const mount = document.querySelector("#neonFrontierMount");
   mount.innerHTML = `
-    <div class="neon-shell">
+    <div class="neon-shell" hidden>
       <header class="neon-header">
         <div class="neon-nav">
-          <button class="neon-button neon-back" data-screen-link="home" type="button">
+          <button class="neon-button neon-back" data-neon="dock" type="button">
             <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M16 10H4m0 0 5-5m-5 5 5 5"/></svg>
-            Игры
+            Меню
           </button>
           <h1 id="neonFrontierTitle">Неоновый рубеж</h1>
           <button class="neon-button neon-pause" type="button" aria-label="Пауза" title="Пауза (P или Esc)" data-neon="pause">
@@ -44,10 +45,13 @@ export function createNeonFrontierController() {
           <div class="neon-layer">
             <section class="neon-panel" aria-labelledby="neonPanelTitle">
               <p class="neon-code" data-neon="code"></p>
-              <h2 id="neonPanelTitle"></h2>
+              <h2 id="neonPanelTitle" tabindex="-1"></h2>
               <p class="neon-detail" data-neon="detail"></p>
               <p class="neon-best"><span>Твой рекорд</span> <strong data-neon="best"></strong></p>
+              <p class="neon-bounty" data-neon="bounty" role="status" hidden></p>
+              <button class="neon-button" type="button" data-neon="retry-reward" hidden>Сохранить награду</button>
               <button class="neon-button neon-start" type="button" data-neon="start"></button>
+              <button class="neon-button neon-depot-button" type="button" data-neon="return">В меню</button>
             </section>
           </div>
         </div>
@@ -59,10 +63,11 @@ export function createNeonFrontierController() {
       </footer>
     </div>`;
   const pick = name => mount.querySelector('[data-neon="' + name + '"]');
+  const shell = mount.querySelector(".neon-shell");
   const canvas = mount.querySelector("canvas");
   const ctx = canvas.getContext("2d", { alpha: false });
   if (!ctx) throw new Error("Canvas 2D unavailable");
-  const paint = createPainter(ctx);
+  let paint;
   const layer = mount.querySelector(".neon-layer");
   const title = mount.querySelector("#neonPanelTitle");
   const start = pick("start");
@@ -76,13 +81,10 @@ export function createNeonFrontierController() {
   const bossPhase = pick("boss-phase");
   const bossHull = pick("boss-hull");
   const signal = pick("signal");
+  const bounty = pick("bounty");
+  const retryReward = pick("retry-reward");
   const motion = matchMedia("(prefers-reduced-motion: reduce)");
   const keys = new Set();
-  let best = 0;
-  try {
-    const stored = Number(localStorage.getItem(RECORD));
-    if (Number.isSafeInteger(stored) && stored >= 0) best = stored;
-  } catch (_) { /* The record is still available in memory. */ }
   let active = false;
   let status = "ready";
   let run = null;
@@ -92,6 +94,7 @@ export function createNeonFrontierController() {
   let previous = 0;
   let accumulator = 0;
   let previousHud = "";
+  let payout = null;
 
   function clearInput() {
     keys.clear();
@@ -103,19 +106,20 @@ export function createNeonFrontierController() {
 
   function updateHud() {
     const index = run?.sector ?? 0;
-    const health = run?.player.hull ?? HULL;
+    const maxHull = run.build.hull;
+    const health = run.player.hull;
     const level = run?.weapon ?? 1;
     const points = run?.score ?? 0;
     const commander = run?.boss;
     const notice = run?.phase === "transit" ? "Орбита свободна · ремонт корпуса"
       : commander && commander.age < 1.35 ? "Командир в зоне"
       : run?.phase === "waves" && run.clock < 1.65 ? SECTORS[index].name : "";
-    const key = [index, health, level, points, commander?.hp, notice].join("|");
+    const key = [index, maxHull, health, level, points, commander?.hp, notice].join("|");
     if (previousHud === key) return;
     previousHud = key;
     sector.textContent = `0${index + 1}/0${SECTORS.length}`;
-    hull.setAttribute("aria-label", `${health} из ${HULL}`);
-    hull.innerHTML = Array.from({ length: HULL }, (_, i) =>
+    hull.setAttribute("aria-label", `${health} из ${maxHull}`);
+    hull.innerHTML = Array.from({ length: maxHull }, (_, i) =>
       `<span aria-hidden="true" class="${i < health ? "intact" : ""}"></span>`).join("");
     weapon.textContent = ["I", "II", "III"][level - 1];
     score.textContent = format(points);
@@ -141,7 +145,6 @@ export function createNeonFrontierController() {
       return;
     }
     const copy = {
-      ready: ["ДВА СЕКТОРА / ДВА КОМАНДИРА", "На перехват", "Уклоняйся от залпов и расчищай путь к командирам.", "Начать вылет"],
       paused: ["ПОЛЁТ ПРИОСТАНОВЛЕН", "Пауза", SECTORS[run?.sector ?? 0].name, "Продолжить"],
       lost: ["СВЯЗЬ ПОТЕРЯНА", "Корабль сбит", `Сектор 0${(run?.sector ?? 0) + 1} · ${run?.score ?? 0} очков`, "Новый вылет"],
       won: ["ЦЕЛЬ ВЫПОЛНЕНА", "Рубеж пройден", `Оба командира уничтожены · ${run?.score ?? 0} очков`, "Новый вылет"],
@@ -150,9 +153,14 @@ export function createNeonFrontierController() {
     pick("code").textContent = code;
     title.textContent = heading;
     pick("detail").textContent = detail;
-    pick("best").textContent = format(best);
+    pick("best").textContent = format(Math.max(run.score, depot.best));
+    bounty.hidden = !payout;
+    bounty.textContent = !payout ? "" : payout.saving ? "Сохраняем добычу…" :
+      payout.saved ? `Добыча за вылет · +${payout.amount} монет` : "Награда ждёт сохранения";
+    retryReward.hidden = !payout || payout.saving || payout.saved;
+    start.disabled = Boolean(payout?.saving);
     start.textContent = action;
-    if (focus) start.focus({ preventScroll: true });
+    if (focus) (start.disabled ? title : start).focus({ preventScroll: true });
   }
 
   function stop() {
@@ -161,10 +169,13 @@ export function createNeonFrontierController() {
     clearInput();
   }
 
-  function saveResult() {
-    if (run.score <= best) return;
-    best = run.score;
-    try { localStorage.setItem(RECORD, String(best)); } catch (_) { /* Optional storage. */ }
+  async function settle(result) {
+    if (result.saving || result.saved) return;
+    result.saving = true;
+    updatePanel(false);
+    result.saved = await depot.reward(result.score, result.amount);
+    result.saving = false;
+    if (payout === result && active && !shell.hidden) updatePanel(document.activeElement === title);
   }
 
   function tick(now) {
@@ -187,16 +198,21 @@ export function createNeonFrontierController() {
     if (run.phase === "lost" || run.phase === "won") {
       stop();
       status = run.phase;
-      saveResult();
+      payout = { score: run.score, amount: rewardFor(run), saving: false, saved: false };
+      settle(payout);
       updatePanel(true);
       return;
     }
     frame = requestAnimationFrame(tick);
   }
 
-  function play() {
+  function play(restart = false) {
     if (!active || status === "playing") return;
-    if (status !== "paused") run = newFlight();
+    paint ||= createPainter(ctx);
+    if (status !== "paused" || restart) run = newFlight(depot.build());
+    payout = null;
+    depot.hide();
+    shell.hidden = false;
     status = "playing";
     accumulator = 0;
     previous = performance.now();
@@ -218,6 +234,16 @@ export function createNeonFrontierController() {
     else if (status === "paused") play();
   }
 
+  function openDepot(focus) {
+    pause(false);
+    shell.hidden = true;
+    depot.show(focus);
+  }
+
+  const depot = createDepot(mount, {
+    launch: play, isPaused: () => status === "paused", exit: () => showScreen("home"), motion,
+  });
+
   function point(event) {
     const rect = canvas.getBoundingClientRect();
     target = {
@@ -226,8 +252,11 @@ export function createNeonFrontierController() {
     };
   }
 
-  start.addEventListener("click", play);
+  start.addEventListener("click", () => play());
   pauseButton.addEventListener("click", toggle);
+  pick("dock").addEventListener("click", () => openDepot(true));
+  pick("return").addEventListener("click", () => openDepot(true));
+  retryReward.addEventListener("click", () => { if (payout) settle(payout); });
   canvas.addEventListener("pointerdown", event => {
     if (status !== "playing" || pointer !== null || event.button !== 0) return;
     event.preventDefault();
@@ -241,6 +270,10 @@ export function createNeonFrontierController() {
   }
   document.addEventListener("keydown", event => {
     if (!active || event.altKey || event.ctrlKey || event.metaKey) return;
+    if (shell.hidden) {
+      if (event.code === "Escape" && !event.repeat && depot.back()) event.preventDefault();
+      return;
+    }
     if (event.code === "KeyP" || event.code === "Escape") {
       if (status !== "playing" && status !== "paused") return;
       event.preventDefault();
@@ -255,19 +288,24 @@ export function createNeonFrontierController() {
   window.addEventListener("blur", () => pause(false));
 
   return {
+    back() {
+      if (shell.hidden) return depot.back();
+      openDepot(true);
+      return true;
+    },
     onScreen(name) {
       if (name !== "neon-frontier") {
         if (!active) return;
         active = false;
         pause(false);
+        depot.hide();
+        shell.hidden = true;
         if (name === "home") queueMicrotask(() =>
           document.querySelector('#campaignCards [data-screen-link="neon-frontier"]')?.focus({ preventScroll: true }));
         return;
       }
       active = true;
-      updateHud();
-      paint(run, motion.matches);
-      updatePanel(false);
+      openDepot(false);
     },
   };
 }

@@ -1,6 +1,8 @@
+import { DEFAULT_BUILD } from "./economy.mjs?v=2";
+
 export const WIDTH = 256;
 export const HEIGHT = 432;
-export const HULL = 3;
+export const HULL = DEFAULT_BUILD.hull;
 
 export const SECTORS = [
   { name: "Пояс обломков", boss: "Страж пояса", hp: 300, waves: [
@@ -25,11 +27,12 @@ const TAU = Math.PI * 2;
 const PILOT_RADIUS = 3;
 const clamp = (value, min, max) => Math.max(min, Math.min(value, max));
 
-export function newFlight() {
+export function newFlight(build = DEFAULT_BUILD) {
   return {
+    build: { ...build, parts: { ...build.parts } },
     phase: "waves", sector: 0, elapsed: 0, clock: 0, wave: 0, score: 0,
     kills: 0, weapon: 1, boss: null, enemies: [], bolts: [], threats: [], bursts: [],
-    player: { x: WIDTH / 2, y: HEIGHT - 57, hull: HULL, cooldown: 0, guard: 0, bank: 0 },
+    player: { x: WIDTH / 2, y: HEIGHT - 57, hull: build.hull, cooldown: 0, guard: 0, bank: 0 },
   };
 }
 
@@ -87,7 +90,7 @@ function movePilot(run, input, dt) {
   const p = run.player;
   let dx = input.x || 0;
   let dy = input.y || 0;
-  const distance = 218 * dt;
+  const distance = run.build.speed * dt;
   if (input.target) {
     dx = (input.target.x - p.x) / distance;
     dy = (input.target.y - p.y) / distance;
@@ -99,8 +102,9 @@ function movePilot(run, input, dt) {
   p.guard = Math.max(0, p.guard - dt);
   p.cooldown -= dt;
   if (p.cooldown > 0) return;
-  p.cooldown += .13;
-  for (let lane = -run.weapon; lane <= run.weapon; lane++) {
+  p.cooldown += run.build.cadence;
+  const spread = run.weapon + run.build.spread;
+  for (let lane = -spread; lane <= spread; lane++) {
     run.bolts.push({
       x: p.x + lane * 5, y: p.y - 10 + Math.abs(lane) * 4,
       vx: lane * (12 + run.weapon * 2), vy: -285 + Math.abs(lane) * 11,
@@ -151,7 +155,7 @@ function updateBoss(run, dt) {
 }
 
 function strike(run, e) {
-  e.hp--;
+  e.hp = Math.max(0, e.hp - run.build.damage);
   e.hit = .08;
   if (e.hp === 0) {
     run.bursts.push({ x: e.x, y: e.y, age: 0, size: e.radius, kind: "enemy" });
@@ -199,7 +203,7 @@ function moveShots(run, dt) {
 function damagePilot(run) {
   const p = run.player;
   p.hull--;
-  p.guard = 1.65;
+  p.guard = run.build.guard;
   run.bursts.push({ x: p.x, y: p.y, age: 0, size: 15, kind: "pilot" });
   if (p.hull === 0) run.phase = "lost";
 }
@@ -217,7 +221,7 @@ export function stepFlight(run, input, dt) {
       run.clock = 0;
       run.wave = 0;
       run.phase = "waves";
-      run.player.hull = HULL;
+      run.player.hull = run.build.hull;
     }
     moveShots(run, dt);
     return;

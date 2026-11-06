@@ -1,21 +1,5 @@
-import { WIDTH, HEIGHT } from "./flight.mjs?v=2";
-
-const SHIP = [
-  "........w........",
-  ".......wBw.......",
-  ".......wBw.......",
-  "......bBCBb......",
-  "..b...bBCBb...b..",
-  "..bb.bBwCwBb.bb..",
-  ".bBBBbBwCwBbBBBb.",
-  ".bBwwBBwCwBBwwBb.",
-  "bBBbBBBBwBBBBbBBb",
-  "bBbb.BBWWWBB.bbBb",
-  "bBb..bBBwBBb..bBb",
-  "b...bbBBwBBbb...b",
-  "....bb.bBb.bb....",
-  ".......bBb.......",
-];
+import { WIDTH, HEIGHT } from "./flight.mjs?v=3";
+import { SHIP_SPRITES, shipLayout } from "./ships.mjs?v=2";
 const SCOUT = [
   "....rrr....",
   ".r.rrrrr.r.",
@@ -48,7 +32,6 @@ const LANCER = [
   ".......o.......",
 ];
 
-const PLAYER_COLORS = { b: "#245876", B: "#58a6c4", C: "#286786", w: "#bfe2e8", W: "#ebffff" };
 const HOSTILE_COLORS = [
   { r: "#722e53", o: "#d85c81", w: "#ffd0bc" },
   { r: "#7b414d", o: "#e5865e", w: "#ffe1aa" },
@@ -185,6 +168,9 @@ function effects(ctx, run) {
 export function createPainter(ctx) {
   const field = stars();
   const plates = [backdrop(0), backdrop(1)];
+  let paintedBuild;
+  let frame = shipLayout("swift");
+  let pixels = frame.rails.concat(frame.base, ...frame.pieces.map(piece => piece.blocks));
 
   return (run, reduced) => {
     const sector = run?.sector ?? 0;
@@ -209,13 +195,22 @@ export function createPainter(ctx) {
     }
     const p = run?.player ?? { x: WIDTH / 2, y: HEIGHT - 57, bank: 0, guard: 0, hull: 3 };
     if (p.hull) {
+      const build = run?.build;
+      if (build !== paintedBuild) {
+        paintedBuild = build;
+        frame = shipLayout(build?.id ?? "swift", build?.parts);
+        pixels = frame.rails.concat(frame.base, ...frame.pieces.map(piece => piece.blocks));
+      }
+      const ship = SHIP_SPRITES[build?.id ?? "swift"];
       const flames = reduced ? 5 : 5 + Math.floor(time * 45) % 6;
-      mirrored(ctx, "#22739e", p.x, p.y + 11, 5, 3, flames + 4);
-      mirrored(ctx, "#5ce5f1", p.x, p.y + 11, 6, 1, flames);
-      sprite(ctx, SHIP, PLAYER_COLORS, p.x + p.bank * 1.6, p.y, 2);
+      const shipX = Math.round(p.x + p.bank * 1.6);
+      const jetY = p.y + frame.jetY;
+      mirrored(ctx, ship.colors.B, shipX, jetY, frame.jetX - 1, 3, flames + 2);
+      mirrored(ctx, ship.jet, shipX, jetY, frame.jetX, 1, flames);
+      for (const [x, y, w, h, color] of pixels) box(ctx, color, shipX + x, p.y + y, w, h);
       if (p.guard > 0) {
         ctx.strokeStyle = "#66d6df";
-        ctx.strokeRect(Math.round(p.x) - 19.5, Math.round(p.y) - 17.5, 39, 35);
+        ctx.strokeRect(Math.round(p.x) - 22.5, Math.round(p.y) - 17.5, 45, 37);
       }
       box(ctx, "#fff5c3", p.x - 1, p.y - 1, 3, 3);
     }
