@@ -88,7 +88,10 @@ function renderCatalog(){
   const chess='<button class="campaign-card" type="button" data-chess-action="setup" '+(gameFilter!=="Все"&&gameFilter!=="Логика"?"hidden":"")+' aria-label="Шахматы. Играть против компьютера">'+gameArt("chess")+'<span class="campaign-card-copy"><span class="campaign-category">Логика · против компьютера</span><strong>Шахматы</strong><span class="campaign-card-progress"><span>6 уровней сложности</span>'+uiIcon("arrow")+'</span></span></button>';
   const poker='<button class="campaign-card" type="button" data-poker-action="setup" '+(gameFilter!=="Все"&&gameFilter!=="Мышление"&&gameFilter!=="Карты"?"hidden":"")+' aria-label="Математический покер. Играть с ботом или другом">'+PokerCards.art()+'<span class="campaign-card-copy"><span class="campaign-category">Мышление · вероятности</span><strong>Математический покер</strong><span class="campaign-card-progress"><span>С ботом или другом</span>'+uiIcon("arrow")+'</span></span></button>';
   const lumen='<button class="campaign-card lumen-catalog" type="button" data-lumen-action="open" '+(gameFilter!=="Все"&&gameFilter!=="Аркада"?"hidden":"")+' aria-label="Люмен: последний маяк. Одиночный survival-экшен">'+LumenMode.art()+'<span class="campaign-card-copy"><span class="campaign-category">Survival · одиночная игра</span><strong>Люмен<span>Последний маяк</span></strong><span class="campaign-card-progress"><span>3 мира · цель 30 / 35 / 45</span>'+uiIcon("arrow")+'</span></span></button>';
-  $("#campaignCards").innerHTML=lumen+SpecimenMode.catalog()+PixelHopMode.catalog(gameFilter)+CardGames.catalog()+poker+chess+GAME_ORDER.map(game=>{
+  const neon='<button class="campaign-card" type="button" data-screen-link="neon-frontier" '+(gameFilter!=="Все"&&gameFilter!=="Аркада"?"hidden":"")+' aria-label="Неоновый рубеж. Играть">'+
+    '<img class="game-art" src="/static/neon-frontier.svg?v=1" width="192" height="116" loading="lazy" decoding="async" alt="">'+
+    '<span class="campaign-card-copy"><span class="campaign-category">Аркада · космос</span><strong>Неоновый рубеж</strong><span class="campaign-card-progress"><span>2 сектора</span>'+uiIcon("arrow")+'</span></span></button>';
+  $("#campaignCards").innerHTML=lumen+SpecimenMode.catalog()+neon+PixelHopMode.catalog(gameFilter)+CardGames.catalog()+poker+chess+GAME_ORDER.map(game=>{
     const d=GAME_CATALOG[game],p=currentCampaign(game),run=saved.runs[game],resume=run&&!run.completed;
     return '<button class="campaign-card" type="button" data-campaign="'+game+'" '+(gameFilter!=="Все"&&d.category!==gameFilter?"hidden":"")+' aria-label="'+escapeHtml(d.name)+'. '+(resume?'Есть сохранённая партия. ':'')+'Открыть кампанию">'+gameArt(game)+'<span class="campaign-card-copy"><span class="campaign-category">'+escapeHtml(d.category)+'</span><strong>'+escapeHtml(d.name)+'</strong><span class="campaign-card-progress"><span>'+(resume?"Есть сохранение":p.complete?"100 / 100 · пройдено":"Уровень "+p.unlockedLevel+" / 100")+'</span>'+uiIcon("arrow")+'</span>'+(p.completedCount?'<span class="xp-track"><span style="width:'+p.completedCount+'%"></span></span>':'')+'</span></button>';
   }).join("");
@@ -162,10 +165,11 @@ function showScreen(name){
 }
 function showScreenContent(name){
   pauseGame();clearTimeout(revealHandle);if(saved.current?.revealing){saved.current.revealing=false;saved.current.ready=false;saveState();}
-  activeScreen=name;$("#app").classList.toggle("is-playing",["game","chess-game","poker-game","lumen-game","specimen","card-game","pixel-hop"].includes(name));$$("#main .screen").forEach(s=>s.classList.toggle("active",s.dataset.screen===name));$("#main").scrollTop=0;
+  activeScreen=name;$("#app").classList.toggle("is-playing",["game","chess-game","poker-game","lumen-game","specimen","card-game","pixel-hop","neon-frontier"].includes(name));$$("#main .screen").forEach(s=>s.classList.toggle("active",s.dataset.screen===name));$("#main").scrollTop=0;
   $$(".bottom-nav button").forEach(b=>{b.classList.toggle("active",b.dataset.screenLink===name);b.setAttribute("aria-current",b.dataset.screenLink===name?"page":"false");});
   if(name==="home")renderHome();else if(name==="profile"||name==="levels")updateProfileUI();
   $("#app").classList.toggle("is-poker",name==="poker-game");PokerMode.onScreen(name);ChessMode.onScreen(name);Platform.onScreen(name);LumenMode.onScreen(name);SpecimenMode.onScreen(name);CardGames.onScreen(name);CardRoom.onScreen(name);PixelHopMode.onScreen(name);window.Social?.onScreen(name);hydrateIcons();
+  GameAssets.controller("neon-frontier")?.onScreen(name);
   if(hasTelegramIdentity&&tg?.isVersionAtLeast?.("6.1")&&tg?.BackButton){if(name==="home")tg.BackButton.hide();else tg.BackButton.show();}
   const heading=name==="card-game"?null:$(`.screen[data-screen="${name}"] h1,.screen[data-screen="${name}"] h2`);if(heading){heading.tabIndex=-1;heading.focus({preventScroll:true});}
 }

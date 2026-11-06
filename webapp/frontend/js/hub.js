@@ -2,7 +2,7 @@
 (() => {
   const main=document.querySelector('#main'), home=main.querySelector('[data-screen="home"]');
   document.querySelector('#homeTitle').textContent='Библиотека';
-  document.querySelector('.library-count').innerHTML='<strong>18</strong> игр в коллекции';
+  document.querySelector('.library-count').innerHTML='<strong>19</strong> игр в коллекции';
   const search=document.createElement('label');search.className='hub-search';search.innerHTML='<span>Найти игру</span><input type="search" id="hubSearch" placeholder="Название игры" autocomplete="off" aria-controls="campaignCards">';
   home.querySelector('.category-filters').before(search);
   const empty=document.createElement('p');empty.id='hubSearchEmpty';empty.hidden=true;empty.setAttribute('role','status');empty.textContent='Игр с таким названием нет. Попробуй другой запрос.';home.querySelector('#campaignCards').after(empty);

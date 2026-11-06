@@ -11,7 +11,7 @@ await mkdir(out,{recursive:true});
 const browser=await chromium.launch({headless:true,executablePath:process.env.BROWSER_EXECUTABLE});
 const results=[];
 const remoteSdk=page=>page.route('https://telegram.org/**',route=>route.fulfill({body:'',contentType:'text/javascript'}));
-const gameOnly=/\/static\/(?:css\/(?:chess|poker|lumen(?:-interface|-loading|-story)?|specimen(?:-interface)?|pixel-hop)\.css|js\/(?:chess-mode|poker-mode)\.js|js\/(?:lumen|specimen)\/|games\/pixel-hop-twins\/)/;
+const gameOnly=/\/static\/(?:css\/(?:chess|poker|lumen(?:-interface|-loading|-story)?|specimen(?:-interface)?|pixel-hop|neon-frontier)\.css|js\/(?:chess-mode|poker-mode)\.js|js\/neon-frontier-mode\.mjs|js\/(?:lumen|specimen|neon-frontier)\/|games\/pixel-hop-twins\/)/;
 
 try {
   for (const [width,height] of [[375,812],[768,1024],[1440,900],[1920,1080]]) {
@@ -47,6 +47,7 @@ try {
     await open('[data-lumen-action=open]','.lumen-title-screen','lumen');
     await open('[data-sp-action=open]','.sp-shell','specimen');
     await open('[data-pixel-hop-action=open]','.pixel-hop-screen.active','pixel-hop');
+    await open('[data-screen-link=neon-frontier]','#neonFrontierMount canvas','neon-frontier',true);
     assert.deepEqual(errors,[]);
     await context.close();
   }
