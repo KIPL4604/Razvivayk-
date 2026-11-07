@@ -1,5 +1,9 @@
-import { WIDTH, HEIGHT } from "./flight.mjs?v=3";
-import { SHIP_SPRITES, shipLayout } from "./ships.mjs?v=2";
+import { WIDTH, HEIGHT } from "./flight.mjs?v=5";
+import { SHIP_SPRITES, shipLayout } from "./ships.mjs?v=3";
+import { BEAM, PLASMA } from "./guns.mjs?v=1";
+
+export const RENDER_SCALE = 2;
+const SHIP_TILE = 48;
 const SCOUT = [
   "....rrr....",
   ".r.rrrrr.r.",
@@ -152,8 +156,33 @@ function stars() {
   }));
 }
 
-function effects(ctx, run) {
+function plasmaBurst(ctx, burst, reduced) {
+  if (burst.age >= .28) return;
+  const radius = burst.size * (reduced ? 1 : Math.min(1, .25 + burst.age * 8));
+  ctx.save();
+  ctx.globalAlpha = (1 - burst.age / .28) * .75;
+  ctx.strokeStyle = PLASMA.edge;
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  for (let i = 0; i <= 8; i++) {
+    const angle = (i + .5) * Math.PI / 4;
+    const x = burst.x + Math.cos(angle) * radius;
+    const y = burst.y + Math.sin(angle) * radius;
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.closePath();
+  ctx.stroke();
+  ctx.restore();
+}
+
+function effects(ctx, run, reduced) {
   for (const burst of run.bursts) {
+    if (burst.kind === "plasma") {
+      plasmaBurst(ctx, burst, reduced);
+      continue;
+    }
+    if (reduced) continue;
     const distance = 4 + burst.age * (70 + burst.size);
     for (let i = 0; i < 12; i++) {
       const angle = i * 2.39996 + burst.x;
@@ -165,12 +194,51 @@ function effects(ctx, run) {
   }
 }
 
+function drawBolt(ctx, bolt) {
+  if (bolt.kind === "plasma") {
+    box(ctx, PLASMA.shade, bolt.x - 2, bolt.y + 3, 4, 9);
+    box(ctx, PLASMA.shade, bolt.x - 4, bolt.y - 4, 8, 9);
+    box(ctx, PLASMA.edge, bolt.x - 3, bolt.y - 5, 6, 10);
+    box(ctx, PLASMA.edge, bolt.x - 5, bolt.y - 2, 10, 5);
+    box(ctx, PLASMA.light, bolt.x - 2, bolt.y - 3, 4, 6);
+    return;
+  }
+  box(ctx, bolt.core ? "#45daf1" : "#177cbd", bolt.x - 1, bolt.y - 6, 3, 11);
+  box(ctx, bolt.core ? "#e0ffff" : "#6ddef4", bolt.x, bolt.y - 5, 1, 7);
+}
+
+function drawBeam(ctx, beam) {
+  const { x, y, width, charge } = beam;
+  if (charge < 1) {
+    const size = 1 + charge * 4;
+    ctx.globalAlpha = .55;
+    box(ctx, BEAM.edge, x - size, y - 1, size * 2, 2);
+    ctx.globalAlpha = 1;
+    box(ctx, BEAM.light, x - 1, y - 1, 2, 2);
+    return;
+  }
+  ctx.fillStyle = BEAM.shade;
+  ctx.globalAlpha = .44;
+  ctx.fillRect(x - width / 2 - 1, 0, width + 2, y + 1);
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = BEAM.edge;
+  ctx.fillRect(x - width / 2, 0, width, y);
+  ctx.fillStyle = BEAM.light;
+  ctx.fillRect(x - .75, 0, 1.5, y);
+  box(ctx, BEAM.light, x - 2, y - 2, 4, 4);
+}
+
 export function createPainter(ctx) {
   const field = stars();
   const plates = [backdrop(0), backdrop(1)];
+  ctx.setTransform(RENDER_SCALE, 0, 0, RENDER_SCALE, 0, 0);
+  ctx.imageSmoothingEnabled = false;
+  const tile = document.createElement("canvas");
+  tile.width = tile.height = SHIP_TILE * RENDER_SCALE;
+  const shipCtx = tile.getContext("2d");
+  shipCtx.setTransform(RENDER_SCALE, 0, 0, RENDER_SCALE, tile.width / 2, tile.height / 2);
   let paintedBuild;
-  let frame = shipLayout("swift");
-  let pixels = frame.rails.concat(frame.base, ...frame.pieces.map(piece => piece.blocks));
+  let frame;
 
   return (run, reduced) => {
     const sector = run?.sector ?? 0;
@@ -180,34 +248,38 @@ export function createPainter(ctx) {
       const y = (star.y + (reduced ? 0 : time * star.speed)) % HEIGHT;
       box(ctx, star.color, star.x, y, 1, star.speed === 36 ? 2 : 1);
     }
-    ctx.drawImage(plates[sector], 0, 0);
+    ctx.drawImage(plates[sector], 0, 0, WIDTH, HEIGHT);
     if (run) {
-      for (const bolt of run.bolts) {
-        box(ctx, bolt.core ? "#45daf1" : "#177cbd", bolt.x - 1, bolt.y - 6, 3, 11);
-        box(ctx, bolt.core ? "#e0ffff" : "#6ddef4", bolt.x, bolt.y - 5, 1, 7);
-      }
+      for (const bolt of run.bolts) drawBolt(ctx, bolt);
       for (const enemy of run.enemies) {
         const rows = enemy.kind === "scout" ? SCOUT : enemy.kind === "wing" ? WING : LANCER;
         sprite(ctx, rows, HOSTILE_COLORS[sector], enemy.x, enemy.y, 2, !reduced && enemy.hit > 0);
       }
       if (run.boss) commander(ctx, run.boss, sector);
-      if (!reduced) effects(ctx, run);
+      if (run.beam) drawBeam(ctx, run.beam);
+      effects(ctx, run, reduced);
     }
     const p = run?.player ?? { x: WIDTH / 2, y: HEIGHT - 57, bank: 0, guard: 0, hull: 3 };
     if (p.hull) {
       const build = run?.build;
-      if (build !== paintedBuild) {
+      if (!frame || build !== paintedBuild) {
         paintedBuild = build;
         frame = shipLayout(build?.id ?? "swift", build?.parts);
-        pixels = frame.rails.concat(frame.base, ...frame.pieces.map(piece => piece.blocks));
+        shipCtx.clearRect(-SHIP_TILE / 2, -SHIP_TILE / 2, SHIP_TILE, SHIP_TILE);
+        const pixels = frame.rails.concat(frame.shell, frame.base, ...frame.pieces.map(piece => piece.blocks));
+        for (const [x, y, w, h, color] of pixels) {
+          shipCtx.fillStyle = color;
+          shipCtx.fillRect(x, y, w, h);
+        }
       }
       const ship = SHIP_SPRITES[build?.id ?? "swift"];
       const flames = reduced ? 5 : 5 + Math.floor(time * 45) % 6;
-      const shipX = Math.round(p.x + p.bank * 1.6);
+      const shipX = Math.round((p.x + p.bank * 1.6) * RENDER_SCALE) / RENDER_SCALE;
+      const shipY = Math.round(p.y * RENDER_SCALE) / RENDER_SCALE;
       const jetY = p.y + frame.jetY;
       mirrored(ctx, ship.colors.B, shipX, jetY, frame.jetX - 1, 3, flames + 2);
       mirrored(ctx, ship.jet, shipX, jetY, frame.jetX, 1, flames);
-      for (const [x, y, w, h, color] of pixels) box(ctx, color, shipX + x, p.y + y, w, h);
+      ctx.drawImage(tile, shipX - SHIP_TILE / 2, shipY - SHIP_TILE / 2, SHIP_TILE, SHIP_TILE);
       if (p.guard > 0) {
         ctx.strokeStyle = "#66d6df";
         ctx.strokeRect(Math.round(p.x) - 22.5, Math.round(p.y) - 17.5, 45, 37);

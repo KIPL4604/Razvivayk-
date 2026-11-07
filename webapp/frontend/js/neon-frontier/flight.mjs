@@ -1,4 +1,5 @@
 import { DEFAULT_BUILD } from "./economy.mjs?v=2";
+import { cannonProfile } from "./guns.mjs?v=1";
 
 export const WIDTH = 256;
 export const HEIGHT = 432;
@@ -30,6 +31,7 @@ const clamp = (value, min, max) => Math.max(min, Math.min(value, max));
 export function newFlight(build = DEFAULT_BUILD) {
   return {
     build: { ...build, parts: { ...build.parts } },
+    gun: cannonProfile(build.parts?.cannon).id, beam: null,
     phase: "waves", sector: 0, elapsed: 0, clock: 0, wave: 0, score: 0,
     kills: 0, weapon: 1, boss: null, enemies: [], bolts: [], threats: [], bursts: [],
     player: { x: WIDTH / 2, y: HEIGHT - 57, hull: build.hull, cooldown: 0, guard: 0, bank: 0 },
@@ -100,8 +102,33 @@ function movePilot(run, input, dt) {
   p.y = clamp(p.y + dy / scale * distance, 30, HEIGHT - 16);
   p.bank += (clamp(dx / scale, -1, 1) - p.bank) * Math.min(1, dt * 12);
   p.guard = Math.max(0, p.guard - dt);
+}
+
+function firePilot(run, dt) {
+  const p = run.player;
+  if (run.gun === "beam") {
+    const tempo = run.build.cadence / DEFAULT_BUILD.cadence;
+    const period = .82 * tempo;
+    p.cooldown -= dt;
+    if (p.cooldown <= 0) p.cooldown += period;
+    const age = (period - p.cooldown) / tempo;
+    run.beam = age < .63 ? {
+      x: p.x, y: p.y - 12, width: 3 + run.weapon + run.build.spread * 2,
+      charge: Math.min(1, age / .34),
+    } : null;
+    return;
+  }
   p.cooldown -= dt;
   if (p.cooldown > 0) return;
+  if (run.gun === "plasma") {
+    p.cooldown += run.build.cadence * 5;
+    run.bolts.push({
+      x: p.x, y: p.y - 13, vx: 0, vy: -166, kind: "plasma",
+      radius: 20 + run.weapon * 5 + run.build.spread * 4,
+      damage: run.build.damage * (15 + run.weapon * 3),
+    });
+    return;
+  }
   p.cooldown += run.build.cadence;
   const spread = run.weapon + run.build.spread;
   for (let lane = -spread; lane <= spread; lane++) {
@@ -154,8 +181,8 @@ function updateBoss(run, dt) {
   boss.volley++;
 }
 
-function strike(run, e) {
-  e.hp = Math.max(0, e.hp - run.build.damage);
+function strike(run, e, damage = run.build.damage) {
+  e.hp = Math.max(0, e.hp - damage);
   e.hit = .08;
   if (e.hp === 0) {
     run.bursts.push({ x: e.x, y: e.y, age: 0, size: e.radius, kind: "enemy" });
@@ -175,13 +202,29 @@ function inside(target, x, y, padding = 0) {
 
 function moveShots(run, dt) {
   const targets = run.boss ? [run.boss] : run.enemies;
+  const beam = run.beam;
+  if (beam?.charge === 1) {
+    const damage = run.build.damage * (50 + run.weapon * 8) * dt;
+    for (const e of targets) {
+      const x = clamp(e.x, beam.x - beam.width / 2, beam.x + beam.width / 2);
+      if (e.hp > 0 && inside(e, x, clamp(e.y, 0, beam.y))) strike(run, e, damage);
+    }
+  }
   run.bolts = run.bolts.filter(bolt => {
     bolt.x += bolt.vx * dt;
     bolt.y += bolt.vy * dt;
     if (bolt.y < -14 || bolt.x < -8 || bolt.x > WIDTH + 8) return false;
-    const target = targets.find(e => e.hp > 0 && inside(e, bolt.x, bolt.y - 3, 1));
+    const plasma = bolt.kind === "plasma";
+    const target = targets.find(e => e.hp > 0 &&
+      (plasma ? inside(e, bolt.x, bolt.y, 4) : inside(e, bolt.x, bolt.y - 3, 1)));
     if (!target) return true;
-    strike(run, target);
+    if (plasma) {
+      run.bursts.push({ x: bolt.x, y: bolt.y, age: 0, size: bolt.radius, kind: "plasma" });
+      strike(run, target, bolt.damage);
+      for (const e of targets) {
+        if (e !== target && e.hp > 0 && inside(e, bolt.x, bolt.y, bolt.radius)) strike(run, e, bolt.damage * .48);
+      }
+    } else strike(run, target);
     return false;
   });
   const p = run.player;
@@ -215,6 +258,7 @@ export function stepFlight(run, input, dt) {
   for (const burst of run.bursts) burst.age += dt;
   run.bursts = run.bursts.filter(burst => burst.age < .55);
   movePilot(run, input, dt);
+  if (run.phase !== "transit" || run.gun === "impulse") firePilot(run, dt);
   if (run.phase === "transit") {
     if (run.clock >= 2.6) {
       run.sector++;
@@ -231,6 +275,9 @@ export function stepFlight(run, input, dt) {
   moveShots(run, dt);
   if (run.phase === "lost" || run.boss?.hp !== 0) return;
   run.threats = [];
+  run.beam = null;
+  if (run.gun === "plasma") run.bolts = [];
+  run.player.cooldown = 0;
   run.boss = null;
   run.clock = 0;
   run.phase = run.sector === SECTORS.length - 1 ? "won" : "transit";

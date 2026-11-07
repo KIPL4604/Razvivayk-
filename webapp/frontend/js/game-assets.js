@@ -18,7 +18,7 @@ const GameAssets = (() => {
   const factories = {
     chess: async suffix => (await import("/static/js/chess-mode.js?v=lazy-catalog-1" + suffix)).createChessController,
     poker: async suffix => (await import("/static/js/poker-mode.js?v=lazy-catalog-2" + suffix)).createPokerController,
-    "neon-frontier": async suffix => (await import("/static/js/neon-frontier-mode.mjs?v=4" + suffix)).createNeonFrontierController,
+    "neon-frontier": async suffix => (await import("/static/js/neon-frontier-mode.mjs?v=5" + suffix)).createNeonFrontierController,
   };
   document.querySelectorAll("template[data-game-style]").forEach(slot => {
     const group = slot.dataset.gameStyle;

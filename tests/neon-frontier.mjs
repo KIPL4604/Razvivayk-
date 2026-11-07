@@ -12,6 +12,47 @@ function advance(run, seconds, input = {}) {
   for (let i = 0; i < Math.round(seconds / STEP); i++) stepFlight(run, input, STEP);
 }
 
+function rangeWithCannon(rank, targets) {
+  const profile = restoreHangar(null);
+  profile.modules.cannon = rank;
+  fitModule(profile, "swift", "cannon", rank);
+  const run = newFlight(shipStats(profile));
+  run.wave = SECTORS[0].waves.length;
+  run.enemies = targets.map(([x, y]) => ({
+    kind: "scout", baseX: x, x, y, age: 0, sway: 0, offset: 0, speed: 0,
+    delay: 60, hit: 0, hp: 100, radius: 8,
+  }));
+  return run;
+}
+
+test("the equipped Photon Cutter charges then hits multiple targets down one lane", () => {
+  const run = rangeWithCannon(2, [[128, 120], [128, 225], [165, 225]]);
+  advance(run, .2);
+  assert.deepEqual(run.enemies.map(e => e.hp), [100, 100, 100]);
+  assert.equal(run.bolts.length, 0);
+  advance(run, .26);
+  const [top, middle, side] = run.enemies.map(e => e.hp);
+  assert.ok(top < 100);
+  assert.equal(top, middle);
+  assert.equal(side, 100);
+  advance(run, .16, { target: { x: 165, y: run.player.y } });
+  assert.ok(run.enemies[2].hp < 100);
+});
+
+test("the equipped Quasar detonates once and damages only targets in reach", () => {
+  const run = rangeWithCannon(3, [[128, 330], [150, 330], [190, 330]]);
+  advance(run, .1);
+  assert.deepEqual(run.enemies.map(e => e.hp), [100, 100, 100]);
+  assert.equal(run.bolts.length, 1);
+  advance(run, .2);
+  const [direct, nearby, far] = run.enemies.map(e => e.hp);
+  assert.ok(direct < nearby && nearby < 100);
+  assert.equal(far, 100);
+  assert.equal(run.bolts.length, 0);
+  advance(run, .1);
+  assert.deepEqual(run.enemies.map(e => e.hp), [direct, nearby, far]);
+});
+
 test("a new flight fires automatically, upgrades for kills and clamps the ship", () => {
   const run = newFlight();
   advance(run, STEP);
@@ -186,7 +227,8 @@ test("a flight takes a snapshot of the active ship and the modules affect combat
   assert.ok(run.build.cadence < .123);
   assert.equal(run.player.hull, 6);
   advance(run, STEP, {x: 1});
-  assert.equal(run.bolts.length, 5);
+  assert.equal(run.gun, "beam");
+  assert.equal(run.beam.width, 6);
   assert.equal(run.player.x, WIDTH / 2 + 230 / 60);
   run.threats.push({ x: run.player.x, y: run.player.y, vx: 0, vy: 0, kind: "amber" });
   advance(run, STEP);

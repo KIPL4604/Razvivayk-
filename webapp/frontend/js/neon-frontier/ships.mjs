@@ -1,4 +1,5 @@
 import { PARTS, PART_IDS } from "./economy.mjs?v=2";
+import { cannonProfile } from "./guns.mjs?v=1";
 
 function hull(half) {
   const width = Math.max(...half.map(row => row.length));
@@ -66,12 +67,6 @@ const ATLAS = {
     ["..LLL..", ".LEWEL.", "LEWEWEL", "DEWEWED", "DEEEEED", ".DMMMD."],
     ["...L...", "..LWL..", ".LEWEL.", "LEWEWEL", "DEWLWED", "DEWLWED", ".DELED.", "..DDD.."],
   ],
-  cannon: [
-    ["..W..", "..E..", ".DED.", ".MEL.", ".MEL.", ".DDD."],
-    ["..W..", "..E..", ".LEL.", ".MEL.", ".MEL.", "DELED", "DMMMD", ".DDD."],
-    [".W.W.", ".E.E.", ".E.E.", "DEDED", "LELEL", "DEDED", "LMMML", "DMMMD", ".DDD."],
-    [".WWW.", ".LEL.", ".LEL.", ".LEL.", "LWEWL", "LEWEL", "DELED", "DMMMD", "LMMML", ".DDD."],
-  ],
   drive: [
     [".MMM.", ".LML.", "DMMMD", "DLELD", ".LEL.", ".EEE.", "..E.."],
     [".MMM.", "LMMML", "DLMLD", "DLELD", "LWEWL", ".WEW.", ".EEE.", "..E.."],
@@ -92,9 +87,63 @@ const ATLAS = {
   ],
 };
 
+// Cannon shapes drawn directly on the finer half-unit grid.
+const CANNONS = [
+  [
+    "...LEL...", "...MEM...", "...MWM...", "..LMEML..", "..DMEMD..",
+    "..LMEML..", ".DDMWMDD.", ".LDLMLDL.", ".DMMMMMD.", "..DDDDD..",
+    "...DDD...",
+  ],
+  [
+    "....LWL....", "....MEM....", "....MEM....", "...LMEML...", "...DMEMD...",
+    "...LMWML...", "..LDMEMDL..", ".LLMMEMMLL.", ".DMDLMLDMD.", "LMMMLELMMML",
+    "DMDMMLMMDMD", "DMMMDLDMMMD", ".DDMMLMMDD.", "...DDDDD...", "....DDD....",
+  ],
+  [
+    "..LW...WL..", "..LE...EL..", "..ME...EM..", "..ME...EM..", "..DE...ED..",
+    "..LW...WL..", ".LMEM.MEML.", ".DLEMDMELD.", "LDMEWLWEMDL", "DMMDLELDMMD",
+    "DLMMWEWMMLD", "DMMMLELMMMD", "DLDDMLMDDLD",
+    ".DDMMLMMDD.", "..DDMMMDD..", "....DDD....", "....DDD....", "....DDD....",
+  ],
+  [
+    "....LWWWL....", "...LMEWEML...", "..LDEWWWEDL..", "..DMEWWWEMD..",
+    "..LDEWEWEDL..", ".LLMEWEWEMLL.", "LDMDLWELDMDML", "DLEMEEWEEMELD",
+    "DEWMLEWELMWED", "DLEMEEWEEMELD", "LDMDLWELDMDML", ".LLMELELEMLL.",
+    ".DDMLMMMLMDD.", "..DLMDMDMLD..", "...DMMMMMD...", "....DMMMD....",
+    ".....DDD.....", ".....DDD.....",
+  ],
+];
+
+// Inboard ends are on the right; the opposite wing mirrors the same shell.
+const WING_SHELLS = {
+  swift: { x: 7, y: 0, rows: [
+    "..........wB...", ".........wBBb..", "........wB.CBb.", ".......wBBCBBb.",
+    "......wBBCCBBbb", "....wwBBCCBBBbb", "...wBBCCBwwBBbb", ".wwBBBCCBBbBBbb",
+    "wBBBBCBBBbBBBbb", "bBBwBBBBBBBBBbb", ".bBBbwBBBBBBbb.", "..bbBBbbbbb....",
+    "....bbb........",
+  ] },
+  ion: { x: 9, y: 3, rows: [
+    "........wBb....", "........wBCb...", ".......wBCBb...", ".......wBCBb...",
+    "......wBCBBb...", ".....wBCCCBBb..", "....wBBCCBWBb..", "...wBCCCBBBBb..",
+    "..wBCCBwwBBb...", ".wBCBBBwBBb....", "wBCBBwwBBb.....", "bBBBBBBBb......",
+    "bbBBBbbb.......", ".bbbb..........", ".bb............", "..b............",
+  ] },
+  bastion: { x: 10, y: 1, rows: [
+    "......wwwBBBBbb..", "....wwBBBBBBBBbb.", "...wBBCCCCBBBCBbb", "..wBBCCwwCCBBCBbb",
+    ".wBBBCBBBBCBBCBbb", ".wBBBCBwbBCBBCBbb", "wBBBBCBwbBCBBBBbb", "wBCBBCBBBBCBBCBbb",
+    "bBCBBBCCCCBBBBBbb", "bBBwwBBBBBwwBBBbb", "bBBBBBBBBBBBBBBbb", ".bbBCBBCCBBBbbb.",
+    "..bbBBBBBBbbb....", "....bbbbbbb......",
+  ] },
+  prism: { x: 9, y: 1, rows: [
+    "...........wB....", "..........wWBBb..", "........wwBBBbBb.", ".......wBBCCBBBbb",
+    ".....wwBBBCCBBBbb", "...wwBCCCCBBBBbb.", "..wBBCCwWBBBBbb..", ".wBBCBwWBBBBbb...",
+    "wBBCBwWBBBBbb....", "bBBBBBBBBBbb.....", "bbBBBBBBbb.......", "..bbBBBbb........",
+    "....bbbb.........",
+  ] },
+};
+
 const PALETTES = {
   cockpit: { D: "#1a4f55", M: "#367577", L: "#9edbd2", E: "#59e7b2", W: "#e2fff0" },
-  cannon: { D: "#674552", M: "#9b704f", L: "#dfae79", E: "#ffbe55", W: "#fff1b6" },
   drive: { D: "#29485e", M: "#53758d", L: "#8abacc", E: "#52dbff", W: "#e2fcff" },
   armor: { D: "#26384f", M: "#607e9b", L: "#a9c0d7", E: "#83bdfc", W: "#e9faff" },
   reactor: { D: "#512f66", M: "#7f5596", L: "#cf93dc", E: "#f495ff", W: "#fff0ff" },
@@ -116,8 +165,8 @@ const LAYERS = ["drive", "armor", "cannon", "core", "reactor", "cockpit"];
 function pixels(rows, palette, cx, cy, scale = 1, mirror = false) {
   const blocks = [];
   const width = Math.max(...rows.map(row => row.length));
-  const left = cx - Math.floor(width * scale / 2);
-  const top = cy - Math.floor(rows.length * scale / 2);
+  const left = cx - Math.floor(width / 2) * scale;
+  const top = cy - Math.floor(rows.length / 2) * scale;
   rows.forEach((row, y) => {
     if (mirror) row = [...row].reverse().join("");
     for (let x = 0; x < row.length;) {
@@ -131,17 +180,62 @@ function pixels(rows, palette, cx, cy, scale = 1, mirror = false) {
   return blocks;
 }
 
+function tint(color, target, amount) {
+  const channels = [1, 3, 5].map(offset => {
+    const value = parseInt(color.slice(offset, offset + 2), 16);
+    return Math.round(value + (target - value) * amount).toString(16).padStart(2, "0");
+  });
+  return "#" + channels.join("");
+}
+
+function detailedPixels(rows, palette, cx, cy, mirror = false) {
+  const width = Math.max(...rows.map(row => row.length));
+  const left = cx - Math.floor(width / 2);
+  const top = cy - Math.floor(rows.length / 2);
+  const tones = Object.fromEntries(Object.entries(palette).map(([key, color]) =>
+    [key, [tint(color, 255, .22), tint(color, 0, .29)]]));
+  const blocks = [];
+  rows.forEach((row, y) => {
+    for (let x = 0; x < row.length; x++) {
+      const key = row[x];
+      const color = palette[key];
+      if (!color) continue;
+      const bx = left + (mirror ? width - x - 1 : x);
+      const by = top + y;
+      const [light, shadow] = tones[key];
+      const topTone = !palette[rows[y - 1]?.[x]] ? light : color;
+      const bottomTone = !palette[rows[y + 1]?.[x]] ? shadow : color;
+      const leftTone = palette[row[x - 1]] ? bottomTone : light;
+      const rightTone = palette[row[x + 1]] ? topTone : shadow;
+      if (rightTone === topTone) blocks.push([bx, by, 1, .5, topTone]);
+      else blocks.push([bx, by, .5, .5, topTone], [bx + .5, by, .5, .5, rightTone]);
+      if (leftTone === bottomTone) blocks.push([bx, by + .5, 1, .5, bottomTone]);
+      else blocks.push([bx, by + .5, .5, .5, leftTone], [bx + .5, by + .5, .5, .5, bottomTone]);
+    }
+  });
+  return blocks;
+}
+
 function modulePixels(id, part, rank, x = 0, y = 0, mirror = false) {
+  if (part === "cannon") {
+    const { shade, edge, light } = cannonProfile(rank);
+    return pixels(CANNONS[rank], { D: "#202b47", M: "#465f7b", L: shade, E: edge, W: light }, x, y, .5, mirror);
+  }
   const skin = SHIP_SPRITES[id].colors;
   const palette = part === "core"
     ? { D: skin.b, M: skin.B, L: skin.w, E: skin.W, W: "#ffffff" } : PALETTES[part];
-  return pixels(ATLAS[part][rank], palette, x, y, 1, mirror);
+  return detailedPixels(ATLAS[part][rank], palette, x, y, mirror);
 }
 
 export function shipLayout(id, parts = {}, exploded = false) {
   const frame = SHIP_SPRITES[id];
-  const base = pixels(frame.rows, frame.colors, 0, 0, 1);
   const ink = frame.colors;
+  const wing = WING_SHELLS[id];
+  const shell = [
+    ...pixels(wing.rows, ink, -wing.x, wing.y, .5),
+    ...pixels(wing.rows, ink, wing.x, wing.y, .5, true),
+  ];
+  const base = detailedPixels(frame.rows, ink, 0, 0);
   const mounts = MOUNTS[id];
   const rails = [];
   function beam(x, y, w, h, color) {
@@ -153,12 +247,15 @@ export function shipLayout(id, parts = {}, exploded = false) {
     const [engineX, engineY] = mounts.drive;
     rails.push([-2, mounts.cockpit[1], 4, 10, ink.b], [-1, mounts.cockpit[1] + 1, 2, 8, ink.B]);
     beam(2, gunY + 3, gunX - 1, 3, ink.b);
-    beam(3, gunY + 3, gunX - 2, 1, ink.B);
+    beam(3, gunY + 3, gunX - 2, .5, ink.B);
+    beam(gunX - 2, gunY + 4, 2, 1, ink.w);
     beam(armorX - 2, gunY + 4, 3, armorY - gunY - 2, ink.b);
     beam(3, armorY, armorX - 2, 4, ink.b);
-    beam(5, armorY, armorX - 4, 1, ink.w);
+    beam(5, armorY, armorX - 4, .5, ink.w);
+    beam(armorX - 4, armorY + 1, 2.5, 1, ink.B);
     beam(engineX - 2, 2, 4, engineY - 2, ink.b);
-    beam(engineX - 1, 4, 2, engineY - 4, ink.B);
+    beam(engineX - 1, 4, .5, engineY - 4, ink.B);
+    beam(engineX + .5, 6, .5, engineY - 6, ink.w);
   }
   const pieces = LAYERS.map(part => {
     const rank = parts[part] ?? 0;
@@ -170,7 +267,7 @@ export function shipLayout(id, parts = {}, exploded = false) {
     return { part, blocks };
   });
   const [jetX, jetY] = MOUNTS[id].drive;
-  return { base, rails, pieces, jetX, jetY: jetY + Math.floor(ATLAS.drive[parts.drive ?? 0].length / 2) };
+  return { base, rails, shell, pieces, jetX, jetY: jetY + Math.floor(ATLAS.drive[parts.drive ?? 0].length / 2) };
 }
 
 function svgPixels(blocks) {
@@ -184,14 +281,14 @@ export function moduleSvg(id, part, rank) {
 }
 
 export function shipSvg(id, className = "", parts = {}, { exploded = false, selected = "" } = {}) {
-  const { base, rails, pieces } = shipLayout(id, parts, exploded);
+  const { base, rails, shell, pieces } = shipLayout(id, parts, exploded);
   const guide = exploded ? `<path d="M0-13V-7M0 0V6M-8 0H-15M8 0H15M-4-3l-8-6M4-3l8-6M-4 6l-6 9M4 6l6 9" class="nf-mount-lines"/>` : "";
   const labels = exploded ? PART_IDS.map(part => {
     const [, , x, y] = EXPLODED[part];
     return `<text class="nf-mount-label" fill="${PARTS[part].ink}" x="${x}" y="${y}">${PARTS[part].label}</text>`;
   }).join("") : "";
   return `<svg class="${className}" viewBox="${exploded ? "-29 -27 58 53" : "-22 -18 44 37"}" shape-rendering="crispEdges" aria-hidden="true">${guide}
-    <g>${svgPixels(rails)}</g><g${exploded ? ' opacity=".13"' : ""}>${svgPixels(base)}</g>
+    <g>${svgPixels(rails)}</g><g${exploded ? ' opacity=".13"' : ""}><g>${svgPixels(shell)}</g><g>${svgPixels(base)}</g></g>
     ${pieces.map(({ part, blocks }) => `<g data-slot-art="${part}" class="${part === selected ? "nf-part-selected" : ""}">${svgPixels(blocks)}</g>`).join("")}
     ${labels}</svg>`;
 }

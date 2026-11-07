@@ -1,7 +1,8 @@
-import { WIDTH, HEIGHT, SECTORS, newFlight, stepFlight } from "./neon-frontier/flight.mjs?v=4";
-import { createPainter } from "./neon-frontier/art.mjs?v=4";
+import { WIDTH, HEIGHT, SECTORS, newFlight, stepFlight } from "./neon-frontier/flight.mjs?v=5";
+import { createPainter, RENDER_SCALE } from "./neon-frontier/art.mjs?v=5";
 import { rewardFor } from "./neon-frontier/economy.mjs?v=2";
-import { createDepot } from "./neon-frontier/depot.mjs?v=2";
+import { createDepot } from "./neon-frontier/depot.mjs?v=3";
+import { cannonProfile } from "./neon-frontier/guns.mjs?v=1";
 
 const STEP = 1 / 60;
 const CONTROLS = {
@@ -30,13 +31,13 @@ export function createNeonFrontierController() {
         <dl class="neon-hud">
           <div><dt>Сектор</dt><dd data-neon="sector">01/02</dd></div>
           <div><dt>Корпус</dt><dd data-neon="hull"></dd></div>
-          <div><dt>Огонь</dt><dd data-neon="weapon">I</dd></div>
+          <div><dt data-neon="gun-label">Огонь</dt><dd data-neon="weapon">I</dd></div>
           <div><dt>Очки</dt><dd data-neon="score">000000</dd></div>
         </dl>
       </header>
       <div class="neon-stage">
         <div class="neon-field">
-          <canvas width="${WIDTH}" height="${HEIGHT}" tabindex="-1" aria-label="Игровое поле" aria-describedby="neonControls"></canvas>
+          <canvas width="${WIDTH * RENDER_SCALE}" height="${HEIGHT * RENDER_SCALE}" tabindex="-1" aria-label="Игровое поле" aria-describedby="neonControls"></canvas>
           <div class="neon-boss" data-neon="boss" hidden>
             <div><span data-neon="boss-name"></span><span data-neon="boss-phase"></span></div>
             <progress aria-label="Прочность босса" data-neon="boss-hull"></progress>
@@ -75,6 +76,7 @@ export function createNeonFrontierController() {
   const sector = pick("sector");
   const hull = pick("hull");
   const weapon = pick("weapon");
+  const gunLabel = pick("gun-label");
   const score = pick("score");
   const boss = pick("boss");
   const bossName = pick("boss-name");
@@ -114,7 +116,7 @@ export function createNeonFrontierController() {
     const notice = run?.phase === "transit" ? "Орбита свободна · ремонт корпуса"
       : commander && commander.age < 1.35 ? "Командир в зоне"
       : run?.phase === "waves" && run.clock < 1.65 ? SECTORS[index].name : "";
-    const key = [index, maxHull, health, level, points, commander?.hp, notice].join("|");
+    const key = [index, maxHull, health, level, points, run.gun, commander?.hp, notice].join("|");
     if (previousHud === key) return;
     previousHud = key;
     sector.textContent = `0${index + 1}/0${SECTORS.length}`;
@@ -122,6 +124,7 @@ export function createNeonFrontierController() {
     hull.innerHTML = Array.from({ length: maxHull }, (_, i) =>
       `<span aria-hidden="true" class="${i < health ? "intact" : ""}"></span>`).join("");
     weapon.textContent = ["I", "II", "III"][level - 1];
+    gunLabel.textContent = cannonProfile(run.build.parts.cannon).label;
     score.textContent = format(points);
     boss.hidden = !commander;
     if (commander) {

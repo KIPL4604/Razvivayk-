@@ -1,5 +1,5 @@
 import { CASES, PARTS, PART_IDS, RANK_NAMES } from "./economy.mjs?v=2";
-import { moduleSvg } from "./ships.mjs?v=2";
+import { moduleSvg } from "./ships.mjs?v=3";
 
 const ICONS = {
   core: "M8 3h8l4 6v9l-3 3H7l-3-3V9z M8 10l4-3 4 3v5l-4 2-4-2z",

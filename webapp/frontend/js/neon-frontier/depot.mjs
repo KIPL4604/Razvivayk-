@@ -3,8 +3,9 @@ import {
   UPGRADE_IDS, UPGRADE_PRICES, acknowledgeCase, completeFlight, fitModule, openCase,
   restoreHangar, selectShip, shipStats, upgradeShip,
 } from "./economy.mjs?v=2";
-import { createCargoDialog, crateSvg, dockIcon } from "./cargo.mjs?v=2";
-import { moduleSvg, shipSvg } from "./ships.mjs?v=2";
+import { createCargoDialog, crateSvg, dockIcon } from "./cargo.mjs?v=3";
+import { moduleSvg, shipSvg } from "./ships.mjs?v=3";
+import { cannonProfile } from "./guns.mjs?v=1";
 
 const number = new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 2 });
 const format = value => number.format(value);
@@ -21,8 +22,9 @@ function readProfile() {
 
 function bay(id, parts, { hero = false, exploded = false, selected = "", trial = false } = {}) {
   const ship = SHIPS[id];
+  const detailInk = selected === "cannon" ? cannonProfile(parts.cannon).edge : PARTS[selected]?.ink;
   return `<figure class="nf-bay${hero ? " nf-bay-hero" : ""}${exploded ? " nf-bay-exploded" : ""}"
-      style="--ship-ink:${ship.color};--slot-ink:${PARTS[selected]?.ink ?? ship.color}">
+      style="--ship-ink:${ship.color};--slot-ink:${detailInk ?? ship.color}">
     <span class="nf-bay-mark">${ship.code}</span>
     <span class="nf-bay-reticle" aria-hidden="true"></span>
     ${shipSvg(id, "nf-bay-ship", parts, { exploded, selected: exploded || trial ? selected : "" })}
@@ -35,7 +37,7 @@ function statList(stats) {
   return `<dl class="nf-stats">
     <div><dt>Корпус</dt><dd>${stats.hull}</dd></div>
     <div><dt>Скорость</dt><dd>${stats.speed}</dd></div>
-    <div><dt>Урон</dt><dd>${format(stats.damage)}</dd></div>
+    <div><dt title="Множитель урона оружия">Мощность</dt><dd>${format(stats.damage)}</dd></div>
     <div><dt title="Длительность щита после попадания">Щит</dt><dd>${format(stats.guard)} с</dd></div>
   </dl>`;
 }
@@ -82,11 +84,28 @@ function moduleEffect(part, rank) {
   return {
     core: `${hull} · +${format(rank * .08)} с щита`,
     cockpit: `−${rank * 6}% к интервалу между залпами`,
-    cannon: `+${format(rank * .12)} к урону`,
+    cannon: `+${format(rank * .12)} к мощности`,
     drive: `+${rank * 13} к скорости`,
     armor: `${hull} · +${format(rank * .11)} с щита`,
     reactor: `+${rank * 12}% монет за вылет`,
   }[part];
+}
+
+function shotDemo(rank) {
+  const gun = cannonProfile(rank);
+  const effects = {
+    impulse: '<path class="nf-demo-shot" d="M36 20h15m-18-7 11-3m-11 17 11 3m14-10h14m-15-9 12-4m-12 22 12 4" fill="none" stroke="var(--shot-edge)" stroke-width="2"/>',
+    beam: '<g class="nf-demo-shot"><path d="M24 20h76" stroke="var(--shot-edge)" stroke-width="5"/><path d="M24 20h76" stroke="var(--shot-light)" stroke-width="2"/></g>',
+    plasma: '<g class="nf-demo-shot"><path d="M39 20h12" stroke="var(--shot-edge)" stroke-width="2"/><path d="M50 17l3-3h5l3 3v6l-3 3h-5l-3-3z" fill="var(--shot-edge)"/><path d="M54 17h4v6h-4z" fill="var(--shot-light)"/></g><path class="nf-demo-impact" d="M83 14l6-6h12l6 6v12l-6 6H89l-6-6z" fill="none" stroke="var(--shot-edge)" stroke-width="2"/>',
+  }[gun.id];
+  return `<div class="nf-shot-demo" data-pattern="${gun.id}" style="--shot-edge:${gun.edge};--shot-light:${gun.light}">
+    <svg viewBox="0 0 114 40" aria-hidden="true">
+      <path d="M11 20h93" stroke="#314863" stroke-dasharray="2 4"/>
+      <path d="M7 15h10l6 3v4l-6 3H7z" fill="#496884"/><path d="M16 18h8v4h-8z" fill="var(--shot-edge)"/>
+      ${effects}
+    </svg>
+    <p>${gun.description}</p>
+  </div>`;
 }
 
 function workshop(profile, id, parts, selected, candidate, owned) {
@@ -108,6 +127,7 @@ function workshop(profile, id, parts, selected, candidate, owned) {
           ${moduleSvg(id, selected, index)}<span>${index ? roman[index] : "Штатный"}</span>
           ${index > unlocked ? dockIcon("lock") : index === installed ? '<i title="Установлен" aria-hidden="true"></i>' : ""}
         </button>`).join("")}</div>
+      ${selected === "cannon" ? shotDemo(rank) : ""}
       <div class="nf-workbench-detail">
         <div><p class="nf-code">${slot.label} / ${RANK_NAMES[rank - 1] ?? "Штатный"}</p><h3>${name}</h3>
         <p class="nf-part-effect">${moduleEffect(selected, rank)}</p></div>
@@ -300,10 +320,12 @@ export function createDepot(mount, { launch, isPaused, exit, motion }) {
       exploded = !exploded;
       render("[data-depot=explode]");
     } else if (action === "slot") {
+      notice.textContent = "";
       selected = button.dataset.slot;
       candidate = null;
       render(`[data-slot="${selected}"]`);
     } else if (action === "variant") {
+      notice.textContent = "";
       candidate = Number(button.dataset.variant);
       render(`[data-depot=variant][data-variant="${candidate}"]`);
     } else if (action === "pending") {
