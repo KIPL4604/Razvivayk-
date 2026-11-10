@@ -1,5 +1,5 @@
 /* The title screen uses the same authored menu, without importing simulation. */
-import {renderMenu} from './menu.mjs?v=game-menus-2';
+import {renderMenu} from './menu.mjs?v=texture-sound-1';
 import {CHARACTERS} from './catalog.mjs';
 import {normalizeMeta,mapAvailable} from './economy.mjs';
 import {preloadMenu,menuBackgroundURL} from './preload.mjs';

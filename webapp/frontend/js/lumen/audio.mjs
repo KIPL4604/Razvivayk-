@@ -65,13 +65,13 @@ const SAMPLES={
 export class LumenAudio{
   constructor(){
     this.context=null;this.master=null;this.noise=null;
-    this.scores=new Map();this.pendingScores=new Set();
+    this.scores=new Map();this.pendingScores=new Map();
     this.samples=new Map();this.voices=new Set();this.lastCue=new Map();
     this.loop=null;this.boss=false;this.requestedSample=null;
   }
 
-  unlock(settings){
-    if(!settings.sound||!settings.volume)return;
+  async unlock(settings){
+    if(!settings.sound||!settings.volume)return false;
     try{
       if(!this.context){
         const AudioContext=globalThis.AudioContext||globalThis.webkitAudioContext;
@@ -79,8 +79,10 @@ export class LumenAudio{
         master.gain.value=settings.volume/100;master.connect(context.destination);
         this.context=context;this.master=master;
       }
-      if(this.context.state!=='running')void this.context.resume().catch(()=>{});
+      if(this.context.state!=='running')await this.context.resume();
+      return this.context.state==='running';
     }catch{/* Audio is optional in unsupported or restricted webviews. */}
+    return false;
   }
 
   reset(boss){
@@ -90,14 +92,47 @@ export class LumenAudio{
   }
 
   prepareScore(context,map){
-    if(this.pendingScores.has(map))return;
-    this.pendingScores.add(map);
-    const prepare=()=>{
-      this.scores.set(map,makeScore(context,map));
-      this.pendingScores.delete(map);
-    };
-    if(globalThis.requestIdleCallback)globalThis.requestIdleCallback(prepare,{timeout:500});
-    else setTimeout(prepare,0);
+    if(this.pendingScores.has(map))return this.pendingScores.get(map);
+    const pending=new Promise(resolve=>{
+      const prepare=()=>{
+        try{this.scores.set(map,makeScore(context,map));}
+        finally{this.pendingScores.delete(map);resolve();}
+      };
+      if(globalThis.requestIdleCallback)globalThis.requestIdleCallback(prepare,{timeout:500});
+      else setTimeout(prepare,0);
+    });
+    this.pendingScores.set(map,pending);
+    return pending;
+  }
+
+  setVolume(volume){
+    if(!this.context||this.volume===volume)return;
+    this.volume=volume;
+    this.master.gain.setTargetAtTime(volume/100,this.context.currentTime,.03);
+  }
+
+  startMusic(map,boss){
+    const context=this.context,source=context.createBufferSource(),gain=context.createGain();
+    source.buffer=this.scores.get(map);
+    source.loop=true;
+    source.playbackRate.value=boss?1.055:1;
+    gain.gain.value=0;
+    gain.gain.setTargetAtTime(boss?.38:.25,context.currentTime,.20);
+    source.connect(gain);gain.connect(this.master);
+    source.start();
+    this.loop={map,source,gain};
+  }
+
+  async preview(map,readVolume){
+    if(!await this.unlock({sound:true,volume:readVolume()}))return false;
+    if(!readVolume())return false;
+    if(!this.scores.has(map))await this.prepareScore(this.context,map);
+    const volume=readVolume();
+    if(!volume||!this.scores.has(map))return false;
+    this.stopMusic();
+    this.setVolume(volume);
+    this.startMusic(map,false);
+    return true;
   }
 
   update(map,boss,settings){
@@ -105,10 +140,7 @@ export class LumenAudio{
     if(!settings.sound||!settings.volume){this.stop();return;}
     if(context?.state!=='running')return;
     const now=context.currentTime;
-    if(this.volume!==settings.volume){
-      this.volume=settings.volume;
-      this.master.gain.setTargetAtTime(settings.volume/100,now,.03);
-    }
+    this.setVolume(settings.volume);
     if(this.loop?.map!==map){
       this.stopMusic();
       const sample=SAMPLES[map];
@@ -119,15 +151,7 @@ export class LumenAudio{
           .then(buffer=>this.samples.set(sample.cue,buffer)).catch(()=>{});
       }
       if(!this.scores.has(map)){this.prepareScore(context,map);return;}
-      const source=context.createBufferSource(),gain=context.createGain();
-      source.buffer=this.scores.get(map);
-      source.loop=true;
-      source.playbackRate.value=boss?1.055:1;
-      gain.gain.value=0;
-      gain.gain.setTargetAtTime(boss?.38:.25,now,.20);
-      source.connect(gain);gain.connect(this.master);
-      source.start();
-      this.loop={map,source,gain};
+      this.startMusic(map,boss);
     }
     if(boss!==this.boss){
       this.boss=boss;

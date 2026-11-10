@@ -1,15 +1,15 @@
 import {preloadScene,preloadMenuBackground,backgroundReady,warmScene} from './preload.mjs';
 import {createRun,step,chooseUpgrade,serialize,restore,UPGRADES,upcomingUpgrade} from './engine.mjs';
 import {Renderer} from './renderer.mjs';
-import {LumenAudio} from './audio.mjs';
+import {LumenAudio} from './audio.mjs?v=texture-sound-1';
 import {loadArt,warmWorldArt} from './assets.mjs';
 import {worldLoadProgress} from './load-progress.mjs';
 import {StoryOverlay} from './story-overlay.mjs';
 import {worldScene,bossScene} from './story.mjs';
 import {weaponIcon,prefetchWeaponChoices} from './weapon-icons.mjs';
 import {WORLD_FINALS} from './arena.mjs';
-import {menuViewport} from './menu-entry.mjs';
-import {renderMenu,MENU_PAGES} from './menu.mjs?v=game-menus-2';
+import {menuViewport} from './menu-entry.mjs?v=texture-sound-1';
+import {renderMenu,MENU_PAGES,MUSIC_WORLDS} from './menu.mjs?v=texture-sound-1';
 import {buyTraining} from './training.mjs';
 import {WEAPONS,upgradeSummary} from './presentation.mjs';
 import {waveAt} from './progression.mjs';
@@ -42,12 +42,42 @@ export function createGame(context) {
   let warmingWorld=false,warmAfter=0;
   let pointer=null,stickOrigin=null,input={x:0,y:0},keys=new Set(),fullscreenOwned=false;
   const audio=new LumenAudio();
+  let menuMusic=null;
   let heardEffects=new WeakSet();
   let terminalFrameStart=0,map='garden',menuPage='home',book='weapons',selectionLoaded=false;
   const handlers=new AbortController(),signal=handlers.signal;
   function record(){const root=getSaved();if(!root.lumen||typeof root.lumen!=='object'||Array.isArray(root.lumen))root.lumen={};const r=root.lumen;r.meta=normalizeMeta(r.meta);r.settings={sound:r.settings?.sound===true,volume:Number.isInteger(r.settings?.volume)&&r.settings.volume>=0&&r.settings.volume<=100?r.settings.volume:70};r.selection={character:Object.hasOwn(CHARACTERS,r.selection?.character)&&r.meta.unlocked.includes(r.selection.character)?r.selection.character:'scout',map:mapAvailable(r.meta,r.selection?.map)?r.selection.map:'garden'};if(!r.stats||typeof r.stats!=='object'||Array.isArray(r.stats))r.stats={};for(const key of ['runs','wins','bestTime','bestKills']){if(!Number.isFinite(r.stats[key])||r.stats[key]<0)r.stats[key]=0;}return r;}
   function save(){if(!state)return;const r=record();bankCoins(r.meta,state);recordProgress(r.meta,state);r.run=['playing','upgrade'].includes(state.status)?serialize(state):null;r.lastTouchedAt=Date.now();persist();lastSave=performance.now();}
-  function unlockAudio(){audio.unlock(record().settings);}
+  function unlockAudio(){void audio.unlock(record().settings);}
+  function paintMusic(message=''){
+    for(const button of setupMount.querySelectorAll('[data-lumen-action="music-preview"]')){
+      const active=menuMusic?.map===button.dataset.lumenValue;
+      button.setAttribute('aria-pressed',String(active));
+      button.firstElementChild.textContent=active?'■':'▶';
+    }
+    const status=$('#lumenMusicStatus');
+    if(status)status.textContent=message;
+  }
+  function stopMenuMusic(){
+    if(!menuMusic)return;
+    menuMusic=null;
+    audio.stopMusic();
+    paintMusic();
+  }
+  async function previewMusic(world){
+    if(screen!=='lumen'||menuPage!=='settings'||!MUSIC_WORLDS.includes(world))return;
+    const wasSelected=menuMusic?.map===world;
+    stopMenuMusic();
+    if(wasSelected)return;
+    if(!record().settings.volume){paintMusic('Прибавь громкость, чтобы послушать тему.');return;}
+    const preview={map:world};
+    menuMusic=preview;paintMusic('Подготавливаем музыку…');
+    let playing=false;
+    try{playing=await audio.preview(world,()=>menuMusic===preview?getSaved().lumen.settings.volume:0);}catch{}
+    if(menuMusic!==preview)return;
+    if(playing)paintMusic('Сейчас играет: '+MAPS[world].name);
+    else{stopMenuMusic();paintMusic('Браузер не смог включить музыку. Попробуй ещё раз.');}
+  }
   const bossActive=()=>state.enemies.some(e=>e.hp>0&&(e.kind==='guardian'||e.kind==='arena-boss'));
   function clearInput(){keys.clear();input={x:0,y:0};pointer=null;stickOrigin=null;const stick=$('#lumenStick');if(stick)stick.hidden=true;}
   function viewport(){
@@ -128,6 +158,7 @@ export function createGame(context) {
   }
   function setup(page='home',preserveScroll=false){
     if(!MENU_PAGES.includes(page))page='home';
+    stopMenuMusic();
     const r=record();
     if(!selectionLoaded){character=r.selection.character;map=r.selection.map;selectionLoaded=true;}
     if(map==='crater')map=mapAvailable(r.meta,'castle')?'castle':'quarry';
@@ -171,6 +202,7 @@ export function createGame(context) {
     if(resumeSaved&&!restored){record().run=null;persist();setup();toast('Сохранение повреждено или устарело. Можно начать новую экспедицию.');return;}
     if(!resumeSaved&&(!record().meta.unlocked.includes(character)||!mapAvailable(record().meta,map)))return;
     if(!resumeSaved&&record().run&&!window.confirm('Начать заново? Текущая экспедиция будет заменена.'))return;
+    stopMenuMusic();
     if(screen!=='lumen')setup();
     const world=restored?.map||map,selected=restored?.character||character,ticket=++sceneTicket;
     const garden=world==='garden',late=Boolean(restored&&(restored.time>=120||restored.arena||restored.enemies.some(enemy=>['guardian','arena-boss'].includes(enemy.kind))));
@@ -361,6 +393,7 @@ export function createGame(context) {
   function pointerEnd(e){if(pointer===e.pointerId)clearInput();}
   function action(name,value){
     if(story.active)return;
+    if(name==='music-preview'){void previewMusic(value);return;}
     if(name==='setup'){setup();return;}
     if(name==='catalog'){navigate('home');return;}
     if(name==='menu'&&MENU_PAGES.includes(value)){setup(value);return;}
@@ -386,7 +419,7 @@ export function createGame(context) {
     if(!['lumen','lumen-game'].includes(name)&&story.active){sceneTicket++;waitingForStart=false;retryLaunch=null;story.close();}
     document.documentElement.classList.toggle('lumen-menu-active',name==='lumen');
     if(screen==='lumen-game'&&name!=='lumen-game'){paused=true;save();stopRenderer();}
-    if(screen==='lumen'&&name!=='lumen'){preview?.destroy();preview=null;}
+    if(screen==='lumen'&&name!=='lumen'){stopMenuMusic();preview?.destroy();preview=null;}
     if(!['lumen','lumen-game'].includes(name)){lockScreen(false);releaseFullscreen();}
     screen=name;
   }
@@ -405,13 +438,14 @@ export function createGame(context) {
     if(screen!=='lumen'||e.target.id!=='lumenVolume')return;
     const volume=Number(e.target.value);if(!Number.isInteger(volume)||volume<0||volume>100)return;
     record().settings.volume=volume;persist();$('#lumenVolumeValue').textContent=volume+'%';e.target.setAttribute('aria-valuetext',volume+'%');
+    if(menuMusic){if(volume)audio.setVolume(volume);else stopMenuMusic();}
   },{signal});
   document.addEventListener('keyup',e=>keys.delete(e.code),{signal});
-  function deactivate(){appInactive=true;audio.stop();if(screen==='lumen-game'&&state?.status==='playing'&&!story.active)showPause('Экспедиция на паузе');clearInput();}
+  function deactivate(){appInactive=true;stopMenuMusic();audio.stop();if(screen==='lumen-game'&&state?.status==='playing'&&!story.active)showPause('Экспедиция на паузе');clearInput();}
   window.addEventListener('blur',deactivate,{signal});
   window.addEventListener('focus',()=>{appInactive=false;},{signal});
   document.addEventListener('visibilitychange',()=>{if(document.hidden)deactivate();},{signal});
-  window.addEventListener('pagehide',()=>{if(screen==='lumen-game'&&state){paused=true;save();audio.stop();}},{signal});
+  window.addEventListener('pagehide',()=>{stopMenuMusic();if(screen==='lumen-game'&&state){paused=true;save();audio.stop();}},{signal});
   window.addEventListener('resize',()=>{viewport();if(preview&&screen==='lumen'){preview.resize();preview.draw(previewState,true);}},{signal});
   window.visualViewport?.addEventListener('resize',viewport,{signal});
   document.addEventListener('fullscreenchange',()=>{viewport();if(screen==='lumen-game'&&!document.fullscreenElement&&fullscreenOwned){fullscreenOwned=false;deactivate();}},{signal});

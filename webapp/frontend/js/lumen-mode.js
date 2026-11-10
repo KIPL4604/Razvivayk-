@@ -14,7 +14,7 @@ const LumenMode = (() => {
     try{window.Telegram?.WebApp?.onEvent?.(event,resizeTitle);}catch(_){}
   }
   async function ensureController(ticket){
-    loading ||= import('/static/js/lumen/game.mjs?v=world-warmup-1').catch(error=>{loading=null;throw error;});
+    loading ||= import('/static/js/lumen/game.mjs?v=texture-sound-1').catch(error=>{loading=null;throw error;});
     const module=await loading;
     if(!current(ticket))return false;
     if(!controller){
@@ -59,7 +59,7 @@ const LumenMode = (() => {
     mount.innerHTML = '<div class="lumen-loading lumen-entry-loading"><small>ЛЮМЕН / ПОСЛЕДНИЙ МАЯК</small><h1>Зажигаем маяк</h1><span id="lumenEntryPhase" role="status">Получаем список ресурсов</span><div class="lumen-entry-meter" role="progressbar" aria-label="Загрузка меню Люмена" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i></i></div><div class="lumen-load-dots" aria-hidden="true">'+ '<i></i>'.repeat(8)+'</div><div class="lumen-entry-meta"><strong id="lumenEntryPercent">0%</strong><span id="lumenEntryEta">Оцениваем время…</span></div><p>Сначала загрузим фон и графику меню. Выбранный мир подготовим перед экспедицией.</p><button type="button" class="text-button" data-screen-link="home">К играм</button></div>';
     let importing=true;
     try {
-      entry ||= await import('/static/js/lumen/menu-entry.mjs');
+      entry ||= await import('/static/js/lumen/menu-entry.mjs?v=texture-sound-1');
       if(!current(ticket))return;
       importing=false;
       const html=await entry.prepareHome(saved.lumen,value=>{

@@ -55,3 +55,23 @@ test('one expedition score plays, and pause, mute and world changes dispose it',
   audio.update('castle',false,{...sound,volume:0});
   assert.equal(sources.length,3);
 });
+
+test('a cancelled preview cannot play after its score finishes, and switching replaces the source',async()=>{
+  const {audio,sources,active}=audioFixture();
+  let volume=70;
+  const cancelled=audio.preview('garden',()=>volume);
+  await Promise.resolve();
+  volume=0;
+  assert.equal(await cancelled,false);
+  assert.equal(active(),0);
+  assert.equal(sources.length,0);
+
+  volume=70;
+  assert.equal(await audio.preview('garden',()=>volume),true);
+  assert.equal(active(),1);
+  assert.equal(await audio.preview('quarry',()=>volume),true);
+  assert.equal(active(),1);
+  assert.notEqual(sources[0].buffer,sources[1].buffer);
+  audio.stopMusic();
+  assert.equal(active(),0);
+});
