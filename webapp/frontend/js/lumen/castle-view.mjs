@@ -1,8 +1,11 @@
 import {CASTLE,castleProps,castleGuidance,castleLayout} from './castle.mjs';
+import {drawCandle} from './biome-vfx.mjs';
 
 const TAU=Math.PI*2;
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 const propArt={piano:[0,248],bookshelf:[1,216],column:[2,216],candelabra:[3,146],flowerbed:[4,232]};
+const GALLERY_FLAMES=[[64,17],[48,29],[78,29],[56,34],[70,32]];
+const HALL_FLAMES=[[128,26],[95,53],[110,59],[145,58],[160,52]];
 const hash=(x,y)=>((Math.imul(x,374761393)^Math.imul(y,668265263))>>>0);
 
 // One presentation contract for the actor, camera and visual acceptance checks.
@@ -206,6 +209,7 @@ export class CastleView{
     const near=Math.hypot(entity.x-player.x,entity.y-player.y);
     c.globalAlpha=entity.y>player.y&&near<130?.65:1;
     r.blit('castle-props',index*128,0,128,128,entity.x,entity.y,size,size,.94,entity.x>0&&entity.propKind==='column');
+    if(entity.propKind==='candelabra')drawCandle(r,entity,time,GALLERY_FLAMES,128,.94,false);
     c.restore();
   }
 
@@ -221,6 +225,10 @@ export class CastleView{
     }
     c.globalAlpha=entity.y>player.y&&Math.hypot(entity.x-player.x,entity.y-player.y)<150?.62:1;
     this.hallDecor(r,entity.index,entity.x,entity.y,entity.size,entity.size,entity.x>0);
+    if(entity.index===3&&r.art.images['castle-hall-decor']){
+      const meta=r.art.manifest.castleHall?.decor;
+      drawCandle(r,entity,time,HALL_FLAMES,meta?.frameSize||256,(meta?.anchor?.[1]??244)/(meta?.frameSize||256),entity.x>0);
+    }
     c.restore();
   }
 

@@ -1,6 +1,7 @@
 import {preloadScene,preloadMenuBackground,backgroundReady,warmScene} from './preload.mjs';
 import {createRun,step,chooseUpgrade,serialize,restore,UPGRADES,upcomingUpgrade} from './engine.mjs';
 import {Renderer} from './renderer.mjs';
+import {LumenAudio} from './audio.mjs';
 import {loadArt,warmWorldArt} from './assets.mjs';
 import {worldLoadProgress} from './load-progress.mjs';
 import {StoryOverlay} from './story-overlay.mjs';
@@ -20,6 +21,7 @@ import {normalizeMeta,buyCharacter,bankCoins,recordProgress,mapAvailable} from '
 
 const clock = n => `${String(Math.floor(n/60)).padStart(2,'0')}:${String(Math.floor(n%60)).padStart(2,'0')}`;
 const roman=['','I','II','III','IV','V','VI','VII','VIII'];
+const impactSounds=new Map([['boulder','boulder'],['glass-cross','glass'],['brambles','brambles'],['chest','chest'],['hurt','hurt']]);
 const iconIndex={spark:0,orbit:1,pulse:2,focus:3,haste:4,stride:5,magnet:6,vitality:7,repair:8,pause:9,fullscreen:10,sound:11,mute:12,gem:13,light:14,stars:15};
 const itemIcon=index=>`<span class="lumen-new-icon" style="--item-x:${index%5};--item-y:${Math.floor(index/5)}" aria-hidden="true"></span>`;
 const expansionIcon=index=>`<span class="lumen-expansion-icon" style="--item-x:${index%8};--item-y:${Math.floor(index/8)}" aria-hidden="true"></span>`;
@@ -38,24 +40,15 @@ export function createGame(context) {
   let bossArtPending=null,bossArtReady=false,retryLaunch=null;
   const readyArt=new Set(),warmedWorlds=new Set(),story=new StoryOverlay();
   let warmingWorld=false,warmAfter=0;
-  let pointer=null,stickOrigin=null,input={x:0,y:0},keys=new Set(),audio=null,fullscreenOwned=false;
+  let pointer=null,stickOrigin=null,input={x:0,y:0},keys=new Set(),fullscreenOwned=false;
+  const audio=new LumenAudio();
+  let heardEffects=new WeakSet();
   let terminalFrameStart=0,map='garden',menuPage='home',book='weapons',selectionLoaded=false;
   const handlers=new AbortController(),signal=handlers.signal;
   function record(){const root=getSaved();if(!root.lumen||typeof root.lumen!=='object'||Array.isArray(root.lumen))root.lumen={};const r=root.lumen;r.meta=normalizeMeta(r.meta);r.settings={sound:r.settings?.sound===true,volume:Number.isInteger(r.settings?.volume)&&r.settings.volume>=0&&r.settings.volume<=100?r.settings.volume:70};r.selection={character:Object.hasOwn(CHARACTERS,r.selection?.character)&&r.meta.unlocked.includes(r.selection.character)?r.selection.character:'scout',map:mapAvailable(r.meta,r.selection?.map)?r.selection.map:'garden'};if(!r.stats||typeof r.stats!=='object'||Array.isArray(r.stats))r.stats={};for(const key of ['runs','wins','bestTime','bestKills']){if(!Number.isFinite(r.stats[key])||r.stats[key]<0)r.stats[key]=0;}return r;}
   function save(){if(!state)return;const r=record();bankCoins(r.meta,state);recordProgress(r.meta,state);r.run=['playing','upgrade'].includes(state.status)?serialize(state):null;r.lastTouchedAt=Date.now();persist();lastSave=performance.now();}
-  function sound(kind){
-    const settings=record().settings;if(!settings.sound||settings.volume===0)return;
-    try{
-      audio ||= new (window.AudioContext||window.webkitAudioContext)();
-      if(audio.state!=='running')return;
-      const osc=audio.createOscillator(),gain=audio.createGain(),now=audio.currentTime;
-      osc.type='sine';osc.frequency.setValueAtTime(kind==='level'?660:kind==='hurt'?130:440,now);
-      osc.frequency.exponentialRampToValueAtTime(kind==='level'?990:kind==='hurt'?65:220,now+.12);
-      gain.gain.setValueAtTime(.035*settings.volume/100,now);gain.gain.exponentialRampToValueAtTime(.0001,now+.14);
-      osc.connect(gain);gain.connect(audio.destination);osc.start();osc.stop(now+.16);
-    }catch(_){record().settings.sound=false;}
-  }
-  function unlockAudio(){if(!record().settings.sound)return;try{audio ||= new (window.AudioContext||window.webkitAudioContext)();audio.resume().catch(()=>{});}catch(_){}}
+  function unlockAudio(){audio.unlock(record().settings);}
+  const bossActive=()=>state.enemies.some(e=>e.hp>0&&(e.kind==='guardian'||e.kind==='arena-boss'));
   function clearInput(){keys.clear();input={x:0,y:0};pointer=null;stickOrigin=null;const stick=$('#lumenStick');if(stick)stick.hidden=true;}
   function viewport(){
     menuViewport(tg);
@@ -73,7 +66,7 @@ export function createGame(context) {
     else toast('Поле занимает доступный экран. Полный экран в этом браузере недоступен.');
   }
   function releaseFullscreen(){if(fullscreenOwned&&document.fullscreenElement)document.exitFullscreen?.().catch(()=>{});fullscreenOwned=false;}
-  function stopRenderer(){cancelAnimationFrame(raf);raf=0;renderer?.destroy();renderer=null;clearInput();}
+  function stopRenderer(){cancelAnimationFrame(raf);raf=0;renderer?.destroy();renderer=null;audio.stop();clearInput();}
   function focusControl(selector){
     const control=$(selector);if(!control)return;
     const target=control.disabled?control.closest('article'):control;
@@ -115,7 +108,7 @@ export function createGame(context) {
     const enemy=state.enemies.find(enemy=>enemy.hp>0&&['guardian','arena-boss'].includes(enemy.kind)&&!sceneSeen('boss:'+enemy.id));
     if(!enemy)return false;
     prefetchGardenBosses();
-    const runId=state.runId,scene=bossScene(enemy,state.map);paused=true;clearInput();soundSuspend();save();
+    const runId=state.runId,scene=bossScene(enemy,state.map);paused=true;clearInput();audio.stop();save();
     story.play(scene,{hero:CHARACTERS[state.character].name,heroId:state.character}).then(done=>{
       if(screen!=='lumen-game'||state?.runId!==runId)return;
       if(done){markScene(scene.id);if(document.hidden||appInactive||!document.hasFocus()){showPause();return;}paused=false;unlockAudio();runLoop();}
@@ -160,6 +153,7 @@ export function createGame(context) {
   function mountRun(){
     terminalFrameStart=0;
     preview?.destroy();preview=null;stopRenderer();
+    audio.reset(bossActive());heardEffects=new WeakSet(state.effects);
     gameMount.innerHTML=`<canvas id="lumenCanvas" tabindex="0" role="img" aria-label="Арена Люмена. Двигайся WASD или стрелками. Оружие атакует само. Escape открывает паузу.">Для этой игры необходим Canvas 2D.</canvas><div class="lumen-hud"><div class="lumen-health"><span class="lumen-hud-kicker">СВЕТОВОЕ ЯДРО</span><div>${pixelIcon('vitality')}<b id="lumenHealth">110 / 110</b></div><div class="lumen-health-track" role="meter" aria-label="Здоровье" aria-valuemin="0" id="lumenHealthMeter"><i></i></div></div><div class="lumen-timer"><strong id="lumenTimer">00:00</strong><span id="lumenGoal"></span></div><div class="lumen-tools"><button type="button" class="lumen-tool" data-lumen-action="sound" aria-label="Включить звук" aria-pressed="false">${pixelIcon('mute')}</button><button type="button" class="lumen-tool" data-lumen-action="fullscreen" aria-label="Полный экран">${pixelIcon('fullscreen')}</button><button type="button" class="lumen-tool" data-lumen-action="pause" aria-label="Пауза">${pixelIcon('pause')}</button></div></div><div class="lumen-xp"><div><span id="lumenLevel">Уровень 1</span><span id="lumenXpLabel">0 / 10</span></div><div class="lumen-xp-track" role="progressbar" aria-label="Опыт забега" aria-valuemin="0" id="lumenXpMeter"><i></i></div></div><div class="lumen-boss-hud" id="lumenBossHud" hidden><div><strong id="lumenBossName"></strong><span id="lumenBossPhase"></span></div><div class="lumen-boss-track" role="meter" id="lumenBossMeter" aria-label="Здоровье босса" aria-valuemin="0"><i></i></div><span id="lumenBossHp"></span></div><div class="lumen-wave" id="lumenWave" aria-live="polite"></div><div class="lumen-bottom"><div class="lumen-equipment"><div class="lumen-artifacts" id="lumenArtifacts" hidden></div><div class="lumen-weapons" id="lumenWeapons"></div></div><div class="lumen-tally"><strong id="lumenKills">0</strong><span>побеждено</span><div class="lumen-run-coins">${pixelIcon('coin')}<b id="lumenCoins">0</b></div></div></div><div class="lumen-loot" id="lumenLoot" hidden></div><p class="lumen-hint" id="lumenMoveHint">Проведи по полю, чтобы двигаться<span>или используй WASD / стрелки</span></p><div class="lumen-stick" id="lumenStick" hidden aria-hidden="true"><i></i></div><div class="lumen-overlay" id="lumenOverlay" hidden></div><p class="sr-only" id="lumenAnnouncement" role="status" aria-live="polite"></p>`;
     gameMount.dataset.map=state.map;
     if(state.map==='castle')$('#lumenCanvas').setAttribute('aria-label','Замок угасшего света. Двигайся WASD или стрелками. На 45-м уровне стрелка укажет путь к финальному залу. Escape открывает паузу.');
@@ -284,16 +278,30 @@ export function createGame(context) {
       renderer.castleInsets={top:Math.ceil(Math.max(bossBottom,waveBottom)+20),bottom:Math.floor($('.lumen-bottom').getBoundingClientRect().top-mountTop-22)};
     }
   }
+  function playRunSounds(settings,xp,kills){
+    const audible=settings.sound&&settings.volume>0;
+    for(const effect of state.effects){
+      const cue=impactSounds.get(effect.kind);
+      if(!cue||heardEffects.has(effect))continue;
+      heardEffects.add(effect);
+      if(audible)audio.play(cue);
+    }
+    if(!audible)return;
+    if(state.status==='upgrade')audio.play('level');
+    else if(state.xp>xp)audio.play('crystal');
+    else if(state.kills>kills)audio.play('kill');
+  }
   function frame(now){
     if(screen!=='lumen-game'||!renderer)return;
     const dt=Math.min(.1,Math.max(0,(now-lastFrame)/1000));lastFrame=now;
     if(!paused&&state.status==='playing'&&!bossDialogue()){
       const x=(keys.has('KeyD')||keys.has('ArrowRight')?1:0)-(keys.has('KeyA')||keys.has('ArrowLeft')?1:0),y=(keys.has('KeyS')||keys.has('ArrowDown')?1:0)-(keys.has('KeyW')||keys.has('ArrowUp')?1:0);
-      const hp=state.player.hp,kills=state.kills,coins=state.coinsEarned;
+      const settings=getSaved().lumen.settings,{xp,kills,coinsEarned}=state;
+      audio.update(state.map,bossActive(),settings);
       const direction=pointer===null?{x,y}:input;state.moving=Math.hypot(direction.x,direction.y)>.01;step(state,direction,dt,renderer.captureTick);
-      if(state.player.hp<hp)sound('hurt');else if(state.kills>kills)sound('kill');
-      if(state.coinsEarned>coins){save();sound('level');updateHud();}
-      if(state.status==='upgrade'){sound('level');save();showUpgrade();}
+      playRunSounds(settings,xp,kills);
+      if(state.coinsEarned>coinsEarned){save();updateHud();}
+      if(state.status==='upgrade'){audio.stopMusic();save();showUpgrade();}
       if(['won','lost'].includes(state.status)){updateHud();showResult();}
       else if(state.status==='playing')bossDialogue();
       if(now-lastSave>5000)save();
@@ -315,9 +323,8 @@ export function createGame(context) {
   function hideOverlay(){const overlay=$('#lumenOverlay');if(overlay){overlay.hidden=true;overlay.innerHTML='';}overlayKey='';gameMount.querySelectorAll('[inert]').forEach(el=>el.inert=false);$('#lumenCanvas')?.focus({preventScroll:true});}
   function showPause(title='Маяк подождёт'){
     if(story.active||!state||['won','lost'].includes(state.status))return;
-    paused=true;save();if(state.status==='upgrade'){showUpgrade();return;}
+    paused=true;audio.stop();save();if(state.status==='upgrade'){showUpgrade();return;}
     showOverlay('pause',`<span class="lumen-dialog-kicker">ПАУЗА / ${clock(state.time)}</span><h2 id="lumenDialogTitle">${title}</h2><p>Экспедиция сохранена на этом устройстве. Когда будешь готов — продолжай.</p><button class="lumen-launch" data-lumen-action="continue" type="button">Продолжить экспедицию <span>→</span></button><button class="lumen-menu-button" data-lumen-action="exit" type="button">Сохранить и выйти в меню</button><button class="lumen-menu-button" data-lumen-action="sound" type="button" aria-pressed="${record().settings.sound}">Звук: ${record().settings.sound?'включён':'выключен'}</button>${Object.keys(state.archivedWeapons).length?`<p class="lumen-migration-note">Лимит обновлён: 4 оружия. В архив сохранения перенесены ${Object.keys(state.archivedWeapons).map(id=>WEAPONS[id].title+' '+roman[state.archivedWeapons[id]]).join(', ')}. Их стадии сохранены для оружейных испытаний.</p>`:''}<div class="lumen-pause-help">Двигайся джойстиком или WASD / стрелками.<br>Оружие атакует само. Собирай свет для улучшений.</div><details class="lumen-recipes"><summary>Рецепты слияний · VIII + VIII</summary>${recipeBook(state.upgrades)}</details>${Object.keys(ARTIFACTS).some(id=>state.upgrades[id])?`<div class="lumen-pause-artifacts">${Object.entries(ARTIFACTS).filter(([id])=>state.upgrades[id]).map(([id,a])=>`<p>${pixelIcon(id)}<span>${a.title} ${roman[state.upgrades[id]]}<small>${a.description}</small></span></p>`).join('')}</div>`:''}`);
-    soundSuspend();
   }
   function showUpgrade(){
     showOverlay(`upgrade-${state.level}`,`<div class="lumen-upgrade-heading"><h2 id="lumenDialogTitle">Усиль свой свет</h2><span class="lumen-dialog-kicker">УРОВЕНЬ ${state.level} · ВЫБЕРИ ОДНО</span></div><div class="lumen-upgrades">${state.choices.map(id=>{
@@ -328,10 +335,11 @@ export function createGame(context) {
     }).join('')}</div><p class="lumen-loadout-summary">Оружие ${WEAPON_IDS.filter(id=>state.upgrades[id]).length}/${MAX_WEAPONS} · Артефакты ${Object.keys(ARTIFACTS).filter(id=>state.upgrades[id]).length}/${MAX_ARTIFACTS}${WEAPON_IDS.filter(id=>state.upgrades[id]).length===MAX_WEAPONS?' · Оружейные слоты заполнены':''}</p><button class="lumen-upgrade-exit" data-lumen-action="exit" type="button">Сохранить и выйти в меню</button>`);
   }
   function showResult(){
+    audio.stopMusic();
     if(!resultRecorded){const r=record();r.stats.runs++;if(state.status==='won')r.stats.wins++;r.stats.bestTime=Math.max(r.stats.bestTime,state.time);r.stats.bestKills=Math.max(r.stats.bestKills,state.kills);resultRecorded=true;save();}
     const ending='after:'+state.map;
     if(state.status==='won'&&!sceneSeen(ending)){
-      const runId=state.runId;paused=true;clearInput();soundSuspend();
+      const runId=state.runId;paused=true;clearInput();audio.stop();
       story.play(worldScene(state.map,'after'),{hero:CHARACTERS[state.character].name,heroId:state.character}).then(()=>{
         if(screen!=='lumen-game'||state?.runId!==runId)return;markScene(ending);showResult();
       });return;
@@ -351,7 +359,6 @@ export function createGame(context) {
     $('#lumenStick i').style.transform=`translate(${input.x*radius}px,${input.y*radius}px)`;
   }
   function pointerEnd(e){if(pointer===e.pointerId)clearInput();}
-  function soundSuspend(){if(audio?.state==='running')audio.suspend().catch(()=>{});}
   function action(name,value){
     if(story.active)return;
     if(name==='setup'){setup();return;}
@@ -371,16 +378,16 @@ export function createGame(context) {
     if(name==='pause'){showPause();return;}
     if(name==='continue'){hideOverlay();if(!bossDialogue()){paused=false;unlockAudio();runLoop();}return;}
     if(name==='fullscreen'){fullscreen();return;}
-    if(name==='sound'){const r=record();r.settings.sound=!r.settings.sound;if(r.settings.sound)unlockAudio();else soundSuspend();persist();if(screen==='lumen'){setup('settings',true);focusControl('[data-lumen-action="sound"]');return;}updateHud();const button=$('#lumenOverlay [data-lumen-action="sound"]');if(button){button.textContent=`Звук: ${r.settings.sound?'включён':'выключен'}`;button.setAttribute('aria-pressed',String(r.settings.sound));}return;}
+    if(name==='sound'){const r=record();r.settings.sound=!r.settings.sound;if(r.settings.sound&&screen==='lumen-game'&&!paused)unlockAudio();else if(!r.settings.sound)audio.stop();persist();if(screen==='lumen'){setup('settings',true);focusControl('[data-lumen-action="sound"]');return;}updateHud();const button=$('#lumenOverlay [data-lumen-action="sound"]');if(button){button.textContent=`Звук: ${r.settings.sound?'включён':'выключен'}`;button.setAttribute('aria-pressed',String(r.settings.sound));}return;}
     if(name==='upgrade'&&state?.status==='upgrade'&&chooseUpgrade(state,value)){hideOverlay();paused=false;save();updateHud();if(state.status==='upgrade')showUpgrade();else if(state.status==='won')showResult();else{unlockAudio();runLoop();}return;}
     if(name==='exit'){save();setup();}
   }
   function onScreen(name){
     if(!['lumen','lumen-game'].includes(name)&&story.active){sceneTicket++;waitingForStart=false;retryLaunch=null;story.close();}
     document.documentElement.classList.toggle('lumen-menu-active',name==='lumen');
-    if(screen==='lumen-game'&&name!=='lumen-game'){paused=true;save();stopRenderer();soundSuspend();}
+    if(screen==='lumen-game'&&name!=='lumen-game'){paused=true;save();stopRenderer();}
     if(screen==='lumen'&&name!=='lumen'){preview?.destroy();preview=null;}
-    if(!['lumen','lumen-game'].includes(name)){lockScreen(false);releaseFullscreen();soundSuspend();}
+    if(!['lumen','lumen-game'].includes(name)){lockScreen(false);releaseFullscreen();}
     screen=name;
   }
   function preventScroll(e){if(['lumen','lumen-game'].includes(screen)&&!e.target.closest('[data-lumen-scroll]'))e.preventDefault();}
@@ -400,11 +407,11 @@ export function createGame(context) {
     record().settings.volume=volume;persist();$('#lumenVolumeValue').textContent=volume+'%';e.target.setAttribute('aria-valuetext',volume+'%');
   },{signal});
   document.addEventListener('keyup',e=>keys.delete(e.code),{signal});
-  function deactivate(){appInactive=true;if(screen==='lumen-game'&&state?.status==='playing'&&!story.active)showPause('Экспедиция на паузе');clearInput();}
+  function deactivate(){appInactive=true;audio.stop();if(screen==='lumen-game'&&state?.status==='playing'&&!story.active)showPause('Экспедиция на паузе');clearInput();}
   window.addEventListener('blur',deactivate,{signal});
   window.addEventListener('focus',()=>{appInactive=false;},{signal});
   document.addEventListener('visibilitychange',()=>{if(document.hidden)deactivate();},{signal});
-  window.addEventListener('pagehide',()=>{if(screen==='lumen-game'&&state){paused=true;save();soundSuspend();}},{signal});
+  window.addEventListener('pagehide',()=>{if(screen==='lumen-game'&&state){paused=true;save();audio.stop();}},{signal});
   window.addEventListener('resize',()=>{viewport();if(preview&&screen==='lumen'){preview.resize();preview.draw(previewState,true);}},{signal});
   window.visualViewport?.addEventListener('resize',viewport,{signal});
   document.addEventListener('fullscreenchange',()=>{viewport();if(screen==='lumen-game'&&!document.fullscreenElement&&fullscreenOwned){fullscreenOwned=false;deactivate();}},{signal});

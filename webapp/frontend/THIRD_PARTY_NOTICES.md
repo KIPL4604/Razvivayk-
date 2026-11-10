@@ -78,6 +78,52 @@ The flying reference is exported from original project art. Sources and briefs:
 `design/lumen-pixel/motion-sources.md`. Weapon and crystal PNG atlases are original
 editable pixel artwork in the offline asset builder.
 
+### Expedition effects · November 2026
+
+`js/lumen/biome-vfx.mjs` adapts Ground Slam, Spore Burst, Fireflies,
+Ice Shatter and Candle from [Patch Pixelfx](https://github.com/patch-gg/pixelfx/tree/044e12a45dc9cc312cec50ee606dfc98afe5adc2)
+(0.3.1, commit `044e12a45dc9cc312cec50ee606dfc98afe5adc2`). These effects
+incorporate work by Hugo Duprez from Sprite Fusion's
+[open-source pixel-art VFX](https://www.spritefusion.com/pixel-art-vfx).
+The adaptation redraws selected phases in top-down Canvas coordinates.
+
+**MIT License**
+
+Copyright (c) 2026 Patch
+
+Copyright (c) 2026 Hugo Duprez
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+**Impact Sounds v1.0.** Kenney, [CC0 1.0 Universal](https://creativecommons.org/publicdomain/zero/1.0/).
+The source is [Kenney Impact Sounds](https://kenney.nl/assets/impact-sounds).
+Both Ogg files are the Patch Toolbox Web variants. Patch added credit to their
+comments without re-encoding.
+
+| In Lumen | Kenney file | Patch SHA-256 |
+| --- | --- | --- |
+| `assets/lumen/audio/quarry-impact.ogg` | `impactMining_000.ogg` | `2609b1bc63425f80c524480db5ac1e5b0dcf1d62194d4a905c126db7be106704` |
+| `assets/lumen/audio/castle-glass.ogg` | `impactGlass_heavy_000.ogg` | `4626d66ba683c7fd41044826f7c7d9fd689593e9f47cc9888d62a2cb1874c33e` |
+
+Expedition music, boss entrance notes and the other sound layers are
+original Web Audio synthesis in `js/lumen/audio.mjs`.
+
 The current Lumen interface uses Tektur by Adam Jagosz / The Tektur Project
 Authors, Copyright 2023, https://www.github.com/hyvyys/Tektur, under SIL Open
 Font License 1.1. Source: https://github.com/google/fonts/tree/main/ofl/tektur.

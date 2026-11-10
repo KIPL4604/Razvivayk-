@@ -3,6 +3,7 @@ import {WEAPONS,weaponStats,BOSSES,MAPS} from './catalog.mjs';
 import {bodyRadius,PLAYER_BODY} from './physics.mjs';
 import {BOSS_IMPACTS,BOSS_VARIANTS,bossCast} from './bosses.mjs';
 import {drawBossAim,drawBossFlight,drawBossImpact} from './boss-vfx.mjs';
+import {drawFireflies,chestLight} from './biome-vfx.mjs';
 import {ARENA_HAZARD_INSET} from './arena.mjs';
 import {arenaCover} from './arena-cover.mjs';
 import {WeaponVFX,arenaCamera} from './weapon-vfx.mjs';
@@ -363,6 +364,7 @@ export class Renderer {
       :heroAnimation==='hurt'?this.health.hitSince:heroAnimation==='attack'?this.attackUntil-.375:0;
     const props = this.ground(p,state);
     if(this.arena&&this.map!=='castle')this.arenaGround(this.arena,t);
+    if(this.map==='garden'&&!preview)drawFireflies(this,props,t);
     for(const enemy of state.enemies||[])if(enemy.castTarget)drawBossAim(this,enemy);
     if(state.upgrades?.collector&&!preview){
       const scan=this.media.matches?0:(t%3)/.9;
@@ -395,6 +397,15 @@ export class Renderer {
     if(state.relicState?.shield>0&&!preview)this.shield(p.x,p.y,45,.52);
     for (const gem of state.gems || []) {
       const tier=crystalTier(gem),point=this.pose(gem,'gems');
+      const previous=this.previous.gems.get(gem);
+      if(!this.media.matches&&previous&&Math.hypot(gem.x-previous.x,gem.y-previous.y)>1){
+        const [x,y]=this.at(point.x,point.y),[px,py]=this.at(previous.x,previous.y);
+        const size=Math.max(1,Math.round(z*3));
+        c.save();c.fillStyle=tier===1?'#78bbcc':tier===2?'#dca96a':'#d990b4';
+        c.globalAlpha=.48;c.fillRect(px+(px-x)*.6,py+(py-y)*.6,size,size);
+        c.globalAlpha=.24;c.fillRect(px+(px-x)*1.7,py+(py-y)*1.7,size,size);
+        c.restore();
+      }
       this.blit('combat', (3+tier)*32, 0, 32, 32, point.x, point.y, 32, undefined, .5);
     }
     for(const orbitId of ['orbit','cyclone'])if (state.upgrades?.[orbitId]) {
@@ -522,6 +533,7 @@ export class Renderer {
         c.save();c.globalAlpha=Math.min(.8,fraction+.2);c.fillStyle=this.map==='castle'?'#f0c474':'#d3a8ed';
         for(let i=0;i<24;i++){const a=i/24*TAU,[x,y]=this.at(effect.x+Math.cos(a)*radius,effect.y+Math.sin(a)*radius);c.fillRect(x-2*this.dpr,y-2*this.dpr,4*this.dpr,4*this.dpr);}c.restore();
       }else if(effect.kind==='chest'){
+        chestLight(this,effect,1-fraction);
         if(effect.mega&&this.art.images['mega-chest'])this.blit('mega-chest',(3+Math.min(2,Math.floor((1-fraction)*3)))*96,0,96,96,effect.x,effect.y,154,154,.85);
         else this.blit('arsenal',(3+Math.min(3,Math.floor((1-fraction)*4)))*48,144,48,48,effect.x,effect.y,100,100,.85);
       }else if(effect.kind==='warning'){
@@ -549,7 +561,7 @@ export class Renderer {
       c.save();c.globalAlpha=.9;c.fillStyle='#17262e';c.fillRect(px-margin*.6,py-margin*.6,margin*1.2,margin*1.2);
       c.drawImage(this.art.images.arsenal,0,144,48,48,Math.round(px-margin*.6),Math.round(py-margin*.6),Math.round(margin*1.2),Math.round(margin*1.2));c.restore();
     }
-    if (!this.media.matches&&this.map!=='castle') {
+    if (!this.media.matches&&this.map!=='castle'&&this.map!=='garden') {
       for (let i = 0; i < 12; i++) {
         const x = p.x - this.width / this.scale / 2 + (i * 179 + t * 3) % (this.width / this.scale);
         const y = p.y - this.height / this.scale / 2 + (i * 127 + Math.sin(t + i) * 5) % (this.height / this.scale);

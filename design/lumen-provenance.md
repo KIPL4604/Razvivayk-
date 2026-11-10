@@ -18,7 +18,8 @@ Survivors не использовались и не исследовались �
 | Восемь предметных значков, снаряды, поля огня/терний, сундук/монеты | Оригинальный imagegen atlas8×4, нормализация48px с жёсткой прозрачностью; `design/lumen-arsenal/` |
 | Лунный карьер | Оригинальный imagegen atlas, исходный/исправленный PNG и prompts в `design/lumen-campaign/`; офлайн32px tiles/64px props |
 | Миниатюра каталога | PNG-композиция из собственных атласов, `assets/lumen/cover.png` |
-| Звуки | Синтез Web Audio: короткие синусоидальные сигналы, `js/lumen/game.mjs`; аудиофайлы не поставляются |
+| Музыка и звуки | Оригинальный синтез Web Audio в `js/lumen/audio.mjs`; два сэмпла Kenney Impact Sounds v1.0 из Patch Toolbox, CC0 |
+| Атмосфера и удары экспедиций | Адаптации пяти эффектов Patch Pixelfx в `js/lumen/biome-vfx.mjs`, MIT, Patch и Hugo Duprez |
 | Названия, описание, правила, интерфейс | Написаны для этого режима; интерфейс DOM/CSS в существующем Teramont |
 | Шрифт игрового HUD | Tektur, локальный статический Latin/Cyrillic subset; source сохранён, SIL OFL1.1 в `assets/lumen/fonts/OFL-Tektur.txt`. Tiny5 первого среза сохранён для истории |
 | Runtime | Стандартные Canvas 2D, Web Audio, Pointer Events и Fullscreen API; новых сторонних пакетов нет |

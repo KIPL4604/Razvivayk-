@@ -1,4 +1,5 @@
 import {bossCast,glassCrossHalfWidth} from './bosses.mjs';
+import {groundSlam,shatter,sporeBurst} from './biome-vfx.mjs';
 
 const TAU=Math.PI*2;
 const thornLayout=[
@@ -135,16 +136,18 @@ export function drawBossFlight(r,enemy,point){
 }
 
 export function drawBossImpact(r,e){
-  const progress=1-e.life/e.maxLife;
+  const progress=Math.max(0,Math.min(1,1-e.life/e.maxLife));
+  const reduced=r.media.matches,seed=(e.x|0)^Math.imul(e.y|0,65537);
   const c=anchor(r,e.x,e.y);
   c.globalAlpha=Math.min(1,(1-progress)*3.6);
   if(e.kind==='brambles'){
     circle(c,e.radius,'#802c3b61','#e36258');
     thornLayout.forEach(([x,y,height,lean],i)=>{
-      const rise=Math.max(.08,Math.min(1,(progress-i*.012)*9));
-      const wilt=1-Math.max(0,progress-.65)*1.85;
+      const rise=reduced?1:Math.max(.08,Math.min(1,(progress-i*.012)*9));
+      const wilt=reduced?1:1-Math.max(0,progress-.65)*1.85;
       thorn(c,x*e.radius,y*e.radius,height*1.2*rise*wilt,lean,true);
     });
+    if(!reduced)sporeBurst(c,e.radius,progress,seed);
   }else if(e.kind==='boulder'){
     circle(c,e.radius,'#9775b036','#dcbde4');
     c.strokeStyle='#332839';
@@ -160,36 +163,28 @@ export function drawBossImpact(r,e){
     }
     for(let i=0;i<3;i++){
       const angle=i*TAU/3+.38;
+      const offset=13+(reduced?0:14*progress);
       c.save();
-      c.translate(Math.cos(angle)*(13+14*progress),Math.sin(angle)*(13+14*progress));
+      c.translate(Math.cos(angle)*offset,Math.sin(angle)*offset);
       stone(c,16-i*2,angle);
       c.restore();
     }
-    if(!r.media.matches){
-      for(let i=0;i<10;i++){
-        const angle=i*TAU/10;
-        const distance=e.radius*(.25+progress*.7);
-        const x=Math.cos(angle)*distance,y=Math.sin(angle)*distance-Math.sin(progress*Math.PI)*24;
-        polygon(c,i%2?'#c8accd':'#706481',[[x-7,y+2],[x-2,y-6],[x+6,y-2],[x+4,y+5]]);
-      }
+    if(!reduced){
+      groundSlam(c,e.radius,progress);
+      shatter(c,e.radius,progress,seed,false);
     }
   }else{
     cross(c,e.radius,'#e064665b','#ffcf8a');
-    if(!r.media.matches&&progress<.32){
-      c.save();
-      c.globalAlpha*=1-progress/.32;
-      cross(c,e.radius,'#ffe4b04c','#ffeab5');
-      c.restore();
-    }
     for(let n=-4;n<=4;n++){
       if(!n)continue;
       const distance=e.radius*n*.23;
-      const rise=Math.max(.1,Math.min(1,(progress-.022*Math.abs(n))*8));
+      const rise=reduced?1:Math.max(.1,Math.min(1,(progress-.022*Math.abs(n))*8));
       const height=(25+5*Math.abs(n))*rise;
       glass(c,distance,0,height);
       glass(c,n%2?8:-8,distance,height);
     }
-    glass(c,0,4,67*Math.min(1,.2+progress*8));
+    glass(c,0,4,67*(reduced?1:Math.min(1,.2+progress*8)));
+    if(!reduced&&progress>.09)shatter(c,e.radius,(progress-.09)/.91,seed,true);
   }
   c.restore();
 }
