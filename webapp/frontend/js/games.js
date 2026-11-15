@@ -91,7 +91,10 @@ function renderCatalog(){
   const neon='<button class="campaign-card" type="button" data-screen-link="neon-frontier" '+(gameFilter!=="Все"&&gameFilter!=="Аркада"?"hidden":"")+' aria-label="Неоновый рубеж. Играть">'+
     '<img class="game-art" src="/static/neon-frontier.svg?v=1" width="192" height="116" loading="lazy" decoding="async" alt="">'+
     '<span class="campaign-card-copy"><span class="campaign-category">Аркада · космос</span><strong>Неоновый рубеж</strong><span class="campaign-card-progress"><span>2 сектора</span>'+uiIcon("arrow")+'</span></span></button>';
-  $("#campaignCards").innerHTML=lumen+SpecimenMode.catalog()+neon+PixelHopMode.catalog(gameFilter)+CardGames.catalog()+poker+chess+GAME_ORDER.map(game=>{
+  const pythonStation='<button class="campaign-card" type="button" data-screen-link="python-station" '+(gameFilter!=="Все"&&gameFilter!=="Мышление"?"hidden":"")+' aria-label="Питон-станция. Учить Python">'+
+    '<img class="game-art" src="/static/assets/python-station/cover.webp?v=1" width="480" height="290" loading="lazy" decoding="async" alt="">'+
+    '<span class="campaign-card-copy"><span class="campaign-category">Python · обучение</span><strong>Питон-станция</strong><span class="campaign-card-progress"><span>5 уроков и миссия</span>'+uiIcon("arrow")+'</span></span></button>';
+  $("#campaignCards").innerHTML=lumen+SpecimenMode.catalog()+pythonStation+neon+PixelHopMode.catalog(gameFilter)+CardGames.catalog()+poker+chess+GAME_ORDER.map(game=>{
     const d=GAME_CATALOG[game],p=currentCampaign(game),run=saved.runs[game],resume=run&&!run.completed;
     return '<button class="campaign-card" type="button" data-campaign="'+game+'" '+(gameFilter!=="Все"&&d.category!==gameFilter?"hidden":"")+' aria-label="'+escapeHtml(d.name)+'. '+(resume?'Есть сохранённая партия. ':'')+'Открыть кампанию">'+gameArt(game)+'<span class="campaign-card-copy"><span class="campaign-category">'+escapeHtml(d.category)+'</span><strong>'+escapeHtml(d.name)+'</strong><span class="campaign-card-progress"><span>'+(resume?"Есть сохранение":p.complete?"100 / 100 · пройдено":"Уровень "+p.unlockedLevel+" / 100")+'</span>'+uiIcon("arrow")+'</span>'+(p.completedCount?'<span class="xp-track"><span style="width:'+p.completedCount+'%"></span></span>':'')+'</span></button>';
   }).join("");
@@ -165,11 +168,12 @@ function showScreen(name){
 }
 function showScreenContent(name){
   pauseGame();clearTimeout(revealHandle);if(saved.current?.revealing){saved.current.revealing=false;saved.current.ready=false;saveState();}
-  activeScreen=name;$("#app").classList.toggle("is-playing",["game","chess-game","poker-game","lumen-game","specimen","card-game","pixel-hop","neon-frontier"].includes(name));$$("#main .screen").forEach(s=>s.classList.toggle("active",s.dataset.screen===name));$("#main").scrollTop=0;
+  activeScreen=name;$("#app").classList.toggle("is-playing",["game","chess-game","poker-game","lumen-game","specimen","card-game","pixel-hop","neon-frontier","python-station"].includes(name));$$("#main .screen").forEach(s=>s.classList.toggle("active",s.dataset.screen===name));$("#main").scrollTop=0;
   $$(".bottom-nav button").forEach(b=>{b.classList.toggle("active",b.dataset.screenLink===name);b.setAttribute("aria-current",b.dataset.screenLink===name?"page":"false");});
   if(name==="home")renderHome();else if(name==="profile"||name==="levels")updateProfileUI();
   $("#app").classList.toggle("is-poker",name==="poker-game");PokerMode.onScreen(name);ChessMode.onScreen(name);Platform.onScreen(name);LumenMode.onScreen(name);SpecimenMode.onScreen(name);CardGames.onScreen(name);CardRoom.onScreen(name);PixelHopMode.onScreen(name);window.Social?.onScreen(name);hydrateIcons();
   GameAssets.controller("neon-frontier")?.onScreen(name);
+  GameAssets.controller("python-station")?.onScreen(name);
   if(hasTelegramIdentity&&tg?.isVersionAtLeast?.("6.1")&&tg?.BackButton){if(name==="home")tg.BackButton.hide();else tg.BackButton.show();}
   const heading=name==="card-game"?null:$(`.screen[data-screen="${name}"] h1,.screen[data-screen="${name}"] h2`);if(heading){heading.tabIndex=-1;heading.focus({preventScroll:true});}
 }
