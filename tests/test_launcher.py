@@ -34,6 +34,20 @@ class LauncherHealthTests(unittest.TestCase):
 
 
 class LauncherTunnelTests(unittest.TestCase):
+    def test_recognizes_nested_and_legacy_public_hosts(self):
+        self.assertEqual(
+            run_local.tunnel_url('{"type":"run.localhost.tunnel.registered","subject":"demo123.app.lhr.life"}'),
+            'https://demo123.app.lhr.life',
+        )
+        self.assertEqual(
+            run_local.tunnel_url('Tunnel ready: https://demo123.lhr.life.'),
+            'https://demo123.lhr.life',
+        )
+
+    def test_ignores_documentation_and_external_host_suffix(self):
+        self.assertEqual(run_local.tunnel_url('See https://admin.localhost.run/'), '')
+        self.assertEqual(run_local.tunnel_url('https://demo123.app.lhr.life.example.invalid'), '')
+
     def launch_once(self, root, environment):
         stop = root / 'stop-request'
         process = Mock(pid=1234, stdout=io.StringIO(''))

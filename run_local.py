@@ -25,6 +25,20 @@ URL_FILE = RUNTIME / 'public-url.json'
 STOP = RUNTIME / 'stop-request'
 PORT = 8080
 FLAGS = subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0
+TUNNEL_HOST = re.compile(
+    r'(?<![\w.-])((?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+'
+    r'(?:lhr\.life|localhost\.run))(?![\w-]|\.[a-z0-9])',
+    re.IGNORECASE,
+)
+
+
+def tunnel_url(line: str) -> str:
+    # Registered hosts can include several labels before lhr.life.
+    for host in reversed(TUNNEL_HOST.findall(line)):
+        host = host.lower()
+        if host.split('.')[0] not in ('docs', 'admin', 'cd'):
+            return 'https://' + host
+    return ''
 
 
 @contextmanager
@@ -179,10 +193,9 @@ def run():
             if line:
                 if '\x1b' not in line and line.strip():
                     logging.info('Tunnel event: %s',line.strip()[:300])
-                matches = re.findall(r'(?:https://)?([a-zA-Z0-9-]+\.(?:lhr\.life|localhost\.run))',line)
-                matches = [host for host in matches if host.split('.')[0] not in ('docs','admin','cd')]
-                if matches:
-                    candidate = 'https://' + matches[-1]
+                assigned_url = tunnel_url(line)
+                if assigned_url:
+                    candidate = assigned_url
                 elif 'error' in line.lower():
                     errors.append(line.strip()[:180])
             # localhost.run can register a replacement hostname on the same SSH
