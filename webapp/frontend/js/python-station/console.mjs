@@ -8,7 +8,7 @@ class PythonError extends Error {
 }
 
 const syntax = message => { throw new PythonError("SyntaxError", message); };
-const lexeme = /\s+|#.*$|"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|[0-9]+|[A-Za-z_]\w*|[+-]=|[=()+-]|./gy;
+const lexeme = /\s+|#.*$|"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|[0-9]+|[A-Za-z_]\w*|[+-]=|[=()*+-]|./gy;
 const escapes = new Map([["n", "\n"], ["t", "\t"], ["r", "\r"], ["\\", "\\"], ['"', '"'], ["'", "'"]]);
 const reserved = new Set("False None True and as assert async await break class continue def del elif else except finally for from global if import in is lambda nonlocal not or pass raise return try while with yield".split(" "));
 
@@ -26,7 +26,7 @@ function stringValue(token) {
 
 function calculate(left, operator, right) {
   if (typeof left === "number" && typeof right === "number") {
-    const value = operator === "+" ? left + right : left - right;
+    const value = operator === "*" ? left * right : operator === "+" ? left + right : left - right;
     if (!Number.isSafeInteger(value)) throw new PythonError("OverflowError", "Возьми числа поменьше.");
     return value;
   }
@@ -76,11 +76,17 @@ class Statement {
   }
 
   expression() {
-    let value = this.term();
+    let value = this.product();
     while (["+", "-"].includes(this.tokens[this.index])) {
       const operator = this.tokens[this.index++];
-      value = calculate(value, operator, this.term());
+      value = calculate(value, operator, this.product());
     }
+    return value;
+  }
+
+  product() {
+    let value = this.term();
+    while (this.take("*")) value = calculate(value, "*", this.term());
     return value;
   }
 

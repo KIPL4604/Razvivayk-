@@ -10,6 +10,12 @@ test("explains strings and numbers using Python's result", () => {
   assert.equal(result.error, null);
 });
 
+test("multiplication has priority over addition and subtraction", () => {
+  const result = runPython("print(3 + 2 * 4)\nprint((3 + 2) * 4)\nprint(10 - 3 * -2)");
+  assert.equal(result.error, null);
+  assert.deepEqual(result.output, ["11", "20", "16"]);
+});
+
 test("reports syntax, names and types at the offending line", () => {
   assert.equal(runPython('print("На связи"').error.name, "SyntaxError");
   assert.equal(runPython("print('На связи')\nprint(energy)").error.line, 2);

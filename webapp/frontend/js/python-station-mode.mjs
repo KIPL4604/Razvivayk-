@@ -1,4 +1,4 @@
-import { MAX_SOURCE, runPython } from "./python-station/console.mjs?v=1";
+import { MAX_SOURCE, runPython } from "./python-station/console.mjs?v=2";
 import { checkLesson, lessonSource, lessons } from "./python-station/lessons.mjs?v=1";
 import { stationView } from "./python-station/station.mjs?v=2";
 
@@ -26,8 +26,7 @@ function loadProgress(key) {
   }
 }
 
-export function createPythonStationController() {
-  const mount = document.querySelector("#pythonStationMount");
+export function createPythonStationController(mount = document.querySelector("#pythonStationMount")) {
   const user = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
   const key = "teramont.python-station.v1." + (Number.isSafeInteger(user) ? user : "local");
   const state = loadProgress(key);
