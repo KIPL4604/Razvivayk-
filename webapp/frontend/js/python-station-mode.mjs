@@ -1,6 +1,6 @@
 import { MAX_SOURCE, runPython } from "./python-station/console.mjs?v=1";
 import { checkLesson, lessonSource, lessons } from "./python-station/lessons.mjs?v=1";
-import { stationView } from "./python-station/station.mjs?v=1";
+import { stationView } from "./python-station/station.mjs?v=2";
 
 const stationStatus = ["Связь потеряна", "Связь восстановлена", "Питание включено", "Датчик работает", "Шлюз открыт", "Маршрут готов", "Маяк включён"];
 const encode = text => String(text).replace(/[&<>"']/g, character =>
@@ -32,14 +32,18 @@ export function createPythonStationController() {
   const key = "teramont.python-station.v1." + (Number.isSafeInteger(user) ? user : "local");
   const state = loadProgress(key);
   let index = state.completed;
-  let visible = false, hint = 0, outcome = null, exampleShown = false, storageWarning = false;
+  let visible = false, screenMode = "map", hint = 0, outcome = null, exampleShown = false, storageWarning = false;
   mount.innerHTML = `
-    <div class="ps-shell">
+    <div class="ps-shell" data-view="map">
       <header class="ps-header">
-        <button class="ps-back" type="button" data-screen-link="home"><span aria-hidden="true">←</span> Игры</button>
-        <h1>Питон-станция</h1>
+        <button class="ps-back" type="button" data-screen-link="home" aria-label="Вернуться к играм"><span aria-hidden="true">←</span><span>Игры</span></button>
+        <h1 tabindex="-1">Питон-станция</h1>
         <span class="ps-chapter">Глава 1 <span>· Запуск робота</span></span>
       </header>
+      <section class="ps-progress" aria-label="Прогресс главы">
+        <div class="ps-progress-copy"><span>Глава 1 · Запуск робота</span><strong class="ps-progress-label"></strong></div>
+        <div class="ps-progress-meter" role="progressbar" aria-label="Выполненные задания" aria-valuemin="0" aria-valuemax="${lessons.length}" aria-valuenow="0"><span class="ps-progress-fill"></span></div>
+      </section>
       <div class="ps-layout">
         <aside class="ps-station" aria-label="Состояние станции">
           <div class="ps-view">
@@ -47,7 +51,7 @@ export function createPythonStationController() {
             <div class="ps-view-readout"><span class="ps-signal" aria-hidden="true"></span><span id="ps-system" role="status"></span></div>
             <button class="ps-orbit" data-ps-action="orbit" type="button" aria-label="Повернуть станцию" title="Повернуть станцию">↻</button>
           </div>
-          <nav class="ps-route" aria-label="Задания главы"></nav>
+          <nav class="ps-route" aria-label="Маршрут заданий главы"></nav>
         </aside>
         <div class="ps-work"></div>
       </div>
@@ -66,13 +70,29 @@ export function createPythonStationController() {
   function updateStation() {
     find("#ps-system").textContent = stationStatus[state.completed];
     find(".ps-view").dataset.online = String(state.completed > 0);
+    find(".ps-shell").dataset.view = screenMode;
+    const meter = find(".ps-progress-meter");
+    const progressLabel = find(".ps-progress-label");
+    meter.setAttribute("aria-valuenow", String(state.completed));
+    meter.setAttribute("aria-valuetext", `${state.completed} из ${lessons.length} заданий`);
+    progressLabel.textContent = state.completed === lessons.length
+      ? `Все ${lessons.length} заданий пройдены`
+      : `${state.completed} из ${lessons.length} заданий`;
+    find(".ps-progress-fill").style.transform = `scaleX(${state.completed / lessons.length})`;
     view.setProgress(state.completed);
-    route.innerHTML = lessons.map((lesson, step) => `
-      <button type="button" data-ps-step="${step}" aria-label="${encode(lesson.name)}${step < state.completed ? ", пройдено" : step > state.completed ? ", закрыто" : ""}"
-        ${step === index ? 'aria-current="step"' : ""} ${step > state.completed ? "disabled" : ""}>
-        <span class="ps-route-number">${step < state.completed ? "✓" : String(step + 1).padStart(2, "0")}</span>
-        <span class="ps-route-text">${lesson.system}</span>
-      </button>`).join("");
+    route.innerHTML = lessons.map((lesson, step) => {
+      const completed = step < state.completed;
+      const available = step === state.completed && state.completed < lessons.length;
+      const status = completed ? "Пройдено" : available ? "Доступно" : "Закрыто";
+      const badge = completed ? "✓" : available ? String(step + 1).padStart(2, "0") : `<svg viewBox="0 0 24 24" focusable="false"><path d="M8 10V7a4 4 0 0 1 8 0v3"></path><rect x="5" y="10" width="14" height="11" rx="2"></rect></svg>`;
+      return `
+        <button class="ps-route-node ${completed ? "is-complete" : available ? "is-current" : "is-locked"}" type="button" data-ps-step="${step}"
+          aria-label="${encode(lesson.name)}, этап ${step + 1} из ${lessons.length}, ${status}"
+          ${available ? 'aria-current="step"' : ""} ${step > state.completed ? "disabled" : ""}>
+          <span class="ps-route-badge" aria-hidden="true">${badge}</span>
+          <span class="ps-route-copy"><strong class="ps-route-text">${lesson.system}</strong><span class="ps-route-status">${status}</span></span>
+        </button>`;
+    }).join("");
   }
 
   function outputMarkup(result) {
@@ -100,18 +120,33 @@ export function createPythonStationController() {
 
   function render(focus) {
     updateStation();
+    if (screenMode === "map") {
+      const complete = state.completed === lessons.length;
+      const next = lessons[complete ? 0 : state.completed];
+      work.innerHTML = `<section class="ps-map-card">
+        <span class="ps-kicker">${complete ? "Глава завершена" : "Маршрут обучения"}</span>
+        <h2 class="ps-map-title" tabindex="-1">Запуск робота</h2>
+        <p class="ps-map-description">5 уроков и финальная миссия</p>
+        ${complete ? "" : `<div class="ps-map-next"><span>Следующий этап</span><strong>${encode(next.name)}</strong></div>`}
+        <button class="ps-primary ps-map-start" type="button" data-ps-action="begin">${complete ? "Повторить уроки" : state.completed ? "Продолжить обучение" : "Начать обучение"}<span aria-hidden="true">→</span></button>
+        <p class="ps-storage" role="status" ${storageWarning ? "" : "hidden"}>Не удалось сохранить прогресс на этом устройстве.</p>
+      </section>`;
+      if (focus) find(focus)?.focus({ preventScroll: true });
+      return;
+    }
     const lesson = lessons[index];
     if (!lesson) {
       work.innerHTML = `<article class="ps-lesson ps-finish">
         <span class="ps-kicker">6 из 6 заданий</span><h2 tabindex="-1">Маяк включён</h2>
         <p>Робот вернулся на станцию. Ты отправил сообщение, поработал с переменными и рассчитал заряд на весь маршрут.</p>
         <div class="ps-final-charge"><span>Заряд после поездки</span><strong>9</strong></div>
-        <div class="ps-actions"><button class="ps-primary" type="button" data-ps-step="0">Повторить уроки</button><button class="ps-secondary" type="button" data-screen-link="home">К играм</button></div>
+        <div class="ps-actions"><button class="ps-primary" type="button" data-ps-action="map">К маршруту</button><button class="ps-secondary" type="button" data-ps-step="0">Повторить уроки</button></div>
         <p class="ps-storage" role="status" ${storageWarning ? "" : "hidden"}>Не удалось сохранить прогресс на этом устройстве.</p>
       </article>`;
     } else {
       const answer = state.drafts[index];
       work.innerHTML = `<article class="ps-lesson">
+        <button class="ps-map-back" type="button" data-ps-action="map"><span aria-hidden="true">←</span> Карта главы</button>
         <span class="ps-kicker">${lesson.mission ? "Задание 6 / 6 · Миссия" : "Урок " + (index + 1) + " / 5"}</span>
         <h2 tabindex="-1">${lesson.name}</h2>
         <p class="ps-explanation">${lesson.explanation}</p>
@@ -134,7 +169,7 @@ export function createPythonStationController() {
       </article>`;
       updateFeedback();
     }
-    if (focus) find(focus)?.focus();
+    if (focus) find(focus)?.focus({ preventScroll: true });
   }
 
   function updateFeedback() {
@@ -154,11 +189,23 @@ export function createPythonStationController() {
   }
 
   function select(step) {
+    document.querySelector("#main").scrollTop = 0;
+    screenMode = "lesson";
     index = step;
     hint = 0;
     outcome = null;
     exampleShown = false;
     render(".ps-work h2");
+  }
+
+  function showMap() {
+    document.querySelector("#main").scrollTop = 0;
+    screenMode = "map";
+    index = state.completed < lessons.length ? state.completed : 0;
+    hint = 0;
+    outcome = null;
+    exampleShown = false;
+    render(".ps-header h1");
   }
 
   function record(value) {
@@ -213,6 +260,10 @@ export function createPythonStationController() {
       select(Number(psStep));
     } else if (psAction === "orbit") {
       view.rotate();
+    } else if (psAction === "map") {
+      showMap();
+    } else if (psAction === "begin") {
+      select(state.completed < lessons.length ? state.completed : 0);
     } else if (psAction === "next") {
       select(index + 1);
     } else if (psAction === "example") {
@@ -261,7 +312,7 @@ export function createPythonStationController() {
       if (nextVisible === visible) return;
       visible = nextVisible;
       view.show(visible);
-      if (visible) select(state.completed);
+      if (visible) showMap();
       else if (screen === "home") queueMicrotask(() => document.querySelector('[data-screen-link="python-station"]')?.focus());
     },
   };

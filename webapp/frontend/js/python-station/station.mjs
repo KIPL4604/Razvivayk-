@@ -1,11 +1,11 @@
 const TAU = 2 * Math.PI;
 const palette = {
-  hull: [59, 47, 80],
-  deck: [44, 37, 61],
-  armor: [89, 70, 117],
-  steel: [119, 94, 156],
-  black: [29, 23, 43],
-  off: [105, 77, 146],
+  hull: [57, 56, 96],
+  deck: [40, 43, 74],
+  armor: [84, 84, 132],
+  steel: [117, 109, 166],
+  black: [28, 29, 53],
+  off: [95, 79, 143],
   violet: [168, 102, 245],
   hot: [226, 174, 255],
 };
@@ -137,20 +137,32 @@ export function paintStation(canvas, progress = 0, angle = -.60) {
     ctx.stroke();
   }
 
-  ctx.fillStyle = "#100d18";
+  ctx.fillStyle = "#17192f";
   ctx.fillRect(0, 0, width, height);
   const light = ctx.createRadialGradient(centerX * .88, centerY * .76, 0, centerX, centerY * .75, width * .66);
-  light.addColorStop(0, progress >= 2 ? "#362052" : "#251a38");
-  light.addColorStop(1, "#100d18");
+  light.addColorStop(0, progress >= 2 ? "#45406f" : "#343253");
+  light.addColorStop(1, "#17192f");
   ctx.fillStyle = light;
   ctx.fillRect(0, 0, width, height);
+  ctx.save();
+  ctx.translate(centerX, centerY + scale * .42);
+  ctx.scale(1, .28);
+  const shadow = ctx.createRadialGradient(0, 0, scale * .25, 0, 0, scale * 4.5);
+  shadow.addColorStop(0, "rgba(8,10,27,.62)");
+  shadow.addColorStop(.68, "rgba(8,10,27,.24)");
+  shadow.addColorStop(1, "rgba(8,10,27,0)");
+  ctx.fillStyle = shadow;
+  ctx.beginPath();
+  ctx.arc(0, 0, scale * 4.5, 0, TAU);
+  ctx.fill();
+  ctx.restore();
   for (let i = 0; i < 78; i++) {
     const alpha = .08 + random(i * 5 + 2) * .45;
     ctx.fillStyle = "rgba(206,176,244," + alpha + ")";
     const size = Math.max(.8, scale * .024 * random(i * 3 + 17));
     ctx.fillRect(width * random(i * 2 + 31), height * random(i * 2 + 32), size, size);
   }
-  ctx.strokeStyle = "#9364c426";
+  ctx.strokeStyle = "#aaa2ec2d";
   ctx.lineWidth = Math.max(1, scale * .011);
   for (let i = -8; i <= 8; i++) {
     line([-9, -.65, i], [9, -.65, i]);
