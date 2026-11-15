@@ -1,6 +1,6 @@
 const theory = (text, code) => ({ kind: "theory", text, code });
-const quiz = (text, code, correct, distractors, why) =>
-  ({ kind: "quiz", text, code, options: [correct, ...distractors], why });
+const quiz = (text, code, correct, distractors, why, hint = "") =>
+  ({ kind: "quiz", text, code, options: [correct, ...distractors], why, hint });
 const practice = (text, starter, cases, hint, display = "", output = null) =>
   ({ kind: "practice", text, starter, cases, hint, display, output });
 const values = (expected, initial = {}) => ({ expected, initial });
@@ -16,11 +16,11 @@ export const intro = {
 
 export const stages = [
   { title: "Имя и значение", slides: [
-    theory("Переменная похожа на подписанную коробку. В примере cups — имя на наклейке, а 3 — значение, которое по нему можно найти.", "cups = 3"),
-    quiz("Где имя переменной?", "cups = 3", "cups", ["3", "="], "cups — имя, по которому Python находит значение."),
-    quiz("Какое значение связано с именем cups?", "cups = 3", "3", ["cups", "0"], "Справа от = находится значение 3."),
-    quiz("Как записать число 5 под именем cups?", "", "cups = 5", ['cups = "5"', "5 = cups"], "Имя стоит слева, число — справа. Кавычки превращают 5 в текст."),
-    practice("Запиши число 5 под именем cups.", "", [values({ cups: 5 })], "Слева напиши cups, затем = и число."),
+    theory("Представь коробку с наклейкой: cups — её имя, 3 — число, которое в ней хранится. Знак = сохраняет значение. Имя пишем слева, значение — справа.", "cups = 3"),
+    quiz("Где имя переменной?", "cups = 3", "cups", ["3", "="], "cups — имя, по которому Python находит значение.", "Вспомни наклейку на коробке. Где в строке стоит имя?"),
+    quiz("Какое значение связано с именем cups?", "cups = 3", "3", ["cups", "0"], "Справа от = находится значение 3.", "Посмотри на часть строки после знака =."),
+    quiz("Как записать число 5 под именем cups?", "", "cups = 5", ['cups = "5"', "5 = cups"], "Имя стоит слева, число — справа. Кавычки превращают 5 в текст.", "Где должно стоять имя? Как пишется число, если это не текст?"),
+    practice("Напиши одну строку: сохрани число 5 под именем cups.", "", [values({ cups: 5 })], "Слева напиши cups, затем =. Справа запиши число без кавычек."),
   ] },
   { title: "Первое присваивание", slides: [
     theory("Знак = присваивает значение имени слева. Это похоже на запись числа в подписанную клетку таблицы.", "apples = 4"),
@@ -34,7 +34,10 @@ export const stages = [
     quiz("Что покажет консоль?", "cups = 5\nprint(cups)", "5", ["cups", "0"], "Python ищет значение имени cups и выводит 5."),
     quiz("Что покажет консоль теперь?", 'cups = 5\nprint("cups")', "cups", ["5", "Ошибка"], "Кавычки превращают cups в обычный текст."),
     quiz("Как вывести значение books?", "", "print(books)", ['print("books")', "books = print"], "Передай имя books в print() без кавычек."),
-    practice("Выведи значение cups. Переменная уже задана.", "print(", [values({}, { cups: 8 })], "Допиши cups и закрой скобку.", "", ["8"]),
+    practice("Выведи значение cups. Переменная уже задана, и её число может меняться.", "print(", [
+      { initial: { cups: 8 }, expected: {}, output: ["8"] },
+      { initial: { cups: 13 }, expected: {}, output: ["13"] },
+    ], "Допиши cups и закрой скобку."),
   ] },
   { title: "Практика на табло", slides: [
     theory("В тренажёре табло читает значение переменной level. Каждый запуск берёт значение из твоей программы.", "level = 2"),
@@ -74,7 +77,10 @@ export const stages = [
     quiz("Что напечатает программа?", "apples = 4\npears = 6\nprint(pears)", "6", ["4", "10"], "print() получает значение pears."),
     quiz("Как вывести apples?", "", "print(apples)", ['print("apples")', "print(pears)"], "Имя в скобках определяет, какое значение будет выведено."),
     quiz("Сколько строк вывода здесь?", "print(apples)\nprint(pears)", "Две", ["Одна", "Три"], "Каждый вызов print() выводит отдельную строку."),
-    practice("Выведи сперва pears, потом apples.", "", [values({}, { apples: 4, pears: 6 })], "Напиши два вызова print() на отдельных строках.", "", ["6", "4"]),
+    practice("Выведи сперва pears, потом apples.", "", [
+      { initial: { apples: 4, pears: 6 }, expected: {}, output: ["6", "4"] },
+      { initial: { apples: 9, pears: 2 }, expected: {}, output: ["2", "9"] },
+    ], "Напиши два вызова print() на отдельных строках."),
   ] },
   { title: "Новое значение", slides: [
     theory("Можно снова присвоить значение тому же имени. Это как исправить число в клетке таблицы.", "level = 2\nlevel = 5\nprint(level)"),

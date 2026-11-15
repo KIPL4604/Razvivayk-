@@ -1,5 +1,5 @@
 import { MAX_SOURCE, runPython } from "./python-station/console.mjs?v=2";
-import { intro, stages } from "./python-station/course-content.mjs?v=2";
+import { intro, stages } from "./python-station/course-content.mjs?v=3";
 import { stationView } from "./python-station/station.mjs?v=2";
 import { createPythonStationController as createLegacy } from "./python-station-mode.mjs?v=4";
 
@@ -63,6 +63,7 @@ function verify(slide, code) {
 }
 
 const iconShapes = {
+  book: '<path d="M12 6v14M3 4h5c2 0 4 1 4 3 0-2 2-3 4-3h5v13h-5c-2 0-4 1-4 3 0-2-2-3-4-3H3z"/>',
   code: '<path d="m8 7-5 5 5 5m8-10 5 5-5 5m-3-12-2 14"/>',
   review: '<path d="M4 11a8 8 0 1 1 2 6m-2-6V5m0 6h6"/>',
   project: '<path d="M3 7h7l2 2h9v10H3z"/>',
@@ -93,6 +94,8 @@ export function createPythonCourseController() {
   const model = stationView(station.querySelector("canvas"));
   const gauge = station.querySelector(".pc-gauge strong");
   let legacy, mode = "map", step = -1, page = 0, projectIndex = -1, active = false;
+  let mapScroll = 0, reviewing = false, wrongAnswers = 0;
+  let reviewDrafts = {};
   let courseError = false;
   const get = selector => root.querySelector(selector);
   const chapter = () => chapterAt(step);
@@ -114,37 +117,80 @@ export function createPythonCourseController() {
     main.scrollTop = 0;
   }
 
+  const isDone = index => index === -1 ? state.intro : index < state.completed;
+  const isOpen = index => index === -1 || (state.intro && index <= state.completed);
+  const nextIsland = () => !state.intro ? -1 : Math.min(state.completed, stages.length - 1);
+  const lane = row => [50, 70, 50, 30][row % 4];
+  const slideTitle = (slide, index) => {
+    const number = chapter().slides.slice(0, index + 1).filter(item => item.kind === slide.kind).length;
+    if (slide.kind === "theory") return "Теория и пример";
+    if (slide.kind === "quiz") return "Вопрос " + number;
+    return "Тренировка" + (chapter().slides.filter(item => item.kind === "practice").length > 1 ? " " + number : "");
+  };
+
   function nodeMarkup(item, index) {
-    const done = index < state.completed;
-    const open = state.intro && index <= state.completed;
+    const row = index + 1;
+    const done = isDone(index);
+    const open = isOpen(index);
     const selected = open && !done;
     const shape = done ? "check" : !open ? "lock" : item.group || "code";
-    return '<button type="button" class="pc-node" data-course-step="' + index + '"' +
-      (selected ? ' aria-current="step"' : "") + (open ? "" : " disabled") + '>' +
-      '<span class="pc-icon" data-role="' + shape + '">' + icon(shape) + '</span>' +
-      '<span class="pc-node-title">' + (index + 1) + '. ' + item.title + '</span>' +
-      '<span class="pc-node-state">' + (done ? "Пройдено" : open ? "Открыто" : "Закрыто") + '</span></button>';
+    const status = done ? "Повторить" : open ? "Текущий этап" : "Закрыто";
+    const connector = index < stages.length - 1
+      ? '<svg class="pc-island-route' + (done ? ' is-travelled' : '') + '" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path d="M' +
+        lane(row) + ' 36 C' + lane(row) + ' 93 ' + lane(row + 1) + ' 78 ' + lane(row + 1) + ' 136"/></svg>'
+      : "";
+    return '<li class="pc-island-row" style="--island-x:' + lane(row) + '%">' + connector +
+      '<button class="pc-island" type="button" data-course-step="' + index + '" data-island-state="' +
+      (done ? "done" : open ? "open" : "locked") + '" data-island-kind="' + (item.group || "lesson") + '"' +
+      (selected ? ' aria-current="step"' : "") +
+      (open ? "" : " disabled") + '><span class="pc-island-art" aria-hidden="true">' +
+      '<span class="pc-island-shadow"></span><span class="pc-island-rock"></span><span class="pc-island-shelf"></span>' +
+      '<span class="pc-island-deck"></span><span class="pc-island-marker">' + icon(shape) + '</span></span>' +
+      '<span class="pc-island-caption"><span class="pc-node-title">' + (index < 0 ? "" : (index + 1) + ". ") + escape(item.title) +
+      '</span><span class="pc-node-state">' + status + '</span></span></button></li>';
   }
 
   function map() {
     const next = stages[state.completed];
-    const label = !state.intro ? "Начать: первый вывод" : next ? "Продолжить: " + next.title : "Повторить тему";
+    const label = !state.intro ? "Начать курс" : next ? "Продолжить обучение" : "Повторить с начала";
     const right = '<button class="ps-secondary pc-project-link" type="button" data-course-action="projects">' +
       icon("project") + '<span>Мои проекты</span></button>';
-    frame("Питон-станция", '<section class="pc-banner"><div class="pc-banner-copy"><span class="pc-eyebrow">Курс Python</span>' +
+    frame("Питон-станция", '<div class="pc-map"><div class="pc-map-info"><section class="pc-banner"><div class="pc-banner-copy"><span class="pc-eyebrow">Курс Python</span>' +
       '<h2>Переменные</h2><p>Пройдено ' + state.completed + ' из ' + stages.length + ' этапов</p>' +
       '<progress aria-label="Прогресс темы" max="' + stages.length + '" value="' + state.completed + '"></progress>' +
       action("continue", label) + '</div><div class="pc-banner-art" aria-hidden="true"><div class="pc-code-tile">' +
       '<span>score</span> = <b>5</b></div><div class="pc-art-lid"></div><div class="pc-art-base"></div></div></section>' +
-      '<section class="pc-track" aria-label="Маршрут курса"><div class="pc-track-top"><h2>Маршрут обучения</h2>' +
-      '<button class="pc-plain" type="button" data-course-step="-1">Введение: print() →</button></div>' +
-      '<div class="pc-nodes">' + stages.map(nodeMarkup).join("") + '</div></section>' +
-      (legacyAvailable ? action("legacy", "Прежние уроки", "pc-plain") : ""), "", right);
+      (legacyAvailable ? action("legacy", "Прежние уроки", "pc-plain") : "") + '</div>' +
+      '<section class="pc-track" aria-label="Маршрут курса"><div class="pc-track-top"><h2 tabindex="-1">Маршрут обучения</h2>' +
+      (state.intro && next ? action("locate", "К текущему этапу", "pc-plain") : "") + '</div>' +
+      '<ol class="pc-islands">' + nodeMarkup(intro, -1) + stages.map(nodeMarkup).join("") + '</ol></section></div>', "", right);
+  }
+
+  function island() {
+    const done = isDone(step);
+    const cursor = state.cursors[step] ?? 0;
+    const label = done ? "Повторить этап" : cursor ? "Продолжить этап" : "Начать этап";
+    const list = chapter().slides.map((slide, index) => {
+      const passed = done || index < cursor;
+      const kind = slide.kind === "practice" ? "code" : slide.kind === "quiz" ? "review" : "book";
+      return '<li><button class="pc-substep" type="button" data-course-page="' + index + '"' +
+        (passed ? "" : index === cursor ? ' aria-current="step"' : " disabled") +
+        '><span class="pc-icon" data-role="' + (passed ? "check" : kind) + '">' +
+        icon(passed ? "check" : index > cursor ? "lock" : kind) + '</span>' +
+        '<span class="pc-substep-copy"><span>' + slideTitle(slide, index) + '</span>' +
+        (slide.kind === "quiz" ? '<small>' + escape(slide.text) + '</small>' : "") + '</span><small>' +
+        (passed ? "Повторить" : index === cursor ? "Доступно" : "Закрыто") + '</small></button></li>';
+    }).join("");
+    frame("Питон-станция", '<section class="pc-card pc-stage"><p class="pc-eyebrow">' +
+      (step < 0 ? "Введение" : "Переменные · этап " + (step + 1) + " из " + stages.length) + '</p><h2 tabindex="-1">' +
+      escape(chapter().title) + '</h2><ol class="pc-substeps" aria-label="Шаги этапа">' + list + '</ol>' +
+      action("start-island", label + " →") + '</section>', "Маршрут");
   }
 
   const codeBlock = code => code ? '<pre class="pc-code"><code>' + escape(code) + '</code></pre>' : "";
 
   function lesson() {
+    wrongAnswers = 0;
     const slide = current();
     const title = chapter().title;
     const label = { theory: "Теория", quiz: "Вопрос " + chapter().slides.slice(0, page + 1).filter(item => item.kind === "quiz").length, practice: "Практика" }[slide.kind];
@@ -172,16 +218,17 @@ export function createPythonCourseController() {
       const data = Object.entries(slide.cases[0].initial).map(([name, value]) => name + " = " + JSON.stringify(value)).join("\n");
       content += (data ? '<p class="pc-code-label">Уже задано</p>' + codeBlock(data) : "") +
         '<form class="pc-form" data-course-form="practice"><label for="pc-code">Твой код</label>' +
-        '<textarea id="pc-code" rows="4" ' + editorAttrs + '>\n' + escape(state.drafts[draftId()] ?? slide.starter) + '</textarea>' +
+        '<textarea id="pc-code" rows="4" ' + editorAttrs + '>\n' + escape((reviewing ? reviewDrafts : state.drafts)[draftId()] ?? slide.starter) + '</textarea>' +
         '<details class="pc-hint"><summary>Подсказка</summary><p>' + escape(slide.hint) + '</p></details>' +
         '<div class="pc-feedback" role="status"></div><pre class="pc-output" aria-label="Вывод программы" hidden></pre>' +
         '<button class="ps-primary" type="submit">Запустить код</button>' +
         action("next", page === chapter().slides.length - 1 ? "Завершить этап →" : "Дальше →") + '</form>';
     }
     frame("Питон-станция", '<div class="pc-session' + (slide.display ? ' pc-has-station' : "") + '"><article class="pc-card">' +
-      '<div class="pc-steps" role="img" aria-label="Шаг ' + (page + 1) + ' из ' + chapter().slides.length + '">' + bars + '</div>' +
-      '<p class="pc-eyebrow">' + label + '</p><h2 tabindex="-1">' + title + '</h2>' + content +
-      '</article><div class="pc-station-slot"></div></div>', "Маршрут");
+      '<div class="pc-steps" aria-hidden="true">' + bars + '</div><div class="pc-slide-meta">' +
+      '<p class="pc-eyebrow">' + label + '</p><span>Шаг ' + (page + 1) + ' из ' + chapter().slides.length + '</span></div>' +
+      '<h2 tabindex="-1">' + title + '</h2>' + content +
+      '</article><div class="pc-station-slot"></div></div>', "К этапу");
     const next = get('[data-course-action="next"]');
     next.hidden = slide.kind === "practice";
     next.disabled = slide.kind === "quiz";
@@ -195,13 +242,13 @@ export function createPythonCourseController() {
 
   function complete() {
     const guided = step === stages.length - 1;
-    const after = step + 1;
+    const primary = guided ? action("save-guided", "Сохранить в «Мои проекты»") :
+      reviewing ? action("back", "К шагам этапа") : action("continue", "Продолжить обучение →");
     frame("Питон-станция", '<section class="pc-card pc-summary"><span class="pc-icon" data-role="check">' + icon("check") + '</span>' +
-      '<h2 tabindex="-1">' + (guided ? "Тема завершена!" : "Этап пройден") + '</h2><p class="pc-copy">' +
+      '<h2 tabindex="-1">' + (reviewing ? "Этап повторён" : guided ? "Тема завершена!" : "Этап пройден") + '</h2><p class="pc-copy">' +
       escape(chapter().title) + '</p><div class="pc-actions">' +
-      (guided ? action("save-guided", "Сохранить в «Мои проекты»") :
-        action("continue", after < stages.length ? "Продолжить обучение →" : "К маршруту")) +
-      action("map", "К маршруту", "ps-secondary") + '</div></section>', "Маршрут");
+      primary +
+      action("map", "К маршруту", "ps-secondary") + '</div></section>', "К этапу");
   }
 
   function projects() {
@@ -225,12 +272,17 @@ export function createPythonCourseController() {
   }
 
   function display(target, focus = true) {
+    const returningFromIsland = mode === "island" && target === "map";
     model.show(false);
     if (mode === "legacy" && target !== "legacy") legacy.onScreen("");
     mode = target;
     legacyMount.hidden = mode !== "legacy";
     root.hidden = mode === "legacy";
-    if (mode === "map") map();
+    if (mode === "map") {
+      map();
+      main.scrollTop = mapScroll;
+    }
+    else if (mode === "island") island();
     else if (mode === "lesson") lesson();
     else if (mode === "complete") complete();
     else if (mode === "projects") projects();
@@ -239,33 +291,56 @@ export function createPythonCourseController() {
       legacy ??= createLegacy(legacyMount);
       legacy.onScreen("python-station");
     }
-    if (focus && mode !== "legacy") (get("h2") || get("h1"))?.focus({ preventScroll: true });
+    if (focus && mode !== "legacy") {
+      const heading = mode === "map" ? get("h1") : get("h2");
+      const previous = returningFromIsland ? get('[data-course-step="' + step + '"]') : null;
+      (previous || heading)?.focus({ preventScroll: true });
+    }
   }
 
-  function open(stepIndex) {
-    if (!chapterAt(stepIndex) || (stepIndex >= 0 && (!state.intro || stepIndex > state.completed))) return;
+  function inspect(stepIndex) {
+    if (!chapterAt(stepIndex) || !isOpen(stepIndex)) return;
+    if (mode === "map") mapScroll = main.scrollTop;
     step = stepIndex;
-    page = state.cursors[step] ?? 0;
+    display("island");
+  }
+
+  function open(pageIndex = state.cursors[step] ?? 0) {
+    const cursor = state.cursors[step] ?? 0;
+    const done = isDone(step);
+    if (!isOpen(step) || !chapter().slides[pageIndex] || (!done && pageIndex > cursor)) return;
+    reviewing = done || pageIndex < cursor;
+    reviewDrafts = {};
+    page = pageIndex;
     display("lesson");
   }
 
   function advance() {
+    if (reviewing && !isDone(step) && page + 1 >= (state.cursors[step] ?? 0)) {
+      display("island");
+      return;
+    }
     if (page + 1 < chapter().slides.length) {
-      state.cursors[step] = ++page;
-      save();
+      page++;
+      if (!reviewing) {
+        state.cursors[step] = page;
+        save();
+      }
       display("lesson");
       return;
     }
-    delete state.cursors[step];
-    if (step === -1) state.intro = true;
-    else state.completed = Math.max(state.completed, step + 1);
-    save();
+    if (!reviewing) {
+      delete state.cursors[step];
+      if (step === -1) state.intro = true;
+      else state.completed = Math.max(state.completed, step + 1);
+      save();
+    }
     display("complete");
   }
 
   function back() {
     if (mode === "map") return false;
-    display(mode === "editor" ? "projects" : "map");
+    display(mode === "editor" ? "projects" : mode === "lesson" || mode === "complete" ? "island" : "map");
     return true;
   }
 
@@ -287,8 +362,9 @@ export function createPythonCourseController() {
   root.addEventListener("click", event => {
     const button = event.target.closest("button");
     if (!button || button.disabled) return;
-    const { courseAction, courseStep, courseChoice, courseProject } = button.dataset;
-    if (courseStep !== undefined) return open(Number(courseStep));
+    const { courseAction, courseStep, coursePage, courseChoice, courseProject } = button.dataset;
+    if (courseStep !== undefined) return inspect(Number(courseStep));
+    if (coursePage !== undefined) return open(Number(coursePage));
     if (courseProject !== undefined) {
       projectIndex = Number(courseProject);
       return display("editor");
@@ -297,7 +373,12 @@ export function createPythonCourseController() {
       const correct = courseChoice === "0";
       const feedback = get(".pc-feedback");
       feedback.dataset.correct = String(correct);
-      feedback.textContent = correct ? current().why : "Пока не так. " + current().why;
+      if (correct) feedback.textContent = current().why;
+      else {
+        wrongAnswers++;
+        const hint = current().hint || (current().code ? "Перечитай пример и попробуй снова." : "Вспомни правило из теории и попробуй снова.");
+        feedback.textContent = "Пока не так. " + (wrongAnswers === 1 ? hint : current().why);
+      }
       get('[data-course-action="next"]').disabled = !correct;
       get(".pc-options").querySelectorAll("button").forEach(choice => {
         choice.dataset.answer = choice === button ? String(correct) : "";
@@ -306,7 +387,14 @@ export function createPythonCourseController() {
       return;
     }
     switch (courseAction) {
-      case "continue": open(!state.intro ? -1 : state.completed < stages.length ? state.completed : 0); break;
+      case "continue": inspect(state.completed === stages.length ? 0 : nextIsland()); break;
+      case "start-island": open(isDone(step) ? 0 : undefined); break;
+      case "locate": {
+        const target = get('[data-course-step="' + nextIsland() + '"]');
+        target?.focus({ preventScroll: true });
+        target?.scrollIntoView({ block: "center" });
+        break;
+      }
       case "next": advance(); break;
       case "back": back(); break;
       case "map": display("map"); break;
@@ -314,7 +402,7 @@ export function createPythonCourseController() {
       case "projects": display("projects"); break;
       case "orbit": model.rotate(); break;
       case "create-project": createProject(); break;
-      case "save-guided": createProject("Список покупок", state.drafts[draftId()] ?? ""); break;
+      case "save-guided": createProject("Список покупок", (reviewing ? reviewDrafts : state.drafts)[draftId()] ?? ""); break;
     }
   });
 
@@ -324,7 +412,7 @@ export function createPythonCourseController() {
       else if (target.id === "pc-code") state.projects[projectIndex].code = target.value;
       else return;
     } else if (mode === "lesson" && target.id === "pc-code") {
-      state.drafts[draftId()] = target.value;
+      (reviewing ? reviewDrafts : state.drafts)[draftId()] = target.value;
       get('[data-course-action="next"]').hidden = true;
       get('button[type="submit"]').hidden = false;
       get(".pc-feedback").textContent = "";
@@ -334,7 +422,7 @@ export function createPythonCourseController() {
         model.setProgress(0);
       }
     } else return;
-    save();
+    if (mode === "editor" || !reviewing) save();
   });
 
   root.addEventListener("submit", event => {
@@ -358,8 +446,8 @@ export function createPythonCourseController() {
     next.hidden = !ok;
     get('button[type="submit"]').hidden = ok;
     if (ok) {
-      state.drafts[draftId()] = code;
-      save();
+      (reviewing ? reviewDrafts : state.drafts)[draftId()] = code;
+      if (!reviewing) save();
       next.focus();
     } else feedback.scrollIntoView({ block: "nearest" });
   });
