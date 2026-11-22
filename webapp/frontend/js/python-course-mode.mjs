@@ -1,5 +1,5 @@
 import { MAX_SOURCE, runPython } from "./python-station/console.mjs?v=2";
-import { intro, stages } from "./python-station/course-content.mjs?v=3";
+import { intro, stages } from "./python-station/course-content.mjs?v=4";
 import { stationView } from "./python-station/station.mjs?v=2";
 import { createPythonStationController as createLegacy } from "./python-station-mode.mjs?v=4";
 
@@ -8,14 +8,19 @@ const escape = value => String(value).replace(/[&<>"']/g, char =>
 const empty = () => ({ intro: false, completed: 0, cursors: {}, drafts: {}, projects: [] });
 const chapterAt = step => step === -1 ? intro : stages[step];
 const editorAttrs = 'autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="' + MAX_SOURCE + '"';
+const redesignedStages = 18;
 
-function load(key) {
+function load(key, previousKey) {
   const state = empty();
   try {
-    const saved = JSON.parse(localStorage.getItem(key));
+    const currentSave = localStorage.getItem(key);
+    const migrating = currentSave === null;
+    const saved = JSON.parse(currentSave ?? localStorage.getItem(previousKey));
     state.intro = saved?.intro === true;
     if (Number.isInteger(saved?.completed)) state.completed = Math.max(0, Math.min(stages.length, saved.completed));
     for (let step = -1; step < stages.length; step++) {
+      // The first 18 islands have new exercises. Old slide indexes refer to different tasks.
+      if (migrating && step >= 0 && step < redesignedStages) continue;
       const chapter = chapterAt(step);
       const cursor = saved?.cursors?.[step];
       if (Number.isInteger(cursor) && cursor >= 0 && cursor < chapter.slides.length) state.cursors[step] = cursor;
@@ -30,6 +35,14 @@ function load(key) {
       state.projects = saved.projects.filter(project => typeof project?.name === "string" && typeof project.code === "string")
         .map(project => ({ name: project.name.slice(0, 60), code: project.code.slice(0, MAX_SOURCE) }));
     }
+    if (migrating && state.intro && state.completed < redesignedStages) {
+      const activePrefix = state.completed + ":";
+      for (const [id, draft] of Object.entries(saved?.drafts ?? {})) {
+        if (id.startsWith(activePrefix) && typeof draft === "string" && draft.trim()) {
+          state.projects.push({ name: "Черновик прежнего этапа " + (state.completed + 1), code: draft.slice(0, MAX_SOURCE) });
+        }
+      }
+    }
   } catch { /* Local storage can be unavailable in a WebView. */ }
   return state;
 }
@@ -40,7 +53,7 @@ function errorText(result) {
     : result.error.message;
 }
 
-function verify(slide, code) {
+export function checkPractice(slide, code) {
   if (!code.trim()) return { ok: false, text: "Напиши код и запусти его." };
   const first = slide.cases[0];
   const result = runPython(code, first.initial);
@@ -54,7 +67,7 @@ function verify(slide, code) {
     if (attempt.error || !sameValues || !sameOutput) {
       return {
         ok: false, result,
-        text: index > 0 ? "Попробуй взять значения из переменных. На других данных получился неверный результат." :
+        text: index > 0 ? "На других данных код не сработал. Используй значения из переменных." :
           "Сверь значения и вывод с заданием. Если нужно, открой подсказку.",
       };
     }
@@ -79,8 +92,8 @@ export function createPythonCourseController() {
   const main = mount.closest("main");
   const user = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
   const identity = Number.isSafeInteger(user) ? user : "local";
-  const key = "teramont.python-course.v1." + identity;
-  const state = load(key);
+  const key = "teramont.python-course.v2." + identity;
+  const state = load(key, "teramont.python-course.v1." + identity);
   let legacyAvailable = false;
   try { legacyAvailable = localStorage.getItem("teramont.python-station.v1." + identity) !== null; } catch {}
   mount.innerHTML = '<div class="pc-shell"></div><div class="pc-legacy" hidden></div>';
@@ -220,7 +233,8 @@ export function createPythonCourseController() {
         '<form class="pc-form" data-course-form="practice"><label for="pc-code">Твой код</label>' +
         '<textarea id="pc-code" rows="4" ' + editorAttrs + '>\n' + escape((reviewing ? reviewDrafts : state.drafts)[draftId()] ?? slide.starter) + '</textarea>' +
         '<details class="pc-hint"><summary>Подсказка</summary><p>' + escape(slide.hint) + '</p></details>' +
-        '<div class="pc-feedback" role="status"></div><pre class="pc-output" aria-label="Вывод программы" hidden></pre>' +
+        '<div class="pc-feedback" role="status"></div><p class="pc-example-label" data-course-output-label hidden>Вывод программы</p>' +
+        '<pre class="pc-output" aria-label="Вывод программы" hidden></pre>' +
         '<button class="ps-primary" type="submit">Запустить код</button>' +
         action("next", page === chapter().slides.length - 1 ? "Завершить этап →" : "Дальше →") + '</form>';
     }
@@ -354,6 +368,7 @@ export function createPythonCourseController() {
 
   function showOutput(result) {
     const output = get(".pc-output");
+    get("[data-course-output-label]")?.toggleAttribute("hidden", !result);
     output.hidden = !result;
     if (!result) return;
     output.textContent = result.error ? errorText(result) : result.output.join("\n") || "Программа выполнена. Вывода нет.";
@@ -416,7 +431,7 @@ export function createPythonCourseController() {
       get('[data-course-action="next"]').hidden = true;
       get('button[type="submit"]').hidden = false;
       get(".pc-feedback").textContent = "";
-      get(".pc-output").hidden = true;
+      showOutput(null);
       if (current().display) {
         gauge.textContent = "—";
         model.setProgress(0);
@@ -431,7 +446,7 @@ export function createPythonCourseController() {
     const code = get("#pc-code").value;
     if (mode === "editor") return showOutput(runPython(code));
     const slide = current();
-    const { result, ok, text } = verify(slide, code);
+    const { result, ok, text } = checkPractice(slide, code);
     const feedback = get(".pc-feedback");
     feedback.dataset.correct = String(ok);
     feedback.textContent = text;
