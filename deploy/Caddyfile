@@ -20,6 +20,10 @@
 	handle_path /static/* {
 		root * /srv/teramont
 		header Cache-Control "no-cache"
+		@pythonWorker path /js/python-station/course-worker.mjs
+		header @pythonWorker Content-Security-Policy "default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; connect-src 'self'; worker-src 'none'"
+		@pythonRuntime path /vendor/pyodide-314.0.8/*
+		header @pythonRuntime Cache-Control "public, max-age=31536000, immutable"
 		@immutable path_regexp immutable ^/assets/lumen/sprites-garden-[0-9a-f]{64}\.pack$
 		header @immutable {
 			Cache-Control "public, max-age=31536000, immutable"

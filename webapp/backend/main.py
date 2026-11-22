@@ -60,6 +60,10 @@ async def fresh_client(request, call_next):
     response.headers["Cache-Control"] = "public, max-age=604800" if request.url.path.startswith("/static/vendor/") else "no-store"
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["Referrer-Policy"] = "no-referrer"
+    if request.url.path == "/static/js/python-station/course-worker.mjs":
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; connect-src 'self'; worker-src 'none'"
+        )
     return response
 
 
