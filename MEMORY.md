@@ -4028,4 +4028,7 @@ Exercism Python, Python for Everybody и trekhleb/learn-python. Число зв�
 Прошли 27 тестов курса, 277 наборов данных новых заданий, 6 тестов
 прогресса и валидация Caddyfile. Снимки локального браузера в
 `output/playwright/python-full-course/`. Docker Desktop при локальной
-проверке был недоступен.
+проверке был недоступен. Общий CI останавливается при создании
+`social_limits` из-за имени столбца `window` в PostgreSQL. Та же ошибка
+есть у коммита программы до реализации курса. Для тестов станции выделен
+самостоятельный job `Python Station` без зависимости от PostgreSQL.
